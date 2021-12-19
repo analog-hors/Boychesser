@@ -1,3 +1,6 @@
 /train
 /fen_parse/target
 /convert/target
+libfen_parse.dylib
+libfen_parse.dll
+libfen_parse.so

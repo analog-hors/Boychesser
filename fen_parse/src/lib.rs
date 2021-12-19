@@ -8,25 +8,26 @@ use std::str::FromStr;
 use chess::{Board, Color, Piece};
 
 const INPUTS: usize = 768;
-
-const BUCKETS: usize = 1;
-
 #[repr(C)]
 pub struct BatchLoader {
     batch_size: usize,
+    buckets: usize,
     boards: Vec<[f32; INPUTS]>,
-    cp: Vec<[f32; BUCKETS]>,
-    wdl: Vec<[f32; BUCKETS]>,
+    cp: Vec<f32>,
+    wdl: Vec<f32>,
+    mask: Vec<f32>,
     file: Option<io::Lines<io::BufReader<File>>>,
 }
 
 impl BatchLoader {
-    pub fn new(batch_size: usize) -> Self {
+    pub fn new(batch_size: usize, buckets: usize) -> Self {
         Self {
             batch_size,
+            buckets,
             boards: vec![[0_f32; INPUTS]; batch_size],
-            cp: vec![[0_f32; BUCKETS]; batch_size],
-            wdl: vec![[0_f32; BUCKETS]; batch_size],
+            cp: vec![0_f32; batch_size * buckets],
+            wdl: vec![0_f32; batch_size * buckets],
+            mask: vec![0_f32; batch_size * buckets],
             file: None,
         }
     }
@@ -42,6 +43,9 @@ impl BatchLoader {
     pub fn read(&mut self) -> bool {
         if let Some(file) = &mut self.file {
             let mut counter = 0;
+            for i in 0..self.batch_size {
+                self.mask[i] = 0.0;
+            }
             while counter < self.batch_size {
                 if let Some(Ok(line)) = file.next() {
                     let mut values = line.split(" | ");
@@ -51,11 +55,14 @@ impl BatchLoader {
                     if cp.abs() > 3000.0 {
                         continue;
                     }
+                    let phase = phase(&board);
+                    let bucket = (phase * self.buckets / 24).min(self.buckets - 1);
                     let (board, cp, wdl) = Self::to_input_vector(board, cp, wdl);
 
                     self.boards[counter] = board;
-                    self.cp[counter] = cp;
-                    self.wdl[counter] = wdl;
+                    self.cp[counter * self.buckets + bucket] = cp;
+                    self.wdl[counter * self.buckets + bucket] = wdl;
+                    self.mask[counter * self.buckets + bucket] = 1.0;
                     counter += 1;
                 } else {
                     return false;
@@ -67,11 +74,7 @@ impl BatchLoader {
         }
     }
 
-    fn to_input_vector(
-        board: Board,
-        cp: f32,
-        wdl: f32,
-    ) -> ([f32; INPUTS], [f32; BUCKETS], [f32; BUCKETS]) {
+    fn to_input_vector(board: Board, cp: f32, wdl: f32) -> ([f32; INPUTS], f32, f32) {
         let mut w_perspective = [0_f32; INPUTS as usize];
 
         let stm = board.side_to_move();
@@ -113,17 +116,26 @@ impl BatchLoader {
                 w_perspective[index * 64 + sq] = 1.0;
             }
         }
-        (w_perspective, [cp; BUCKETS], [wdl; BUCKETS])
+        (w_perspective, cp, wdl)
     }
 }
+
 fn read_lines<P: AsRef<Path>>(filename: P) -> io::Lines<io::BufReader<File>> {
     let file = File::open(filename).unwrap();
     io::BufReader::new(file).lines()
 }
 
+fn phase(board: &Board) -> usize {
+    (board.pieces(Piece::Knight).popcnt()
+        + board.pieces(Piece::Bishop).popcnt()
+        + board.pieces(Piece::Rook).popcnt() * 2
+        + board.pieces(Piece::Queen).popcnt() * 4)
+        .min(24) as usize
+}
+
 #[no_mangle]
-pub extern "C" fn new_batch_loader(batch_size: i32) -> *mut BatchLoader {
-    let batch_loader = Box::new(BatchLoader::new(batch_size as usize));
+pub extern "C" fn new_batch_loader(batch_size: i32, buckets: i32) -> *mut BatchLoader {
+    let batch_loader = Box::new(BatchLoader::new(batch_size as usize, buckets as usize));
     let batch_loader = Box::leak(batch_loader) as *mut BatchLoader;
     batch_loader
 }
@@ -154,12 +166,17 @@ pub extern "C" fn board(batch_loader: *mut BatchLoader) -> *mut [f32; 768] {
 }
 
 #[no_mangle]
-pub extern "C" fn cp(batch_loader: *mut BatchLoader) -> *mut [f32; BUCKETS] {
+pub extern "C" fn cp(batch_loader: *mut BatchLoader) -> *mut f32 {
     unsafe { batch_loader.as_mut().unwrap().cp.as_mut_ptr() }
 }
 
 #[no_mangle]
-pub extern "C" fn wdl(batch_loader: *mut BatchLoader) -> *mut [f32; BUCKETS] {
+pub extern "C" fn wdl(batch_loader: *mut BatchLoader) -> *mut f32 {
+    unsafe { batch_loader.as_mut().unwrap().wdl.as_mut_ptr() }
+}
+
+#[no_mangle]
+pub extern "C" fn mask(batch_loader: *mut BatchLoader) -> *mut f32 {
     unsafe { batch_loader.as_mut().unwrap().wdl.as_mut_ptr() }
 }
 

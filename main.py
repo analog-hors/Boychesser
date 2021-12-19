@@ -43,6 +43,8 @@ def get_fen_parser() -> str:
             break
     else:
         dylib_name = None
+    if RECOMPILE:
+        execute_os(f"rm {dylib_name}")
 
     if dylib_name is None or RECOMPILE:
         execute_os("cd ./fen_parse && cargo build --release")
@@ -65,15 +67,18 @@ def get_next_batch(batch_loader):
     inputs = batch_memory(batch_loader)
     cp = cp_values(batch_loader)
     wdl = wdl_memory(batch_loader)
+    mask = mask_memory(batch_loader)
 
     inputs = tf.constant(
         np.ctypeslib.as_array(inputs, shape=(BATCH_SIZE, INPUTS)))
 
     cp = tf.constant(np.ctypeslib.as_array(
-        cp, shape=(BATCH_SIZE, OUT)))
+        cp, shape=(BATCH_SIZE, BUCKETS)))
     wdl = tf.constant(
-        np.ctypeslib.as_array(wdl, shape=(BATCH_SIZE, OUT)))
-    return (inputs, cp, wdl)
+        np.ctypeslib.as_array(wdl, shape=(BATCH_SIZE, BUCKETS)))
+    mask = tf.constant(
+        np.ctypeslib.as_array(mask, shape=(BATCH_SIZE, BUCKETS)))
+    return (inputs, cp, wdl, mask)
 
 
 def train_loop(model, loss, optimizer, batch_loader):
@@ -85,7 +90,7 @@ def train_loop(model, loss, optimizer, batch_loader):
     while True:
         start = time.time()
         if read_batch(batch_loader):
-            inputs, evals, wdl = get_next_batch(batch_loader)
+            inputs, evals, wdl, mask = get_next_batch(batch_loader)
         else:
             break
 
@@ -93,7 +98,7 @@ def train_loop(model, loss, optimizer, batch_loader):
 
         with tf.GradientTape() as tape:
             prediction = model(inputs)
-            loss_value = loss(train_val, prediction)
+            loss_value = tf.reduce_mean(tf.square((train_val - prediction) * mask))
 
         grads = tape.gradient(loss_value, model.trainable_weights)
         optimizer.apply_gradients(zip(grads, model.trainable_weights))
@@ -132,7 +137,7 @@ class ShallowNet(tf.keras.Model):
             [
                 tf.keras.layers.InputLayer(INPUTS),
                 tf.keras.layers.Dense(
-                    OUT, name=f"{name}_res", use_bias=False),
+                    BUCKETS, name=f"{name}_res", use_bias=False),
             ]
         )
 
@@ -147,7 +152,7 @@ class OutLayer(tf.keras.Model):
             [
                 tf.keras.layers.InputLayer(HIDDEN),
                 tf.keras.layers.Dense(
-                    OUT, name=f"{name}_out"),
+                    BUCKETS, name=f"{name}_out"),
             ]
         )
 
@@ -199,6 +204,8 @@ def main():
         "--epochs", default=0, type=int, help="Epochs to train the neural network for, 0 is infinite")
     parser.add_argument("--res", action="store_true",
                         help="Enables residual layers/skipped connections in the network")
+    parser.add_argument("--buckets", default=1, type=int,
+                        help="How many game phase buckets to use, phase is calculated as [1, 1, 2, 4] * [N, B, R, Q]")
     parser.add_argument("--hidden", default=128, type=int,
                         help="Number of hidden layer neurons")
     parser.add_argument("--batchsize", default=16384,
@@ -212,6 +219,7 @@ def main():
     assert 0 <= args.wdl <= 1, "WDL must be in [0, 1] range"
     assert args.scale > 0, "Scale must be positive"
     assert args.batchsize > 0, "Batch size must be positive"
+    assert 0 < args.buckets <= 25, "Bucket size must be positive and be less than the amount of possible game phase values"
 
     global NN_NAME
     global DATA_DIR
@@ -223,6 +231,7 @@ def main():
     global BATCH_SIZE
     global RECOMPILE
     global RES
+    global BUCKETS
 
     NN_NAME = args.name
     DATA_DIR = args.dir
@@ -234,6 +243,7 @@ def main():
     BATCH_SIZE = args.batchsize
     RECOMPILE = args.recompile
     RES = args.res
+    BUCKETS = args.buckets
 
     dllpath = get_fen_parser()
     dll = ctypes.cdll.LoadLibrary(dllpath)
@@ -245,6 +255,7 @@ def main():
     global batch_memory
     global cp_values
     global wdl_memory
+    global mask_memory
     global batch_loader
 
     new_batch_loader = dll.new_batch_loader
@@ -264,7 +275,11 @@ def main():
     wdl_memory = dll.wdl
     wdl_memory.restype = ctypes.POINTER(ctypes.c_float)
 
-    batch_loader = new_batch_loader(ctypes.c_int32(BATCH_SIZE))
+    mask_memory = dll.mask
+    mask_memory.restype = ctypes.POINTER(ctypes.c_float)
+
+    batch_loader = new_batch_loader(
+        ctypes.c_int32(BATCH_SIZE), ctypes.c_int32(BUCKETS))
 
     if not batch_loader:
         print("Batch loader initialization failed")

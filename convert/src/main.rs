@@ -4,7 +4,6 @@ use clap::{App, Arg};
 use serde::{Deserialize, Serialize};
 
 const INPUTS: i64 = 768;
-const OUT: i64 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct WMap {
@@ -12,12 +11,12 @@ struct WMap {
 }
 
 impl WMap {
-    pub fn to_bytes(self, hidden: usize) -> Vec<u8> {
+    pub fn to_bytes(self, hidden: usize, buckets: usize) -> Vec<u8> {
         let mut bytes: Vec<u8> = vec![];
 
         let inputs: u32 = INPUTS as u32;
         let mid: u32 = hidden as u32;
-        let out: u32 = OUT as u32;
+        let out: u32 = buckets as u32;
         unsafe {
             bytes.extend(std::mem::transmute::<u32, [u8; 4]>(inputs));
             bytes.extend(std::mem::transmute::<u32, [u8; 4]>(mid));
@@ -59,7 +58,15 @@ fn main() {
             Arg::with_name("hidden")
                 .value_name("HIDDEN")
                 .long("hidden")
-                .help("Number of hidden layer neurons in the JSON NN file")
+                .help("Number of hidden layer neurons in the neural network")
+                .required(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("buckets")
+                .value_name("BUCKETS")
+                .long("buckets")
+                .help("Number of buckets in the neural network")
                 .required(true)
                 .takes_value(true),
         )
@@ -87,11 +94,17 @@ fn main() {
         .parse::<usize>()
         .unwrap();
 
+    let buckets = matches
+        .value_of("buckets")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+
     let path = matches.value_of("path").unwrap();
     let out_path = matches.value_of("out").unwrap();
 
     let w: WMap = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
 
-    let bytes = w.to_bytes(hidden);
+    let bytes = w.to_bytes(hidden, buckets);
     std::fs::write(out_path, bytes).unwrap();
 }

@@ -177,7 +177,7 @@ pub extern "C" fn wdl(batch_loader: *mut BatchLoader) -> *mut f32 {
 
 #[no_mangle]
 pub extern "C" fn mask(batch_loader: *mut BatchLoader) -> *mut f32 {
-    unsafe { batch_loader.as_mut().unwrap().wdl.as_mut_ptr() }
+    unsafe { batch_loader.as_mut().unwrap().mask.as_mut_ptr() }
 }
 
 #[no_mangle]

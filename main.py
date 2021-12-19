@@ -98,7 +98,7 @@ def train_loop(model, loss, optimizer, batch_loader):
 
         with tf.GradientTape() as tape:
             prediction = model(inputs)
-            loss_value = tf.reduce_mean(tf.square((train_val - prediction) * mask))
+            loss_value = tf.reduce_mean(tf.square(train_val - prediction) * mask)
 
         grads = tape.gradient(loss_value, model.trainable_weights)
         optimizer.apply_gradients(zip(grads, model.trainable_weights))

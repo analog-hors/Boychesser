@@ -43,8 +43,8 @@ impl BatchLoader {
     pub fn read(&mut self) -> bool {
         if let Some(file) = &mut self.file {
             let mut counter = 0;
-            for i in 0..self.batch_size * self.buckets {
-                self.mask[i] = 0.0;
+            for val in &mut self.mask {
+                *val = 0.0;
             }
             while counter < self.batch_size {
                 if let Some(Ok(line)) = file.next() {

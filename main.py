@@ -21,9 +21,12 @@ def is_dll(name: str):
     return name.endswith((".dll", ".dylib", ".so"))
 
 
-def execute_os(command: str) -> bool:
-    approval = input(
-        f"\nDo you approve the execution of \n{command}\n(y/n)\n").lower()
+def execute_os(command: str, yes: bool) -> bool:
+    if yes:
+        approval = "y"
+    else:
+        approval = input(
+            f"\nDo you approve the execution of \n{command}\n(y/n)\n").lower()
     if approval == "y":
         code = os.system(command)
         if code != 0:
@@ -34,7 +37,7 @@ def execute_os(command: str) -> bool:
         return False
 
 
-def get_fen_parser() -> str:
+def get_fen_parser(yes: bool) -> str:
     FAIL_MESSAGE = "Failed to automatically compile fen_parser. Compile fen_parser manually and move the dynamic library in target/release to the project root"
     file_names = os.listdir()
     for file_name in file_names:
@@ -44,10 +47,10 @@ def get_fen_parser() -> str:
     else:
         dylib_name = None
     if RECOMPILE:
-        execute_os(f"rm {dylib_name}")
+        execute_os(f"rm {dylib_name}", yes)
 
     if dylib_name is None or RECOMPILE:
-        execute_os("cd ./fen_parse && cargo build --release")
+        execute_os("cd ./fen_parse && cargo build --release", yes)
         dylib_directory = "./fen_parse/target/release"
         file_names = os.listdir(dylib_directory)
         for file_name in file_names:
@@ -59,7 +62,7 @@ def get_fen_parser() -> str:
         if dylib_name is None:
             print(FAIL_MESSAGE)
             exit(1)
-        execute_os(f"cp {dylib_directory}/{dylib_name} ./{dylib_name}")
+        execute_os(f"cp {dylib_directory}/{dylib_name} ./{dylib_name}", yes)
     return dylib_name
 
 
@@ -81,7 +84,7 @@ def get_next_batch(batch_loader):
     return (inputs, cp, wdl, mask)
 
 
-def train_loop(model, loss, optimizer, batch_loader):
+def train_loop(model, optimizer, batch_loader):
     counter = 0
     data_points = 0
 
@@ -98,11 +101,12 @@ def train_loop(model, loss, optimizer, batch_loader):
 
         with tf.GradientTape() as tape:
             prediction = model(inputs)
-            loss_value = tf.reduce_mean(tf.square(train_val - prediction) * mask)
+            loss_value = tf.reduce_mean(
+                tf.square(train_val - prediction) * mask)
 
         grads = tape.gradient(loss_value, model.trainable_weights)
         optimizer.apply_gradients(zip(grads, model.trainable_weights))
-        accumulated_loss += loss_value * BATCH_SIZE
+        accumulated_loss += loss_value
         counter += 1
         data_points += BATCH_SIZE
 
@@ -110,7 +114,7 @@ def train_loop(model, loss, optimizer, batch_loader):
             print(f"data points {data_points}")
             print(f"batch {counter} loss {loss_value.numpy()}")
             print("FEN/s", BATCH_SIZE / (time.time() - start))
-    return accumulated_loss, data_points / (time.time() - start)
+    return accumulated_loss / counter, data_points / (time.time() - start)
 
 
 class FeatureTransformer(tf.keras.Model):
@@ -212,6 +216,8 @@ def main():
                         type=int, help="Batch size to use")
     parser.add_argument("--recompile", action="store_true",
                         help="Whether to recompile the fen parser dynamic library or not")
+    parser.add_argument("--y", action="store_true",
+                        help="Do not ask when running shell scripts")
 
     args = parser.parse_args()
 
@@ -245,7 +251,7 @@ def main():
     RES = args.res
     BUCKETS = args.buckets
 
-    dllpath = get_fen_parser()
+    dllpath = get_fen_parser(args.y)
     dll = ctypes.cdll.LoadLibrary(dllpath)
 
     global new_batch_loader
@@ -296,8 +302,6 @@ def main():
     model.build(input_shape=(BATCH_SIZE, INPUTS))
     model.summary()
 
-    print("Initializing Loss...")
-    loss = tf.keras.losses.MeanSquaredError()
     print("Initializing Optimizer...")
     optimizer = tfa.optimizers.AdaBelief(
         learning_rate=1e-3, amsgrad=True, rectify=False)
@@ -317,7 +321,7 @@ def main():
         for path in files:
             print(f"reading {path}")
             open_file(batch_loader, ctypes.create_string_buffer(path))
-            loop_loss, _ = train_loop(model, loss, optimizer, batch_loader)
+            loop_loss, _ = train_loop(model, optimizer, batch_loader)
             acc_loss += loop_loss
             close_file(batch_loader)
         param_map = {}

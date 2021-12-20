@@ -252,7 +252,7 @@ def main():
     BUCKETS = args.buckets
 
     dllpath = get_fen_parser(args.y)
-    dll = ctypes.cdll.LoadLibrary(dllpath)
+    dll = ctypes.cdll.LoadLibrary(f"./{dllpath}")
 
     global new_batch_loader
     global close_file

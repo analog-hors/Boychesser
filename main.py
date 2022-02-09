@@ -182,10 +182,6 @@ class MainArch(tf.keras.Model,):
         else:
             return tf.sigmoid(out)
 
-# TODO: Checkpoints
-# TODO: Input Feature
-# TODO: Code Cleanup
-
 
 def main():
 
@@ -315,8 +311,8 @@ def main():
     f.write(bytes(params, 'utf-8'))
     f.close()
 
-    for epoch in range(200):
-        print(f"epoch {epoch}")
+    for epoch in range(EPOCHS):
+        print(f"epoch {epoch + 1}")
         acc_loss = 0
         for path in files:
             print(f"reading {path}")

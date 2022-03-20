@@ -5,29 +5,27 @@ use std::os::raw::c_char;
 use std::path::Path;
 use std::str::FromStr;
 
-use chess::{Board, Color, Piece};
+use cozy_chess::{Board, Color, Piece};
 
 const INPUTS: usize = 768;
-#[repr(C)]
+
 pub struct BatchLoader {
     batch_size: usize,
-    buckets: usize,
-    boards: Vec<[f32; INPUTS]>,
-    cp: Vec<f32>,
-    wdl: Vec<f32>,
-    mask: Vec<f32>,
+    boards_stm: Box<[[f32; INPUTS]]>,
+    boards_nstm: Box<[[f32; INPUTS]]>,
+    cp: Box<[f32]>,
+    wdl: Box<[f32]>,
     file: Option<io::Lines<io::BufReader<File>>>,
 }
 
 impl BatchLoader {
-    pub fn new(batch_size: usize, buckets: usize) -> Self {
+    pub fn new(batch_size: usize) -> Self {
         Self {
             batch_size,
-            buckets,
-            boards: vec![[0_f32; INPUTS]; batch_size],
-            cp: vec![0_f32; batch_size * buckets],
-            wdl: vec![0_f32; batch_size * buckets],
-            mask: vec![0_f32; batch_size * buckets],
+            boards_stm: vec![[0_f32; INPUTS]; batch_size].into_boxed_slice(),
+            boards_nstm: vec![[0_f32; INPUTS]; batch_size].into_boxed_slice(),
+            cp: vec![0_f32; batch_size].into_boxed_slice(),
+            wdl: vec![0_f32; batch_size].into_boxed_slice(),
             file: None,
         }
     }
@@ -43,9 +41,6 @@ impl BatchLoader {
     pub fn read(&mut self) -> bool {
         if let Some(file) = &mut self.file {
             let mut counter = 0;
-            for val in &mut self.mask {
-                *val = 0.0;
-            }
             while counter < self.batch_size {
                 if let Some(Ok(line)) = file.next() {
                     let mut values = line.split(" | ");
@@ -55,14 +50,12 @@ impl BatchLoader {
                     if cp.abs() > 3000.0 {
                         continue;
                     }
-                    let phase = phase(&board);
-                    let bucket = (phase * self.buckets / 24).min(self.buckets - 1);
-                    let (board, cp, wdl) = Self::to_input_vector(board, cp, wdl);
+                    let (board_stm, board_nstm, cp, wdl) = Self::to_input_vector(board, cp, wdl);
 
-                    self.boards[counter] = board;
-                    self.cp[counter * self.buckets + bucket] = cp;
-                    self.wdl[counter * self.buckets + bucket] = wdl;
-                    self.mask[counter * self.buckets + bucket] = 1.0;
+                    self.boards_stm[counter] = board_stm;
+                    self.boards_nstm[counter] = board_nstm;
+                    self.cp[counter] = cp;
+                    self.wdl[counter] = wdl;
                     counter += 1;
                 } else {
                     return false;
@@ -74,23 +67,28 @@ impl BatchLoader {
         }
     }
 
-    fn to_input_vector(board: Board, cp: f32, wdl: f32) -> ([f32; INPUTS], f32, f32) {
-        let mut w_perspective = [0_f32; INPUTS as usize];
+    fn to_input_vector(
+        board: Board,
+        cp: f32,
+        wdl: f32,
+    ) -> ([f32; INPUTS], [f32; INPUTS], f32, f32) {
+        let mut stm_perspective = [0_f32; INPUTS as usize];
+        let mut nstm_perspective = [0_f32; INPUTS as usize];
 
         let stm = board.side_to_move();
         let (cp, wdl) = match stm {
             Color::White => (cp, wdl),
             Color::Black => (-cp, 1.0 - wdl),
         };
-        let white = *board.color_combined(Color::White);
-        let black = *board.color_combined(Color::Black);
+        let white = board.colors(Color::White);
+        let black = board.colors(Color::Black);
 
-        let pawns = *board.pieces(Piece::Pawn);
-        let knights = *board.pieces(Piece::Knight);
-        let bishops = *board.pieces(Piece::Bishop);
-        let rooks = *board.pieces(Piece::Rook);
-        let queens = *board.pieces(Piece::Queen);
-        let kings = *board.pieces(Piece::King);
+        let pawns = board.pieces(Piece::Pawn);
+        let knights = board.pieces(Piece::Knight);
+        let bishops = board.pieces(Piece::Bishop);
+        let rooks = board.pieces(Piece::Rook);
+        let queens = board.pieces(Piece::Queen);
+        let kings = board.pieces(Piece::King);
 
         let array = [
             (white & pawns),
@@ -109,14 +107,15 @@ impl BatchLoader {
 
         for (index, &pieces) in array.iter().enumerate() {
             for sq in pieces {
-                let (index, sq) = match stm {
-                    Color::White => (index, sq.to_index()),
-                    Color::Black => (((index + 6) % 12), sq.to_index() ^ 56),
+                let (stm_index, stm_sq, nstm_index, nstm_sq) = match stm {
+                    Color::White => (index, sq as usize, ((index + 6) % 12), sq as usize ^ 56),
+                    Color::Black => (((index + 6) % 12), sq as usize ^ 56, index, sq as usize),
                 };
-                w_perspective[index * 64 + sq] = 1.0;
+                stm_perspective[stm_index * 64 + stm_sq] = 1.0;
+                nstm_perspective[nstm_index * 64 + nstm_sq] = 1.0;
             }
         }
-        (w_perspective, cp, wdl)
+        (stm_perspective, nstm_perspective, cp, wdl)
     }
 }
 
@@ -125,17 +124,9 @@ fn read_lines<P: AsRef<Path>>(filename: P) -> io::Lines<io::BufReader<File>> {
     io::BufReader::new(file).lines()
 }
 
-fn phase(board: &Board) -> usize {
-    (board.pieces(Piece::Knight).popcnt()
-        + board.pieces(Piece::Bishop).popcnt()
-        + board.pieces(Piece::Rook).popcnt() * 2
-        + board.pieces(Piece::Queen).popcnt() * 4)
-        .min(24) as usize
-}
-
 #[no_mangle]
-pub extern "C" fn new_batch_loader(batch_size: i32, buckets: i32) -> *mut BatchLoader {
-    let batch_loader = Box::new(BatchLoader::new(batch_size as usize, buckets as usize));
+pub extern "C" fn new_batch_loader(batch_size: i32) -> *mut BatchLoader {
+    let batch_loader = Box::new(BatchLoader::new(batch_size as usize));
     let batch_loader = Box::leak(batch_loader) as *mut BatchLoader;
     batch_loader
 }
@@ -161,8 +152,13 @@ pub extern "C" fn read_batch(batch_loader: *mut BatchLoader) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn board(batch_loader: *mut BatchLoader) -> *mut [f32; 768] {
-    unsafe { batch_loader.as_mut().unwrap().boards.as_mut_ptr() }
+pub extern "C" fn boards_stm(batch_loader: *mut BatchLoader) -> *mut [f32; 768] {
+    unsafe { batch_loader.as_mut().unwrap().boards_stm.as_mut_ptr() }
+}
+
+#[no_mangle]
+pub extern "C" fn boards_nstm(batch_loader: *mut BatchLoader) -> *mut [f32; 768] {
+    unsafe { batch_loader.as_mut().unwrap().boards_nstm.as_mut_ptr() }
 }
 
 #[no_mangle]
@@ -173,11 +169,6 @@ pub extern "C" fn cp(batch_loader: *mut BatchLoader) -> *mut f32 {
 #[no_mangle]
 pub extern "C" fn wdl(batch_loader: *mut BatchLoader) -> *mut f32 {
     unsafe { batch_loader.as_mut().unwrap().wdl.as_mut_ptr() }
-}
-
-#[no_mangle]
-pub extern "C" fn mask(batch_loader: *mut BatchLoader) -> *mut f32 {
-    unsafe { batch_loader.as_mut().unwrap().mask.as_mut_ptr() }
 }
 
 #[no_mangle]

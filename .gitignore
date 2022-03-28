@@ -1,7 +1,8 @@
 /nn
 /train
-/fen_parse/target
+/parse/target
 /convert/target
-libfen_parse.dylib
-libfen_parse.dll
-libfen_parse.so
+libparse.dylib
+libparse.dll
+libparse.so
+__pycache__

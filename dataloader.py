@@ -4,7 +4,7 @@ from glob import glob
 from typing import List, Union
 
 import numpy as np
-
+import tensorflow as tf
 
 def locate_dynamic_lib() -> str:
     files = glob("./libparse.*")
@@ -13,8 +13,10 @@ def locate_dynamic_lib() -> str:
 
 @dataclass
 class Batch:
-    boards_stm: np.array
-    boards_nstm: np.array
+    boards_stm: tf.sparse.SparseTensor
+    boards_nstm: tf.sparse.SparseTensor
+    v_boards_stm: tf.sparse.SparseTensor
+    v_boards_nstm: tf.sparse.SparseTensor
     cp: np.array
     wdl: np.array
 
@@ -35,10 +37,16 @@ class BatchLoader:
         self.read_batch.restype = ctypes.c_bool
 
         self.boards_stm = lib.boards_stm
-        self.boards_stm.restype = ctypes.POINTER(ctypes.c_float)
+        self.boards_stm.restype = ctypes.POINTER(ctypes.c_int64)
 
         self.boards_nstm = lib.boards_nstm
-        self.boards_nstm.restype = ctypes.POINTER(ctypes.c_float)
+        self.boards_nstm.restype = ctypes.POINTER(ctypes.c_int64)
+
+        self.values = lib.values
+        self.values.restype = ctypes.POINTER(ctypes.c_float)
+
+        self.count = lib.count
+        self.count.restype = ctypes.c_uint32
 
         self.cp = lib.cp
         self.cp.restype = ctypes.POINTER(ctypes.c_float)
@@ -82,12 +90,35 @@ class BatchLoader:
         if not self.__read_next_batch():
             return None
 
+        count = self.count(self.batch_loader)
         boards_stm = np.ctypeslib.as_array(
-            self.boards_stm(self.batch_loader), shape=(self.batch_size, 768)
+            self.boards_stm(self.batch_loader), shape=(count, 2)
         )
         boards_nstm = np.ctypeslib.as_array(
-            self.boards_nstm(self.batch_loader), shape=(self.batch_size, 768)
+            self.boards_nstm(self.batch_loader), shape=(count, 2)
         )
+        values = np.ctypeslib.as_array(self.values(self.batch_loader), shape=(count,))
+
+        v_boards_stm = boards_stm.copy()
+        v_boards_nstm = boards_nstm.copy()
+
+        v_boards_stm[:, 1] %= 640
+        v_boards_nstm[:, 1] %= 640
+
+        board_stm_sparse = tf.sparse.SparseTensor(
+            boards_stm, values, (self.batch_size, 40960)
+        )
+        board_nstm_sparse = tf.sparse.SparseTensor(
+            boards_nstm, values, (self.batch_size, 40960)
+        )
+
+        v_board_stm_sparse = tf.sparse.SparseTensor(
+            v_boards_stm, values, (self.batch_size, 640)
+        )
+        v_board_nstm_sparse = tf.sparse.SparseTensor(
+            v_boards_nstm, values, (self.batch_size, 640)
+        )
+
         cp = np.ctypeslib.as_array(
             self.cp(self.batch_loader), shape=(self.batch_size, 1)
         )
@@ -95,4 +126,11 @@ class BatchLoader:
             self.wdl(self.batch_loader), shape=(self.batch_size, 1)
         )
 
-        return Batch(boards_stm, boards_nstm, cp, wdl)
+        return Batch(
+            board_stm_sparse,
+            board_nstm_sparse,
+            v_board_stm_sparse,
+            v_board_nstm_sparse,
+            cp,
+            wdl,
+        )

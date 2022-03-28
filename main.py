@@ -6,10 +6,16 @@ from model import NnBasic
 import tensorflow as tf
 import tensorflow_addons as tfa
 
+import argparse
+
 BATCH_SIZE = 16384
 EPOCH_ITERS = 1_000_000 // BATCH_SIZE
 SCALE = 400
-WDL = 0.0
+
+
+WDL = 0.1  # 0.0 <= WDL <= 1.0
+DEVICE = "CPU"  # "CPU" or "GPU"
+DATADIR = "train/data"
 
 
 def train(model, optimizer, dataloader, save_epochs=30):
@@ -65,7 +71,7 @@ def train(model, optimizer, dataloader, save_epochs=30):
 
 
 def main():
-    with tf.device("/CPU:0"):
+    with tf.device(f"/{DEVICE}:0"):
         dataloader = BatchLoader(BATCH_SIZE)
         model = NnBasic(256)
 
@@ -73,7 +79,7 @@ def main():
             learning_rate=1e-3, rectify=False, amsgrad=True
         )
 
-        dataloader.set_directory("./train/additional_pylon")
+        dataloader.set_directory(DATADIR)
         train(model, optimizer, dataloader, save_epochs=20)
 
 

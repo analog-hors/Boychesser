@@ -16,9 +16,16 @@ Neural Network training repository for the Black Marlin chess engine
 ```
 
 # Usage
-Clone the project and run `python main.py --help` (Replace with `python` with `python3` if needed).
-When run from the project root, `main.py` will automatically compile `fen_parse` and move it to the project root if it isn't already there.
-It is recommended to use the `--recompile` argument if `fen_parse` has been updated.
+Clone the project.
+```bash
+cd parse
+cargo build --release
+```
 
-Neural Networks will be saved to JSON files after each epoch.
-These JSON files can later be converted into the [Black Marlin](https://github.com/dsekercioglu/blackmarlin) Neural Network format using `convert`.
+locate the .so/.dylib/.dll in target/release and move it to project root.
+
+```bash
+mkdir nn
+```
+
+Run main.py after setting the appropriate global parameters in the file.

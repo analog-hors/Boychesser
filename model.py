@@ -1,13 +1,29 @@
 import tensorflow as tf
 
 
+class Dense(tf.keras.layers.Layer):
+    def __init__(self, num_outputs):
+        super(Dense, self).__init__()
+        self.num_outputs = num_outputs
+
+    def build(self, input_shape):
+        self.kernel = self.add_weight(
+            "kernel", shape=[int(input_shape[-1]), self.num_outputs]
+        )
+        self.bias = self.add_weight("bias", shape=[self.num_outputs])
+
+    @tf.function
+    def call(self, board):
+        return tf.sparse.sparse_dense_matmul(board, self.kernel) + self.bias
+
+
 class Factorize(tf.keras.Model):
     def __init__(self, ft_out: int):
         super(Factorize, self).__init__()
         self.model = tf.keras.Sequential(
             [
                 tf.keras.layers.InputLayer(640, sparse=True),
-                tf.keras.layers.Dense(ft_out),
+                Dense(ft_out),
             ]
         )
 
@@ -22,7 +38,7 @@ class FeatureTransformer(tf.keras.Model):
         self.model = tf.keras.Sequential(
             [
                 tf.keras.layers.InputLayer(40960, sparse=True),
-                tf.keras.layers.Dense(ft_out),
+                Dense(ft_out),
             ]
         )
 
@@ -46,6 +62,7 @@ class NnBasic(tf.keras.Model):
 
     @tf.function
     def call(self, boards):
+
         stm_ft = self.ft(boards[0])
         nstm_ft = self.ft(boards[1])
 
@@ -53,4 +70,5 @@ class NnBasic(tf.keras.Model):
         f_nstm_ft = self.fft(boards[3])
 
         merge = tf.concat((stm_ft, nstm_ft), 1) + tf.concat((f_stm_ft, f_nstm_ft), 1)
+
         return tf.sigmoid(self.out(merge))

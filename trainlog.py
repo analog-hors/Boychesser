@@ -13,5 +13,5 @@ class TrainLog:
         logs = ""
         for epoch, loss in enumerate(self.losses):
             logs += f"epoch {epoch}: {loss}\n"
-        with open(f"{self.train_id}.txt", "w") as log:
+        with open(f"runs/{self.train_id}.txt", "w") as log:
             log.write(logs)

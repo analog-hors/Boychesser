@@ -13,8 +13,8 @@ class Dense(tf.keras.layers.Layer):
         self.bias = self.add_weight("bias", shape=[self.num_outputs])
 
     @tf.function
-    def call(self, board):
-        return tf.sparse.sparse_dense_matmul(board, self.kernel) + self.bias
+    def call(self, x):
+        return tf.sparse.sparse_dense_matmul(x, self.kernel) + self.bias
 
 
 class Factorize(tf.keras.Model):
@@ -44,7 +44,9 @@ class FeatureTransformer(tf.keras.Model):
 
     @tf.function
     def call(self, board):
-        return self.model(board)
+        x = self.model(board)
+        print(x.shape)
+        return x
 
 
 class NnBasic(tf.keras.Model):

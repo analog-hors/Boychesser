@@ -6,6 +6,7 @@ from typing import List, Union
 import numpy as np
 import tensorflow as tf
 
+
 def locate_dynamic_lib() -> str:
     files = glob("./libparse.*")
     return files[0]
@@ -17,8 +18,8 @@ class Batch:
     boards_nstm: tf.sparse.SparseTensor
     v_boards_stm: tf.sparse.SparseTensor
     v_boards_nstm: tf.sparse.SparseTensor
-    cp: np.array
-    wdl: np.array
+    cp: np.ndarray
+    wdl: np.ndarray
 
 
 class BatchLoader:
@@ -54,40 +55,48 @@ class BatchLoader:
         self.wdl = lib.wdl
         self.wdl.restype = ctypes.POINTER(ctypes.c_float)
 
-        self.files = []
-        self.curr_file = 0
+        self.files: List[str] = []
+        self.curr_file: Union[int, None] = 0
 
     def set_directory(self, directory: str):
         self.set_files(glob(f"{directory}/*.txt"))
 
+    def add_directory(self, directory: str):
+        self.set_files(glob(f"{directory}/*.txt"))
+
     def set_files(self, files: List[str]):
-        self.__close()
+        self._close()
         self.files = files
         self.curr_file = None
+    
+    def add_files(self, files: List[str]):
+        self._close()
+        self.files += files
+        self.curr_file = None
 
-    def __open(self, path: str) -> bool:
+    def _open(self, path: str) -> bool:
         as_bytes = bytes(path, "utf-8")
         return self.open_file(self.batch_loader, ctypes.create_string_buffer(as_bytes))
 
-    def __close(self):
+    def _close(self):
         self.close_file(self.batch_loader)
 
-    def __read_next_batch(self) -> bool:
+    def _read_next_batch(self) -> bool:
         if self.curr_file is None:
             self.curr_file = 0
-            self.__open(self.files[self.curr_file])
+            self._open(self.files[self.curr_file])
 
         if self.read_batch(self.batch_loader):
             return True
         else:
-            self.__close()
+            self._close()
             self.curr_file += 1
             self.curr_file %= len(self.files)
-            self.__open(self.files[self.curr_file])
+            self._open(self.files[self.curr_file])
             return self.read_batch(self.batch_loader)
 
     def get_next_batch(self) -> Union[None, Batch]:
-        if not self.__read_next_batch():
+        if not self._read_next_batch():
             return None
 
         count = self.count(self.batch_loader)

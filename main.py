@@ -2,7 +2,7 @@ import json
 import time
 from typing import Union
 from dataloader import BatchLoader
-from model import NnBasic, NnRes
+from model import NnBasic
 import tensorflow as tf
 
 # import tensorflow_addons as tfa
@@ -108,7 +108,7 @@ def main():
 
         dataloader = BatchLoader(BATCH_SIZE)
         dataloader.add_directory("train/syzygy")
-        model = NnRes(128)
+        model = NnBasic(128)
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
 

@@ -18,7 +18,7 @@ WDL = 0.1  # 0.0 <= WDL <= 1.0
 DEVICE = "GPU"  # "CPU" or "GPU"
 DATADIR = "train/syzygy"
 MODEL = "nn"
-TRAIN_ID = "exp1"
+TRAIN_ID = "exp2"
 
 
 def train(
@@ -56,21 +56,15 @@ def train(
 
     while True:
         batch = dataloader.get_next_batch()
-        try:
-            loss_value = backprop(
-                batch.cp,
-                batch.wdl,
-                batch.boards_stm,
-                batch.boards_nstm,
-                batch.v_boards_stm,
-                batch.v_boards_nstm,
-            )
-        except KeyboardInterrupt:
-            exit()
-        except BaseException:
-            print("WARNING: Unresolved Tensorflow Issue")
-            print("Skipping training step")
-            continue
+        loss_value = backprop(
+            batch.cp,
+            batch.wdl,
+            batch.boards_stm,
+            batch.boards_nstm,
+            batch.v_boards_stm,
+            batch.v_boards_nstm,
+        )
+
         running_loss += loss_value
         iterations += 1
 
@@ -117,7 +111,7 @@ def main():
             optimizer,
             dataloader,
             epochs=1400,
-            save_epochs=20,
+            save_epochs=100,
             lr_drop=700,
             train_log=train_log,
         )

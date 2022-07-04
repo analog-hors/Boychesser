@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io;
 use std::str::FromStr;
 
-use crate::batch_loader::{read_lines, BatchLoader};
+use crate::batch_loader::read_lines;
 
 pub const MAX_INDICES: usize = 32;
 
@@ -11,6 +11,8 @@ pub struct BatchLoaderHalfKp {
     batch_size: usize,
     boards_stm: Box<[[i64; 2]]>,
     boards_nstm: Box<[[i64; 2]]>,
+    v_boards_stm: Box<[[i64; 2]]>,
+    v_boards_nstm: Box<[[i64; 2]]>,
     values: Box<[f32]>,
     cp: Box<[f32]>,
     wdl: Box<[f32]>,
@@ -24,6 +26,8 @@ impl BatchLoaderHalfKp {
             batch_size,
             boards_stm: vec![[0; 2]; batch_size * MAX_INDICES].into_boxed_slice(),
             boards_nstm: vec![[0; 2]; batch_size * MAX_INDICES].into_boxed_slice(),
+            v_boards_stm: vec![[0; 2]; batch_size * MAX_INDICES].into_boxed_slice(),
+            v_boards_nstm: vec![[0; 2]; batch_size * MAX_INDICES].into_boxed_slice(),
             values: vec![1.0; batch_size * MAX_INDICES].into_boxed_slice(),
             cp: vec![0_f32; batch_size].into_boxed_slice(),
             wdl: vec![0_f32; batch_size].into_boxed_slice(),
@@ -31,17 +35,16 @@ impl BatchLoaderHalfKp {
             counter: 0,
         }
     }
-}
-impl BatchLoader for BatchLoaderHalfKp {
-    fn set_file(&mut self, path: &str) {
+
+    pub fn set_file(&mut self, path: &str) {
         self.file = Some(read_lines(path));
     }
 
-    fn close_file(&mut self) {
+    pub fn close_file(&mut self) {
         self.file = None;
     }
 
-    fn read(&mut self) -> bool {
+    pub fn read(&mut self) -> bool {
         if let Some(file) = &mut self.file {
             let mut batch_counter = 0;
             self.counter = 0;
@@ -109,6 +112,14 @@ impl BatchLoader for BatchLoaderHalfKp {
                                 batch_counter as i64,
                                 (nstm_king * 640 + nstm_index * 64 + nstm_sq) as i64,
                             ];
+                            self.v_boards_stm[self.counter] = [
+                                batch_counter as i64,
+                                (stm_index * 64 + stm_sq) as i64,
+                            ];
+                            self.v_boards_nstm[self.counter] = [
+                                batch_counter as i64,
+                                (nstm_index * 64 + nstm_sq) as i64,
+                            ];
                             self.counter += 1;
                         }
                     }
@@ -125,27 +136,35 @@ impl BatchLoader for BatchLoaderHalfKp {
         }
     }
 
-    fn stm_indices(&self) -> *const i64 {
+    pub fn stm_indices(&self) -> *const i64 {
         &self.boards_stm[0][0]
     }
 
-    fn nstm_indices(&self) -> *const i64 {
+    pub fn nstm_indices(&self) -> *const i64 {
         &self.boards_nstm[0][0]
     }
 
-    fn values(&self) -> *const f32 {
+    pub fn v_stm_indices(&self) -> *const i64 {
+        &self.v_boards_stm[0][0]
+    }
+
+    pub fn v_nstm_indices(&self) -> *const i64 {
+        &self.v_boards_nstm[0][0]
+    }
+
+    pub fn values(&self) -> *const f32 {
         &self.values[0]
     }
 
-    fn cp(&self) -> *const f32 {
+    pub fn cp(&self) -> *const f32 {
         &self.cp[0]
     }
 
-    fn wdl(&self) -> *const f32 {
+    pub fn wdl(&self) -> *const f32 {
         &self.wdl[0]
     }
 
-    fn count(&self) -> u32 {
+    pub fn count(&self) -> u32 {
         self.counter as u32
     }
 }

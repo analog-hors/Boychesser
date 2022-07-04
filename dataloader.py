@@ -1,6 +1,8 @@
 import ctypes
 from dataclasses import dataclass
 from glob import glob
+from time import time
+from tracemalloc import start
 from typing import List, Union
 
 import numpy as np
@@ -42,6 +44,12 @@ class BatchLoader:
 
         self.boards_nstm = lib.boards_nstm
         self.boards_nstm.restype = ctypes.POINTER(ctypes.c_int64)
+
+        self.v_boards_stm = lib.v_boards_stm
+        self.v_boards_stm.restype = ctypes.POINTER(ctypes.c_int64)
+
+        self.v_boards_nstm = lib.v_boards_nstm
+        self.v_boards_nstm.restype = ctypes.POINTER(ctypes.c_int64)
 
         self.values = lib.values
         self.values.restype = ctypes.POINTER(ctypes.c_float)
@@ -98,7 +106,6 @@ class BatchLoader:
     def get_next_batch(self) -> Union[None, Batch]:
         if not self._read_next_batch():
             return None
-
         count = self.count(self.batch_loader)
         boards_stm = np.ctypeslib.as_array(
             self.boards_stm(self.batch_loader), shape=(count, 2)
@@ -106,13 +113,13 @@ class BatchLoader:
         boards_nstm = np.ctypeslib.as_array(
             self.boards_nstm(self.batch_loader), shape=(count, 2)
         )
+        v_boards_stm = np.ctypeslib.as_array(
+            self.v_boards_stm(self.batch_loader), shape=(count, 2)
+        )
+        v_boards_nstm = np.ctypeslib.as_array(
+            self.v_boards_nstm(self.batch_loader), shape=(count, 2)
+        )
         values = np.ctypeslib.as_array(self.values(self.batch_loader), shape=(count,))
-
-        v_boards_stm = boards_stm.copy()
-        v_boards_nstm = boards_nstm.copy()
-
-        v_boards_stm[:, 1] %= 640
-        v_boards_nstm[:, 1] %= 640
 
         board_stm_sparse = tf.sparse.SparseTensor(
             boards_stm, values, (self.batch_size, 40960)

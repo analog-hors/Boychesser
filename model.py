@@ -41,13 +41,15 @@ class NnHalfKP(torch.nn.Module):
             batch.nstm_indices, batch.values, (batch.size, 40960)
         )
 
-        batch.stm_indices[1][:] %= 640
-        batch.nstm_indices[1][:] %= 640
+        v_stm_indices = torch.clone(batch.stm_indices)
+        v_nstm_indices = torch.clone(batch.nstm_indices)
+        v_stm_indices[1][:] %= 640
+        v_nstm_indices[1][:] %= 640
         v_board_stm_sparse = torch.sparse_coo_tensor(
-            batch.stm_indices, batch.values, (batch.size, 640)
+            v_stm_indices, batch.values, (batch.size, 640)
         )
         v_board_nstm_sparse = torch.sparse_coo_tensor(
-            batch.nstm_indices, batch.values, (batch.size, 640)
+            v_nstm_indices, batch.values, (batch.size, 640)
         )
 
         stm_ft = self.ft(board_stm_sparse) + self.fft(v_board_stm_sparse)
@@ -74,13 +76,15 @@ class NnHalfKA(torch.nn.Module):
             batch.nstm_indices, batch.values, (batch.size, 49152)
         )
 
-        batch.stm_indices[1][:] %= 768
-        batch.nstm_indices[1][:] %= 768
+        v_stm_indices = torch.clone(batch.stm_indices)
+        v_nstm_indices = torch.clone(batch.nstm_indices)
+        v_stm_indices[1][:] %= 768
+        v_nstm_indices[1][:] %= 768
         v_board_stm_sparse = torch.sparse_coo_tensor(
-            batch.stm_indices, batch.values, (batch.size, 768)
+            v_stm_indices, batch.values, (batch.size, 768)
         )
         v_board_nstm_sparse = torch.sparse_coo_tensor(
-            batch.nstm_indices, batch.values, (batch.size, 768)
+            v_nstm_indices, batch.values, (batch.size, 768)
         )
 
         stm_ft = self.ft(board_stm_sparse) + self.fft(v_board_stm_sparse)

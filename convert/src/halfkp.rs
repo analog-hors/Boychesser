@@ -4,17 +4,17 @@ use crate::utils;
 
 #[derive(Serialize, Deserialize)]
 pub struct HalfKp {
-    #[serde(rename = "dense/kernel:0")]
+    #[serde(rename = "ft.weight")]
     feature_weights: Box<[Box<[f32]>]>,
-    #[serde(rename = "dense/bias:0")]
+    #[serde(rename = "ft.bias")]
     feature_bias: Box<[f32]>,
-    #[serde(rename = "dense_1/kernel:0")]
+    #[serde(rename = "fft.weight")]
     v_weights: Box<[Box<[f32]>]>,
-    #[serde(rename = "dense_1/bias:0")]
+    #[serde(rename = "fft.bias")]
     v_bias: Box<[f32]>,
-    #[serde(rename = "dense_2/kernel:0")]
+    #[serde(rename = "out.weight")]
     out_weights: Box<[Box<[f32]>]>,
-    #[serde(rename = "dense_2/bias:0")]
+    #[serde(rename = "out.bias")]
     out_bias: Box<[f32]>,
 }
 

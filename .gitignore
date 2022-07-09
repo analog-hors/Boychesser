@@ -1,8 +1,10 @@
-/nn
-/train
-/parse/target
-/convert/target
+nn
+train
+runs
+parse/target
+convert/target
 libparse.dylib
 libparse.dll
 libparse.so
 __pycache__
+venv

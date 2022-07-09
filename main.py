@@ -2,8 +2,8 @@ import json
 import time
 from typing import Union
 from dataloader import BatchLoader
-from model import NnBasic
-import tensorflow as tf
+from model import Nn
+import torch
 
 # import tensorflow_addons as tfa
 from trainlog import TrainLog
@@ -15,10 +15,11 @@ SCALE = 400
 
 
 WDL = 0.1  # 0.0 <= WDL <= 1.0
-DEVICE = "GPU"  # "CPU" or "GPU"
 DATADIR = "train/syzygy"
 MODEL = "nn"
 TRAIN_ID = "exp2"
+
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
 def train(
@@ -30,24 +31,6 @@ def train(
     lr_drop: Union[None, int] = None,
     train_log: Union[None, TrainLog] = None,
 ):
-    @tf.function
-    def backprop(cp, wdl, boards_stm, boards_nstm, v_boards_stm, v_boards_nstm):
-        with tf.GradientTape() as tape:
-            expected = tf.sigmoid(cp / SCALE) * (1 - WDL) + wdl * WDL
-            prediction = model(
-                (
-                    boards_stm,
-                    boards_nstm,
-                    v_boards_stm,
-                    v_boards_nstm,
-                )
-            )
-            loss_value = tf.reduce_mean(tf.square(expected - prediction))
-
-            grads = tape.gradient(loss_value, model.trainable_weights)
-            optimizer.apply_gradients(zip(grads, model.trainable_weights))
-        return loss_value
-
     running_loss = 0.0
     start_time = time.time()
     iterations = 0
@@ -55,17 +38,23 @@ def train(
     epoch = 0
 
     while True:
+        optimizer.zero_grad()
         batch = dataloader.get_next_batch()
-        loss_value = backprop(
-            batch.cp,
-            batch.wdl,
-            batch.boards_stm,
-            batch.boards_nstm,
-            batch.v_boards_stm,
-            batch.v_boards_nstm,
+        prediction = model(
+            (
+                batch.boards_stm,
+                batch.boards_nstm,
+                batch.v_boards_stm,
+                batch.v_boards_nstm,
+            )
         )
+        expected = torch.sigmoid(batch.cp / SCALE) * (1 - WDL) + batch.wdl * WDL
 
-        running_loss += loss_value
+        loss = torch.mean((prediction - expected) ** 2)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
         iterations += 1
 
         if iterations % EPOCH_ITERS == 0:
@@ -96,25 +85,23 @@ def train(
 
 
 def main():
-    with tf.device(f"/{DEVICE}:0"):
+    train_log = TrainLog(TRAIN_ID)
 
-        train_log = TrainLog(TRAIN_ID)
+    dataloader = BatchLoader(BATCH_SIZE, DEVICE)
+    dataloader.add_directory("train/syzygy")
+    model = Nn(128)
 
-        dataloader = BatchLoader(BATCH_SIZE)
-        dataloader.add_directory("train/syzygy")
-        model = NnBasic(128)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-        optimizer = tf.keras.optimizers.Adam(learning_rate=1e-3)
-
-        train(
-            model,
-            optimizer,
-            dataloader,
-            epochs=1400,
-            save_epochs=100,
-            lr_drop=700,
-            train_log=train_log,
-        )
+    train(
+        model,
+        optimizer,
+        dataloader,
+        epochs=1400,
+        save_epochs=100,
+        lr_drop=700,
+        train_log=train_log,
+    )
 
 
 if __name__ == "__main__":

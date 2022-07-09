@@ -25,7 +25,7 @@ def main():
             files.append(arg)
     for f in files:
         epochs, losses = _read_file(f)
-        plt.plot(epochs[50:], losses[50:])
+        plt.plot(epochs, losses)
 
     plt.show()
 

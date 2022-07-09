@@ -1,76 +1,18 @@
-import tensorflow as tf
+import torch
 
 
-class Dense(tf.keras.layers.Layer):
-    def __init__(self, num_outputs):
-        super(Dense, self).__init__()
-        self.num_outputs = num_outputs
-
-    def build(self, input_shape):
-        self.kernel = self.add_weight(
-            "kernel", shape=[int(input_shape[-1]), self.num_outputs]
-        )
-        self.bias = self.add_weight("bias", shape=[self.num_outputs])
-
-    @tf.function
-    def call(self, x):
-        return tf.sparse.sparse_dense_matmul(x, self.kernel) + self.bias
-
-
-class Factorize(tf.keras.Model):
+class Nn(torch.nn.Module):
     def __init__(self, ft_out: int):
-        super(Factorize, self).__init__()
-        self.model = tf.keras.Sequential(
-            [
-                tf.keras.layers.InputLayer(640, sparse=True),
-                Dense(ft_out),
-            ]
-        )
+        super().__init__()
+        self.ft = torch.nn.Linear(40960, ft_out)
+        self.fft = torch.nn.Linear(640, ft_out)
+        self.out = torch.nn.Linear(ft_out * 2, 1)
 
-    @tf.function
-    def call(self, board):
-        return self.model(board)
+    def forward(self, boards):
 
+        stm_ft = self.ft(boards[0]) + self.fft(boards[2])
+        nstm_ft = self.ft(boards[1]) + self.fft(boards[3])
 
-class FeatureTransformer(tf.keras.Model):
-    def __init__(self, ft_out: int):
-        super(FeatureTransformer, self).__init__()
-        self.model = tf.keras.Sequential(
-            [
-                tf.keras.layers.InputLayer(40960, sparse=True),
-                Dense(ft_out),
-            ]
-        )
+        hidden = torch.clamp(torch.cat((stm_ft, nstm_ft), dim=1), 0, 1)
 
-    @tf.function
-    def call(self, board):
-        x = self.model(board)
-        print(x.shape)
-        return x
-
-
-class NnBasic(tf.keras.Model):
-    def __init__(self, ft_out: int):
-        super(NnBasic, self).__init__()
-        self.ft = FeatureTransformer(ft_out)
-        self.fft = Factorize(ft_out)
-        self.out = tf.keras.Sequential(
-            [
-                tf.keras.layers.InputLayer(ft_out * 2),
-                tf.keras.layers.ReLU(max_value=1.0),
-                tf.keras.layers.Dense(1),
-            ]
-        )
-
-    @tf.function
-    def call(self, boards):
-
-        stm_ft = self.ft(boards[0])
-        nstm_ft = self.ft(boards[1])
-
-        f_stm_ft = self.fft(boards[2])
-        f_nstm_ft = self.fft(boards[3])
-
-        merge = tf.concat((stm_ft, nstm_ft), 1) + tf.concat((f_stm_ft, f_nstm_ft), 1)
-
-        return tf.sigmoid(self.out(merge))
+        return torch.sigmoid(self.out(hidden))

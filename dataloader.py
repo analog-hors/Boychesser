@@ -1,12 +1,10 @@
 import ctypes
 from dataclasses import dataclass
 from glob import glob
-from time import time
-from tracemalloc import start
 from typing import List, Union
 
 import numpy as np
-import tensorflow as tf
+import torch
 
 
 def locate_dynamic_lib() -> str:
@@ -16,16 +14,16 @@ def locate_dynamic_lib() -> str:
 
 @dataclass
 class Batch:
-    boards_stm: tf.sparse.SparseTensor
-    boards_nstm: tf.sparse.SparseTensor
-    v_boards_stm: tf.sparse.SparseTensor
-    v_boards_nstm: tf.sparse.SparseTensor
-    cp: np.ndarray
-    wdl: np.ndarray
+    boards_stm: torch.Tensor
+    boards_nstm: torch.Tensor
+    v_boards_stm: torch.Tensor
+    v_boards_nstm: torch.Tensor
+    cp: torch.Tensor
+    wdl: torch.Tensor
 
 
 class BatchLoader:
-    def __init__(self, batch_size: int):
+    def __init__(self, batch_size: int, device: torch.device):
         lib = ctypes.cdll.LoadLibrary(locate_dynamic_lib())
         new_batch_loader = lib.new_batch_loader
         new_batch_loader.restype = ctypes.POINTER(ctypes.c_uint64)
@@ -65,6 +63,13 @@ class BatchLoader:
 
         self.files: List[str] = []
         self.curr_file: Union[int, None] = 0
+        self.device = device
+
+    def to_pytorch(self, array: np.ndarray) -> torch.Tensor:
+        tch_array = torch.from_numpy(array)
+        if torch.cuda.is_available():
+            tch_array = tch_array.pin_memory()
+        return torch.from_numpy(array).to(self.device, non_blocking=True)
 
     def set_directory(self, directory: str):
         self.set_files(glob(f"{directory}/*.txt"))
@@ -76,7 +81,7 @@ class BatchLoader:
         self._close()
         self.files = files
         self.curr_file = None
-    
+
     def add_files(self, files: List[str]):
         self._close()
         self.files += files
@@ -107,39 +112,55 @@ class BatchLoader:
         if not self._read_next_batch():
             return None
         count = self.count(self.batch_loader)
-        boards_stm = np.ctypeslib.as_array(
-            self.boards_stm(self.batch_loader), shape=(count, 2)
+        boards_stm = self.to_pytorch(
+            np.ctypeslib.as_array(
+                self.boards_stm(self.batch_loader), shape=(count, 2)
+            ).T
         )
-        boards_nstm = np.ctypeslib.as_array(
-            self.boards_nstm(self.batch_loader), shape=(count, 2)
+        boards_nstm = self.to_pytorch(
+            np.ctypeslib.as_array(
+                self.boards_nstm(self.batch_loader), shape=(count, 2)
+            ).T
         )
-        v_boards_stm = np.ctypeslib.as_array(
-            self.v_boards_stm(self.batch_loader), shape=(count, 2)
-        )
-        v_boards_nstm = np.ctypeslib.as_array(
-            self.v_boards_nstm(self.batch_loader), shape=(count, 2)
-        )
-        values = np.ctypeslib.as_array(self.values(self.batch_loader), shape=(count,))
 
-        board_stm_sparse = tf.sparse.SparseTensor(
+        v_boards_stm = self.to_pytorch(
+            np.ctypeslib.as_array(
+                self.v_boards_stm(self.batch_loader), shape=(count, 2)
+            ).T
+        )
+        v_boards_nstm = self.to_pytorch(
+            np.ctypeslib.as_array(
+                self.v_boards_nstm(self.batch_loader), shape=(count, 2)
+            ).T
+        )
+
+        values = self.to_pytorch(
+            np.ctypeslib.as_array(self.values(self.batch_loader), shape=(count,)).T
+        )
+
+        board_stm_sparse = torch.sparse_coo_tensor(
             boards_stm, values, (self.batch_size, 40960)
         )
-        board_nstm_sparse = tf.sparse.SparseTensor(
+        board_nstm_sparse = torch.sparse_coo_tensor(
             boards_nstm, values, (self.batch_size, 40960)
         )
 
-        v_board_stm_sparse = tf.sparse.SparseTensor(
+        v_board_stm_sparse = torch.sparse_coo_tensor(
             v_boards_stm, values, (self.batch_size, 640)
         )
-        v_board_nstm_sparse = tf.sparse.SparseTensor(
+        v_board_nstm_sparse = torch.sparse_coo_tensor(
             v_boards_nstm, values, (self.batch_size, 640)
         )
 
-        cp = np.ctypeslib.as_array(
-            self.cp(self.batch_loader), shape=(self.batch_size, 1)
+        cp = self.to_pytorch(
+            np.ctypeslib.as_array(
+                self.cp(self.batch_loader), shape=(self.batch_size, 1)
+            )
         )
-        wdl = np.ctypeslib.as_array(
-            self.wdl(self.batch_loader), shape=(self.batch_size, 1)
+        wdl = self.to_pytorch(
+            np.ctypeslib.as_array(
+                self.wdl(self.batch_loader), shape=(self.batch_size, 1)
+            )
         )
 
         return Batch(

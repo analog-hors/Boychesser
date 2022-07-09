@@ -2,7 +2,7 @@ import json
 import time
 from typing import Union
 from dataloader import BatchLoader
-from model import Nn
+from model import NnBoard768, NnHalfKA, NnHalfKP
 import torch
 
 # import tensorflow_addons as tfa
@@ -40,14 +40,7 @@ def train(
     while True:
         optimizer.zero_grad()
         batch = dataloader.get_next_batch()
-        prediction = model(
-            (
-                batch.boards_stm,
-                batch.boards_nstm,
-                batch.v_boards_stm,
-                batch.v_boards_nstm,
-            )
-        )
+        prediction = model(batch)
         expected = torch.sigmoid(batch.cp / SCALE) * (1 - WDL) + batch.wdl * WDL
 
         loss = torch.mean((prediction - expected) ** 2)
@@ -87,9 +80,9 @@ def train(
 def main():
     train_log = TrainLog(TRAIN_ID)
 
-    dataloader = BatchLoader(BATCH_SIZE, DEVICE)
+    dataloader = BatchLoader(BATCH_SIZE, "HalfKA", DEVICE)
     dataloader.add_directory("train/syzygy")
-    model = Nn(128)
+    model = NnHalfKA(128)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 

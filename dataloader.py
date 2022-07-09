@@ -7,6 +7,9 @@ import numpy as np
 import torch
 
 
+INPUT_FEATURES = {"Board768": 0, "HalfKP": 1, "HalfKA": 2}
+
+
 def locate_dynamic_lib() -> str:
     files = glob("./libparse.*")
     return files[0]
@@ -14,22 +17,24 @@ def locate_dynamic_lib() -> str:
 
 @dataclass
 class Batch:
-    boards_stm: torch.Tensor
-    boards_nstm: torch.Tensor
-    v_boards_stm: torch.Tensor
-    v_boards_nstm: torch.Tensor
+    stm_indices: torch.Tensor
+    nstm_indices: torch.Tensor
+    values: torch.Tensor
     cp: torch.Tensor
     wdl: torch.Tensor
+    size: int
 
 
 class BatchLoader:
-    def __init__(self, batch_size: int, device: torch.device):
+    def __init__(self, batch_size: int, input_features: str, device: torch.device):
         lib = ctypes.cdll.LoadLibrary(locate_dynamic_lib())
         new_batch_loader = lib.new_batch_loader
         new_batch_loader.restype = ctypes.POINTER(ctypes.c_uint64)
 
         self.batch_size = batch_size
-        self.batch_loader = new_batch_loader(ctypes.c_int32(batch_size))
+        self.batch_loader = new_batch_loader(
+            ctypes.c_int32(batch_size), ctypes.c_uint8(INPUT_FEATURES[input_features])
+        )
 
         self.open_file = lib.open_file
         self.open_file.restype = ctypes.c_bool
@@ -42,12 +47,6 @@ class BatchLoader:
 
         self.boards_nstm = lib.boards_nstm
         self.boards_nstm.restype = ctypes.POINTER(ctypes.c_int64)
-
-        self.v_boards_stm = lib.v_boards_stm
-        self.v_boards_stm.restype = ctypes.POINTER(ctypes.c_int64)
-
-        self.v_boards_nstm = lib.v_boards_nstm
-        self.v_boards_nstm.restype = ctypes.POINTER(ctypes.c_int64)
 
         self.values = lib.values
         self.values.restype = ctypes.POINTER(ctypes.c_float)
@@ -65,7 +64,10 @@ class BatchLoader:
         self.curr_file: Union[int, None] = 0
         self.device = device
 
-    def to_pytorch(self, array: np.ndarray) -> torch.Tensor:
+    def input_count(self) -> int:
+        self.input_count
+
+    def _to_pytorch(self, array: np.ndarray) -> torch.Tensor:
         tch_array = torch.from_numpy(array)
         if torch.cuda.is_available():
             tch_array = tch_array.pin_memory()
@@ -112,62 +114,29 @@ class BatchLoader:
         if not self._read_next_batch():
             return None
         count = self.count(self.batch_loader)
-        boards_stm = self.to_pytorch(
+        boards_stm = self._to_pytorch(
             np.ctypeslib.as_array(
                 self.boards_stm(self.batch_loader), shape=(count, 2)
             ).T
         )
-        boards_nstm = self.to_pytorch(
+        boards_nstm = self._to_pytorch(
             np.ctypeslib.as_array(
                 self.boards_nstm(self.batch_loader), shape=(count, 2)
             ).T
         )
-
-        v_boards_stm = self.to_pytorch(
-            np.ctypeslib.as_array(
-                self.v_boards_stm(self.batch_loader), shape=(count, 2)
-            ).T
-        )
-        v_boards_nstm = self.to_pytorch(
-            np.ctypeslib.as_array(
-                self.v_boards_nstm(self.batch_loader), shape=(count, 2)
-            ).T
-        )
-
-        values = self.to_pytorch(
+        values = self._to_pytorch(
             np.ctypeslib.as_array(self.values(self.batch_loader), shape=(count,)).T
         )
 
-        board_stm_sparse = torch.sparse_coo_tensor(
-            boards_stm, values, (self.batch_size, 40960)
-        )
-        board_nstm_sparse = torch.sparse_coo_tensor(
-            boards_nstm, values, (self.batch_size, 40960)
-        )
-
-        v_board_stm_sparse = torch.sparse_coo_tensor(
-            v_boards_stm, values, (self.batch_size, 640)
-        )
-        v_board_nstm_sparse = torch.sparse_coo_tensor(
-            v_boards_nstm, values, (self.batch_size, 640)
-        )
-
-        cp = self.to_pytorch(
+        cp = self._to_pytorch(
             np.ctypeslib.as_array(
                 self.cp(self.batch_loader), shape=(self.batch_size, 1)
             )
         )
-        wdl = self.to_pytorch(
+        wdl = self._to_pytorch(
             np.ctypeslib.as_array(
                 self.wdl(self.batch_loader), shape=(self.batch_size, 1)
             )
         )
 
-        return Batch(
-            board_stm_sparse,
-            board_nstm_sparse,
-            v_board_stm_sparse,
-            v_board_nstm_sparse,
-            cp,
-            wdl,
-        )
+        return Batch(boards_stm, boards_nstm, values, cp, wdl, self.batch_size)

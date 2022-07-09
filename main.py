@@ -17,7 +17,7 @@ SCALE = 400
 WDL = 0.1  # 0.0 <= WDL <= 1.0
 DATADIR = "train/syzygy"
 MODEL = "nn"
-TRAIN_ID = "exp2"
+TRAIN_ID = "baseline"
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -80,9 +80,9 @@ def train(
 def main():
     train_log = TrainLog(TRAIN_ID)
 
-    dataloader = BatchLoader(BATCH_SIZE, "HalfKA", DEVICE)
+    dataloader = BatchLoader(BATCH_SIZE, "HalfKP", DEVICE)
     dataloader.add_directory("train/syzygy")
-    model = NnHalfKA(128)
+    model = NnHalfKP(128).to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 

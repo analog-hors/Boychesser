@@ -38,7 +38,7 @@ impl FileReader {
             let mut split = line.split(" | ");
             split.next().unwrap();
             let cp = split.next().unwrap().parse::<f32>().unwrap();
-            if cp > 3000.0 {
+            if cp.abs() > 3000.0 {
                 continue;
             }
             self.string_buffer.push(line);

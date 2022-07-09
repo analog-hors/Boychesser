@@ -13,3 +13,4 @@ lto = "fat"
 [dependencies]
 cozy-chess = "0.2.1"
 cozy-syzygy = { git = "https://github.com/MinusKelvin/cozy-syzygy" }
+rayon = "1.5.0"

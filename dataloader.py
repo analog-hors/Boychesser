@@ -115,14 +115,10 @@ class BatchLoader:
             return None
         count = self.count(self.batch_loader)
         boards_stm = self._to_pytorch(
-            np.ctypeslib.as_array(
-                self.boards_stm(self.batch_loader), shape=(count, 2)
-            ).T
+            np.ctypeslib.as_array(self.boards_stm(self.batch_loader), shape=(2, count))
         )
         boards_nstm = self._to_pytorch(
-            np.ctypeslib.as_array(
-                self.boards_nstm(self.batch_loader), shape=(count, 2)
-            ).T
+            np.ctypeslib.as_array(self.boards_nstm(self.batch_loader), shape=(2, count))
         )
         values = self._to_pytorch(
             np.ctypeslib.as_array(self.values(self.batch_loader), shape=(count,)).T

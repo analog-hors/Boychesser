@@ -81,7 +81,7 @@ def main():
 
     dataloader = BatchLoader(BATCH_SIZE, "HalfKP", DEVICE)
     dataloader.add_directory("train/syzygy")
-    model = NnHalfKP(128).to(DEVICE)
+    model = NnBoard768(128).to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 

@@ -68,11 +68,10 @@ def train(
 
             if epoch % save_epochs == 0:
                 param_map = {}
-                for variables in model.trainable_variables:
-                    param_map[variables.name] = variables.numpy().tolist()
+                for variables in model.parameters():
+                    param_map[variables.name] = variables.cpu().tolist()
                 with open(f"nn/{MODEL}.json", "w") as json_file:
                     json.dump(param_map, json_file)
-                model.save_weights(f"./nn/{MODEL}")
         if epoch >= epochs:
             return
 

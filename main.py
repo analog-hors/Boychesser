@@ -1,6 +1,8 @@
 import json
 import time
 from typing import Union
+
+import numpy as np
 from dataloader import BatchLoader
 from model import NnBoard768, NnHalfKA, NnHalfKP
 import torch
@@ -81,7 +83,7 @@ def main():
 
     dataloader = BatchLoader(BATCH_SIZE, "HalfKP", DEVICE)
     dataloader.add_directory("train/syzygy")
-    model = NnBoard768(128).to(DEVICE)
+    model = NnHalfKP(128).to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
@@ -89,7 +91,7 @@ def main():
         model,
         optimizer,
         dataloader,
-        epochs=1400,
+        epochs=2800,
         save_epochs=100,
         lr_drop=700,
         train_log=train_log,

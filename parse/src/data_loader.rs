@@ -9,7 +9,7 @@ use std::{
 use cozy_chess::{Board, Color};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
-use crate::input_features::{Board768, InputFeature, InputFeatureType};
+use crate::input_features::{Board768, HalfKa, HalfKp, InputFeature, InputFeatureType};
 
 pub struct Element {
     board: Board,
@@ -32,7 +32,7 @@ impl FileReader {
         }
     }
 
-    fn read_next_n(&mut self, mut n: usize) {
+    fn read_next_n(&mut self, mut n: usize) -> bool {
         self.string_buffer.clear();
         while let Some(Ok(line)) = self.file.next() {
             let mut split = line.split(" | ");
@@ -57,6 +57,7 @@ impl FileReader {
                 Element { board, cp, wdl }
             })
             .collect_into_vec(&mut self.elements);
+        n == 0
     }
 
     fn left(&self) -> usize {
@@ -74,9 +75,8 @@ pub struct DataLoader {
 
     batch_size: usize,
 
-    stm_indices: Box<[i64]>,
-    nstm_indices: Box<[i64]>,
-    batch_indices: Box<[usize]>,
+    stm_indices: Box<[[i64; 2]]>,
+    nstm_indices: Box<[[i64; 2]]>,
     values: Box<[f32]>,
     cp: Box<[f32]>,
     wdl: Box<[f32]>,
@@ -86,12 +86,16 @@ pub struct DataLoader {
 
 impl DataLoader {
     pub fn new(batch_size: usize, input_feature_type: InputFeatureType) -> Self {
-        let input_features = Box::new(Board768);
+        let input_features: Box<dyn InputFeature> = match input_feature_type {
+            InputFeatureType::Board768 => Box::new(Board768),
+            InputFeatureType::HalfKp => Box::new(HalfKp),
+            InputFeatureType::HalfKa => Box::new(HalfKa),
+        };
         Self {
-            stm_indices: vec![0; batch_size * 2 * input_features.max_features()].into_boxed_slice(),
-            nstm_indices: vec![0; batch_size * 2 * input_features.max_features()]
+            stm_indices: vec![[0; 2]; batch_size * input_features.max_features()]
                 .into_boxed_slice(),
-            batch_indices: vec![0; batch_size].into_boxed_slice(),
+            nstm_indices: vec![[0; 2]; batch_size * input_features.max_features()]
+                .into_boxed_slice(),
             values: vec![1.0; batch_size * input_features.max_features()].into_boxed_slice(),
             cp: vec![0_f32; batch_size].into_boxed_slice(),
             wdl: vec![0_f32; batch_size].into_boxed_slice(),
@@ -113,7 +117,9 @@ impl DataLoader {
     pub fn read(&mut self) -> bool {
         if let Some(reader) = &mut self.file_reader {
             if reader.left() < self.batch_size {
-                reader.read_next_n(self.batch_size);
+                if !reader.read_next_n(self.batch_size) {
+                    return false;
+                }
             }
             self.count = 0;
             for (index, e) in reader.elements(self.batch_size).enumerate() {
@@ -123,32 +129,25 @@ impl DataLoader {
                     Color::Black => (-e.cp, 1.0 - e.wdl),
                 };
                 self.count += self.input_features.write_indices(
+                    index as i64,
                     e.board,
                     &mut self.stm_indices[self.count..],
                     &mut self.nstm_indices[self.count..],
                 );
-                self.batch_indices[index] = self.count;
                 self.cp[index] = cp;
                 self.wdl[index] = wdl;
-            }
-            let mut prev = self.count;
-            for (batch, &index) in self.batch_indices.iter().enumerate() {
-                self.stm_indices[prev..self.count + index].fill(batch as i64);
-                self.nstm_indices[prev..self.count + index].fill(batch as i64);
-                prev = self.count + index;
             }
             return true;
         }
         false
     }
 
-
     pub fn stm_indices(&self) -> *const i64 {
-        &self.stm_indices[0]
+        &self.stm_indices[0][0]
     }
 
     pub fn nstm_indices(&self) -> *const i64 {
-        &self.nstm_indices[0]
+        &self.nstm_indices[0][0]
     }
 
     pub fn values(&self) -> *const f32 {

@@ -2,21 +2,21 @@ import torch
 
 from dataloader import Batch
 
+
 class NnBoard768(torch.nn.Module):
     def __init__(self, ft_out: int):
         super().__init__()
-        self.ft = torch.nn.Linear(40960, ft_out)
-        self.fft = torch.nn.Linear(640, ft_out)
+        self.ft = torch.nn.Linear(768, ft_out)
         self.out = torch.nn.Linear(ft_out * 2, 1)
 
     def forward(self, batch: Batch):
         board_stm_sparse = torch.sparse_coo_tensor(
-            batch.stm_indices, batch.values, (batch.size, 40960)
+            batch.stm_indices, batch.values, (batch.size, 768)
         )
         board_nstm_sparse = torch.sparse_coo_tensor(
-            batch.nstm_indices, batch.values, (batch.size, 40960)
+            batch.nstm_indices, batch.values, (batch.size, 768)
         )
-        
+
         stm_ft = self.ft(board_stm_sparse)
         nstm_ft = self.ft(board_nstm_sparse)
 
@@ -55,6 +55,7 @@ class NnHalfKP(torch.nn.Module):
 
         return torch.sigmoid(self.out(hidden))
 
+
 class NnHalfKA(torch.nn.Module):
     def __init__(self, ft_out: int):
         super().__init__()
@@ -72,10 +73,10 @@ class NnHalfKA(torch.nn.Module):
         )
 
         v_board_stm_sparse = torch.sparse_coo_tensor(
-            batch.stm_indices[:] % 640, batch.values, (batch.size, 768)
+            batch.stm_indices[:] % 768, batch.values, (batch.size, 768)
         )
         v_board_nstm_sparse = torch.sparse_coo_tensor(
-            batch.nstm_indices[:] % 640, batch.values, (batch.size, 768)
+            batch.nstm_indices[:] % 768, batch.values, (batch.size, 768)
         )
 
         stm_ft = self.ft(board_stm_sparse) + self.fft(v_board_stm_sparse)

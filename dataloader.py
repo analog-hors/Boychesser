@@ -116,7 +116,7 @@ def convert_parser_batch(batch: ParserBatch, device: torch.device) -> Batch:
             tch_array = tch_array.pin_memory()
         return torch.from_numpy(array).to(device, non_blocking=True)
 
-    feature_buffer_len = batch.get_batch_size()
+    feature_buffer_len = batch.get_feature_buffer_len()
     boards_stm = to_pytorch(
         np.ctypeslib.as_array(batch.get_stm_feature_buffer_ptr(), shape=(feature_buffer_len, 2)).T
     )

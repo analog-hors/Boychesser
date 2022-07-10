@@ -66,7 +66,7 @@ def train(
             iterations = 0
 
             if epoch == lr_drop:
-                optimizer.learning_rate = 1e-4
+                optimizer.param_groups[0]["lr"] *= 0.1
 
             if epoch % save_epochs == 0:
                 param_map = {}
@@ -93,7 +93,7 @@ def main():
         dataloader,
         epochs=2800,
         save_epochs=100,
-        lr_drop=700,
+        lr_drop=1,
         train_log=train_log,
     )
 

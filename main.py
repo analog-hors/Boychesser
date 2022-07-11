@@ -82,11 +82,11 @@ def train(
                 optimizer.param_groups[0]["lr"] *= 0.1
 
             if epoch % save_epochs == 0:
-                torch.save(model.state_dict(), f"{train_id}_{epoch}")
+                torch.save(model.state_dict(), f"nn/{train_id}_{epoch}")
                 param_map = {}
                 for name, param in model.named_parameters():
                     param_map[name] = param.detach().cpu().numpy().T.tolist()
-                with open(f"nn/model.json", "w") as json_file:
+                with open(f"nn/{train_id}.json", "w") as json_file:
                     json.dump(param_map, json_file)
         if epoch >= epochs:
             return
@@ -140,8 +140,8 @@ def main():
         args.scale,
         args.epochs,
         args.save_epochs,
-        args.train_id,
         EPOCH_FENS // args.batch_size,
+        args.train_id,
         lr_drop=args.lr_drop,
         train_log=train_log,
     )

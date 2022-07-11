@@ -100,7 +100,7 @@ class ParserBatch:
             tch_array = torch.from_numpy(array)
             if torch.cuda.is_available():
                 tch_array = tch_array.pin_memory()
-            return torch.from_numpy(array).to(device, non_blocking=True)
+            return tch_array.to(device, non_blocking=True)
 
         total_features = self.get_total_features()
         boards_stm = to_pytorch(

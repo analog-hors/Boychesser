@@ -46,7 +46,6 @@ def train(
     start_time = time.time()
     iterations = 0
     fens = 0
-
     epoch = 0
 
     while True:
@@ -60,11 +59,12 @@ def train(
         optimizer.step()
         model.apply(clipper)
 
-        running_loss += loss.item()
+        running_loss += loss
         iterations += 1
         fens += batch.size
 
         if iterations % epochs_iter == 0:
+            running_loss = running_loss.item()
             if train_log is not None:
                 train_log.update(running_loss / epochs_iter)
                 train_log.save()

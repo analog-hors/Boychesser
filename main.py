@@ -1,9 +1,10 @@
 import json
 import time
+from glob import glob
 from typing import Union
 
 import numpy as np
-from dataloader import BatchLoader
+from dataloader import ParserFileReader, BatchLoader, InputFeatureSet
 from model import NnBoard768, NnHalfKA, NnHalfKP
 import torch
 
@@ -27,7 +28,7 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 def train(
     model,
     optimizer,
-    dataloader,
+    dataloader: BatchLoader,
     epochs=1600,
     save_epochs=20,
     lr_drop: Union[None, int] = None,
@@ -41,7 +42,7 @@ def train(
 
     while True:
         optimizer.zero_grad()
-        batch = dataloader.get_next_batch()
+        batch = dataloader.read_batch(DEVICE)
         prediction = model(batch)
         expected = torch.sigmoid(batch.cp / SCALE) * (1 - WDL) + batch.wdl * WDL
 
@@ -81,8 +82,7 @@ def train(
 def main():
     train_log = TrainLog(TRAIN_ID)
 
-    dataloader = BatchLoader(BATCH_SIZE, "HalfKP", DEVICE)
-    dataloader.add_directory("train/syzygy")
+    dataloader = BatchLoader(["dataset.txt"], InputFeatureSet.HalfKp, BATCH_SIZE)
     model = NnHalfKP(128).to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)

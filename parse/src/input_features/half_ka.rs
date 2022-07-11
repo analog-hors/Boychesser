@@ -2,11 +2,11 @@ use cozy_chess::{Board, Color, Piece};
 
 use crate::batch::EntryFeatureWriter;
 
-use super::InputFeature;
+use super::InputFeatureSet;
 
 pub struct HalfKa;
 
-impl InputFeature for HalfKa {
+impl InputFeatureSet for HalfKa {
     const MAX_FEATURES: usize = 32;
 
     fn add_features(board: Board, mut entry: EntryFeatureWriter) {

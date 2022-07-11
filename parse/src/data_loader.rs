@@ -8,7 +8,7 @@ use cozy_chess::{Board, Color};
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::batch::Batch;
-use crate::input_features::InputFeature;
+use crate::input_features::InputFeatureSet;
 
 #[derive(Debug)]
 pub struct AnnotatedBoard {
@@ -82,7 +82,7 @@ impl Iterator for FileReader {
     }
 }
 
-pub fn read_batch_into<F: InputFeature>(reader: &mut FileReader, batch: &mut Batch) -> bool {
+pub fn read_batch_into<F: InputFeatureSet>(reader: &mut FileReader, batch: &mut Batch) -> bool {
     batch.clear();
     for annotated in reader.take(batch.capacity()) {
         let (cp, wdl) = annotated.relative_value();

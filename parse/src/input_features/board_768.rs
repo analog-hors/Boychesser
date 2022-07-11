@@ -2,11 +2,11 @@ use cozy_chess::{Board, Color, Piece};
 
 use crate::batch::EntryFeatureWriter;
 
-use super::InputFeature;
+use super::InputFeatureSet;
 
 pub struct Board768;
 
-impl InputFeature for Board768 {
+impl InputFeatureSet for Board768 {
     const MAX_FEATURES: usize = 32;
 
     fn add_features(board: Board, mut entry: EntryFeatureWriter) {

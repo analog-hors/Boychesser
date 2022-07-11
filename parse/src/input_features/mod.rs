@@ -10,7 +10,7 @@ pub use board_768::Board768;
 pub use half_kp::HalfKp;
 pub use half_ka::HalfKa;
 
-pub trait InputFeature {
+pub trait InputFeatureSet {
     const MAX_FEATURES: usize;
 
     fn add_features(board: Board, entry: EntryFeatureWriter);

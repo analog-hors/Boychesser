@@ -11,8 +11,8 @@ def _load_parse_lib():
     path = "./libparse.dll" if os.name == "nt" else "./libparse.so"
     lib = ctypes.cdll.LoadLibrary(path)
 
-    lib.new_batch.restype = ctypes.c_void_p
-    lib.drop_batch.restype = None
+    lib.batch_new.restype = ctypes.c_void_p
+    lib.batch_drop.restype = None
     lib.batch_get_capacity.restype = ctypes.c_uint32
     lib.batch_get_len.restype = ctypes.c_uint32
     lib.batch_get_stm_feature_buffer_ptr.restype = ctypes.POINTER(ctypes.c_int64)
@@ -22,19 +22,23 @@ def _load_parse_lib():
     lib.batch_get_cp_ptr.restype = ctypes.POINTER(ctypes.c_float)
     lib.batch_get_wdl_ptr.restype = ctypes.POINTER(ctypes.c_float)
 
-    lib.new_file_reader.restype = ctypes.c_void_p
-    lib.drop_file_reader.restype = None
+    lib.file_reader_new.restype = ctypes.c_void_p
+    lib.file_reader_drop.restype = None
 
-    lib.get_feature_set_max_features.restype = ctypes.c_uint32
+    lib.input_feature_set_get_max_features.restype = ctypes.c_uint32
+
     lib.read_batch_into.restype = ctypes.c_bool
 
     return lib
 PARSE_LIB = _load_parse_lib()
 
-class FeatureSetType(enum.IntEnum):
+class InputFeatureSet(enum.IntEnum):
     Board768 = 0
     HalfKp = 1
     HalfKa = 2
+
+    def max_features(self):
+        return PARSE_LIB.input_feature_set_get_max_features(self)
 
 @dataclass
 class Batch:
@@ -49,7 +53,7 @@ class ParserBatch:
     _ptr: ctypes.c_void_p
     
     def __init__(self, batch_size: int, max_features: int):
-        self._ptr = ctypes.c_void_p(PARSE_LIB.new_batch(
+        self._ptr = ctypes.c_void_p(PARSE_LIB.batch_new(
             ctypes.c_uint32(batch_size),
             ctypes.c_uint32(max_features)
         ))
@@ -58,7 +62,7 @@ class ParserBatch:
 
     def drop(self):
         if self._ptr.value != None:
-            PARSE_LIB.drop_batch(self._ptr)
+            PARSE_LIB.batch_drop(self._ptr)
             self._ptr.value = None
 
     def __enter__(self):
@@ -123,7 +127,7 @@ class ParserFileReader:
     _ptr: ctypes.c_void_p
     
     def __init__(self, path: str):
-        self._ptr = ctypes.c_void_p(PARSE_LIB.new_file_reader(
+        self._ptr = ctypes.c_void_p(PARSE_LIB.file_reader_new(
             ctypes.create_string_buffer(bytes(path, "ascii"))
         ))
         if self._ptr.value == None:
@@ -131,7 +135,7 @@ class ParserFileReader:
 
     def drop(self):
         if self._ptr.value != None:
-            PARSE_LIB.drop_file_reader(self._ptr)
+            PARSE_LIB.file_reader_drop(self._ptr)
             self._ptr.value = None
 
     def __enter__(self):
@@ -140,26 +144,23 @@ class ParserFileReader:
     def __exit__(self):
         self.drop()
 
-def get_feature_set_max_features(feature_set: FeatureSetType):
-    return PARSE_LIB.get_feature_set_max_features(feature_set)
-
-def read_batch_into(reader: ParserFileReader, feature_set: FeatureSetType, parser_batch: ParserBatch):
+def read_batch_into(reader: ParserFileReader, feature_set: InputFeatureSet, parser_batch: ParserBatch):
     return PARSE_LIB.read_batch_into(reader._ptr, feature_set, parser_batch._ptr)
 
 class BatchLoader:
-    _feature_set: FeatureSetType
+    _feature_set: InputFeatureSet
     _files: List[str]
     _file_index: int
     _reader: ParserFileReader
     _batch: ParserBatch
 
-    def __init__(self, files: List[str], feature_set: FeatureSetType, batch_size: int):
+    def __init__(self, files: List[str], feature_set: InputFeatureSet, batch_size: int):
         assert len(files) > 0
         self._feature_set = feature_set
         self._files = files
         self._file_index = 0
         self._reader = ParserFileReader(self._files[self._file_index])
-        self._batch = ParserBatch(batch_size, get_feature_set_max_features(feature_set))
+        self._batch = ParserBatch(batch_size, feature_set.max_features())
 
     def read_batch(self, device: torch.device) -> Batch:
         while not read_batch_into(self._reader, self._feature_set, self._batch):

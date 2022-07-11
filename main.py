@@ -4,7 +4,7 @@ from glob import glob
 from typing import Union
 
 import numpy as np
-from dataloader import ParserFileReader, BatchLoader, FeatureSetType
+from dataloader import ParserFileReader, BatchLoader, InputFeatureSet
 from model import NnBoard768, NnHalfKA, NnHalfKP
 import torch
 
@@ -82,7 +82,7 @@ def train(
 def main():
     train_log = TrainLog(TRAIN_ID)
 
-    dataloader = BatchLoader(["dataset.txt"], FeatureSetType.HalfKp, BATCH_SIZE)
+    dataloader = BatchLoader(["dataset.txt"], InputFeatureSet.HalfKp, BATCH_SIZE)
     model = NnHalfKP(128).to(DEVICE)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)

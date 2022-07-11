@@ -2,7 +2,7 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 
 use batch::Batch;
-use input_features::{InputFeature, Board768, HalfKp, HalfKa};
+use input_features::{InputFeatureSet, Board768, HalfKp, HalfKa};
 use data_loader::FileReader;
 
 mod batch;
@@ -10,18 +10,18 @@ mod data_loader;
 mod input_features;
 
 #[no_mangle]
-pub unsafe extern "C" fn new_batch(batch_size: u32, max_features: u32) -> *mut Batch {
+pub unsafe extern "C" fn batch_new(batch_size: u32, max_features: u32) -> *mut Batch {
     let batch = Batch::new(batch_size as usize, max_features as usize);
     Box::into_raw(Box::new(batch))
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn drop_batch(batch: *mut Batch) {
+pub unsafe extern "C" fn batch_drop(batch: *mut Batch) {
     Box::from_raw(batch);
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn clear_batch(batch: *mut Batch) {
+pub unsafe extern "C" fn batch_clear(batch: *mut Batch) {
     batch.as_mut().unwrap().clear();
 }
 
@@ -45,7 +45,7 @@ export_batch_getters! {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn new_file_reader(path: *const c_char) -> *mut FileReader {
+pub unsafe extern "C" fn file_reader_new(path: *const c_char) -> *mut FileReader {
     pub unsafe fn try_new_file_reader(path: *const c_char) -> Option<FileReader> {
         let path = CStr::from_ptr(path).to_str().ok()?;
         let reader = FileReader::new(path).ok()?;
@@ -59,34 +59,34 @@ pub unsafe extern "C" fn new_file_reader(path: *const c_char) -> *mut FileReader
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn drop_file_reader(reader: *mut FileReader) {
+pub unsafe extern "C" fn file_reader_drop(reader: *mut FileReader) {
     Box::from_raw(reader);
 }
 
 #[repr(C)]
-pub enum InputFeatureType {
+pub enum InputFeatureSetType {
     Board768,
     HalfKp,
     HalfKa
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn get_feature_set_max_features(feature_set: InputFeatureType) -> u32 {
+pub unsafe extern "C" fn input_feature_set_get_max_features(feature_set: InputFeatureSetType) -> u32 {
     let max_features = match feature_set {
-        InputFeatureType::Board768 => Board768::MAX_FEATURES,
-        InputFeatureType::HalfKp => HalfKp::MAX_FEATURES,
-        InputFeatureType::HalfKa => HalfKa::MAX_FEATURES
+        InputFeatureSetType::Board768 => Board768::MAX_FEATURES,
+        InputFeatureSetType::HalfKp => HalfKp::MAX_FEATURES,
+        InputFeatureSetType::HalfKa => HalfKa::MAX_FEATURES
     };
     max_features as u32
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn read_batch_into(reader: *mut FileReader, feature_set: InputFeatureType, batch: *mut Batch) -> bool {
+pub unsafe extern "C" fn read_batch_into(reader: *mut FileReader, feature_set: InputFeatureSetType, batch: *mut Batch) -> bool {
     let reader = reader.as_mut().unwrap();
     let batch = batch.as_mut().unwrap();
     match feature_set {
-        InputFeatureType::Board768 => data_loader::read_batch_into::<Board768>(reader, batch),
-        InputFeatureType::HalfKp => data_loader::read_batch_into::<HalfKp>(reader, batch),
-        InputFeatureType::HalfKa => data_loader::read_batch_into::<HalfKa>(reader, batch),
+        InputFeatureSetType::Board768 => data_loader::read_batch_into::<Board768>(reader, batch),
+        InputFeatureSetType::HalfKp => data_loader::read_batch_into::<HalfKp>(reader, batch),
+        InputFeatureSetType::HalfKa => data_loader::read_batch_into::<HalfKa>(reader, batch),
     }
 }

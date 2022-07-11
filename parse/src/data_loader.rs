@@ -43,7 +43,7 @@ impl FileReader {
         })
     }
 
-    fn fill_buffer(&mut self, chunk_size: usize) {
+    fn try_fill_buffer(&mut self, chunk_size: usize) -> bool {
         self.string_buffer.clear();
         self.string_buffer.extend((&mut self.file).flat_map(Result::ok).take(chunk_size));
         self.string_buffer
@@ -63,6 +63,16 @@ impl FileReader {
             })
             .rev()
             .collect_into_vec(&mut self.board_buffer);
+        !self.board_buffer.is_empty()
+    }
+
+    fn next_from_buffer(&mut self) -> Option<AnnotatedBoard> {
+        while let Some(maybe_board) = self.board_buffer.pop() {
+            if let Some(board) = maybe_board {
+                return Some(board);
+            }
+        }
+        None
     }
 }
 
@@ -70,15 +80,14 @@ impl Iterator for FileReader {
     type Item = AnnotatedBoard;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.board_buffer.is_empty() {
-            self.fill_buffer(32_000);
-        }
-        while let Some(board) = self.board_buffer.pop() {
-            if board.is_some() {
-                return board;
+        loop {
+            if let Some(board) = self.next_from_buffer() {
+                return Some(board);
+            }
+            if !self.try_fill_buffer(32_000) {
+                return None;
             }
         }
-        None
     }
 }
 

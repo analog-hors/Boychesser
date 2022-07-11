@@ -7,6 +7,8 @@ use super::InputFeature;
 pub struct Board768;
 
 impl InputFeature for Board768 {
+    const MAX_FEATURES: usize = 32;
+
     fn add_features(board: Board, mut entry: EntryFeatureWriter) {
         let stm = board.side_to_move();
 
@@ -45,9 +47,5 @@ impl InputFeature for Board768 {
                 entry.add_feature(stm_feature, nstm_feature);
             }
         }
-    }
-
-    fn max_features(&self) -> usize {
-        32
     }
 }

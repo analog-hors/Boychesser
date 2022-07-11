@@ -11,7 +11,7 @@ pub use half_kp::HalfKp;
 pub use half_ka::HalfKa;
 
 pub trait InputFeature {
-    fn add_features(board: Board, entry: EntryFeatureWriter);
+    const MAX_FEATURES: usize;
 
-    fn max_features(&self) -> usize;
+    fn add_features(board: Board, entry: EntryFeatureWriter);
 }

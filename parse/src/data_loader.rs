@@ -1,9 +1,7 @@
 use std::{
     fs::File,
     io::{BufRead, BufReader, Lines},
-    path::Path,
-    str::FromStr,
-    vec::Drain,
+    path::Path
 };
 
 use cozy_chess::{Board, Color};
@@ -12,6 +10,7 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use crate::batch::Batch;
 use crate::input_features::InputFeature;
 
+#[derive(Debug)]
 pub struct AnnotatedBoard {
     board: Board,
     cp: f32,
@@ -30,7 +29,7 @@ impl AnnotatedBoard {
 pub struct FileReader {
     file: Lines<BufReader<File>>,
     string_buffer: Vec<String>,
-    elements: Vec<AnnotatedBoard>,
+    board_buffer: Vec<Option<AnnotatedBoard>>,
 }
 
 impl FileReader {
@@ -40,58 +39,55 @@ impl FileReader {
         Ok(Self {
             file,
             string_buffer: vec![],
-            elements: vec![],
+            board_buffer: vec![],
         })
     }
 
-    fn read_next_n(&mut self, mut n: usize) -> bool {
+    fn fill_buffer(&mut self, chunk_size: usize) {
         self.string_buffer.clear();
-        while let Some(Ok(line)) = self.file.next() {
-            let mut split = line.split(" | ");
-            split.next().unwrap();
-            let cp = split.next().unwrap().parse::<f32>().unwrap();
-            if cp.abs() > 3000.0 {
-                continue;
-            }
-            self.string_buffer.push(line);
-            n -= 1;
-            if n == 0 {
-                break;
-            }
-        }
+        self.string_buffer.extend((&mut self.file).flat_map(Result::ok).take(chunk_size));
         self.string_buffer
             .par_iter()
             .map(|line| {
-                let mut split = line.split(" | ");
-                let board = Board::from_str(split.next().unwrap()).unwrap();
-                let cp = split.next().unwrap().parse::<f32>().unwrap();
-                let wdl = split.next().unwrap().parse::<f32>().unwrap();
-                AnnotatedBoard { board, cp, wdl }
+                let (board, annotation) = line.split_once(" | ")?;
+                let (cp, wdl) = annotation.split_once(" | ")?;
+
+                let cp = cp.parse::<f32>().ok()?;
+                if cp.abs() > 3000.0 {
+                    return None;
+                }
+                let wdl = wdl.parse::<f32>().ok()?;
+                let board = board.parse::<Board>().ok()?;
+                
+                Some(AnnotatedBoard { board, cp, wdl })
             })
-            .collect_into_vec(&mut self.elements);
-        n == 0
+            .rev()
+            .collect_into_vec(&mut self.board_buffer);
     }
+}
 
-    fn left(&self) -> usize {
-        self.elements.len()
-    }
+impl Iterator for FileReader {
+    type Item = AnnotatedBoard;
 
-    fn elements(&mut self, take: usize) -> Drain<AnnotatedBoard> {
-        self.elements.drain(0..take)
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.board_buffer.is_empty() {
+            self.fill_buffer(32_000);
+        }
+        while let Some(board) = self.board_buffer.pop() {
+            if board.is_some() {
+                return board;
+            }
+        }
+        None
     }
 }
 
 pub fn read_batch_into<F: InputFeature>(reader: &mut FileReader, batch: &mut Batch) -> bool {
-    if reader.left() < batch.batch_size() {
-        if !reader.read_next_n(batch.batch_size()) {
-            return false;
-        }
-    }
     batch.clear();
-    for annotated in reader.elements(batch.batch_size()) {
+    for annotated in reader.take(batch.capacity()) {
         let (cp, wdl) = annotated.relative_value();
         let entry = batch.make_entry(cp, wdl);
         F::add_features(annotated.board, entry);
     }
-    true
+    batch.capacity() == batch.len()
 }

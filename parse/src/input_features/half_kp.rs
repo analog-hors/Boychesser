@@ -7,6 +7,8 @@ use super::InputFeature;
 pub struct HalfKp;
 
 impl InputFeature for HalfKp {
+    const MAX_FEATURES: usize = 30;
+
     fn add_features(board: Board, mut entry: EntryFeatureWriter) {
         let stm = board.side_to_move();
 
@@ -49,9 +51,5 @@ impl InputFeature for HalfKp {
                 entry.add_feature(stm_feature, nstm_feature);
             }
         }
-    }
-
-    fn max_features(&self) -> usize {
-        30
     }
 }

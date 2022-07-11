@@ -1,6 +1,10 @@
-/train
-/fen_parse/target
-/convert/target
-libfen_parse.dylib
-libfen_parse.dll
-libfen_parse.so
+nn
+train
+runs
+parse/target
+convert/target
+libparse.dylib
+libparse.dll
+libparse.so
+__pycache__
+venv

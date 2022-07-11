@@ -1,15 +1,14 @@
+from __future__ import annotations
+
 import argparse
 import json
-import time
-from glob import glob
-from typing import Union
-
-import numpy as np
-from dataloader import ParserFileReader, BatchLoader, InputFeatureSet
-from model import NnBoard768, NnHalfKA, NnHalfKP
-import torch
-
 import pathlib
+
+from dataloader import BatchLoader
+from model import NnBoard768, NnHalfKA, NnHalfKP
+from time import time
+
+import torch
 from trainlog import TrainLog
 
 
@@ -38,17 +37,17 @@ def train(
     save_epochs: int,
     epochs_iter: int,
     train_id: str,
-    lr_drop: Union[None, int] = None,
-    train_log: Union[None, TrainLog] = None,
-):
+    lr_drop: int | None = None,
+    train_log: TrainLog | None = None,
+) -> None:
     clipper = WeightClipper()
-    running_loss = 0.0
-    start_time = time.time()
+    running_loss = torch.zeros((1,), device=DEVICE)
+    start_time = time()
     iterations = 0
     fens = 0
     epoch = 0
 
-    while True:
+    while epoch < epochs:
         optimizer.zero_grad()
         batch = dataloader.read_batch(DEVICE)
         prediction = model(batch)
@@ -66,16 +65,19 @@ def train(
 
         if iterations % epochs_iter == 0:
             running_loss = running_loss.item()
+            train_loss = running_loss / epochs_iter
             if train_log is not None:
-                train_log.update(running_loss / epochs_iter)
+                train_log.update(train_loss)
                 train_log.save()
             epoch += 1
-            print(f"epoch {epoch}")
-            print(f"running loss: {running_loss / epochs_iter}")
-            print(f"FEN/s: {fens / (time.time() - start_time)}")
+            print(
+                f"epoch {epoch}\n"
+                f"running loss: {train_loss}\n"
+                f"FEN/s: {fens / (time() - start_time)}"
+            )
 
-            running_loss = 0
-            start_time = time.time()
+            running_loss = torch.zeros((1,), device=DEVICE)
+            start_time = time()
             iterations = 0
             fens = 0
 
@@ -84,13 +86,12 @@ def train(
 
             if epoch % save_epochs == 0:
                 torch.save(model.state_dict(), f"nn/{train_id}_{epoch}")
-                param_map = {}
-                for name, param in model.named_parameters():
-                    param_map[name] = param.detach().cpu().numpy().T.tolist()
+                param_map = {
+                    name: param.detach().cpu().numpy().T.tolist()
+                    for name, param in model.named_parameters()
+                }
                 with open(f"nn/{train_id}.json", "w") as json_file:
                     json.dump(param_map, json_file)
-        if epoch >= epochs:
-            return
 
 
 def main():
@@ -128,7 +129,7 @@ def main():
     model = NnHalfKP(128).to(DEVICE)
 
     data_path = pathlib.Path(args.data_root)
-    paths = [str(path) for path in data_path.glob(f"*.txt")]
+    paths = list(map(str, data_path.glob("*.txt")))
     dataloader = BatchLoader(paths, model.input_feature_set(), args.batch_size)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)

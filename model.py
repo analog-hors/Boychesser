@@ -1,6 +1,6 @@
 import torch
 
-from dataloader import Batch
+from dataloader import Batch, InputFeatureSet
 
 
 class NnBoard768(torch.nn.Module):
@@ -23,6 +23,9 @@ class NnBoard768(torch.nn.Module):
         hidden = torch.clamp(torch.cat((stm_ft, nstm_ft), dim=1), 0, 1)
 
         return torch.sigmoid(self.out(hidden))
+
+    def input_feature_set(self) -> InputFeatureSet:
+        return InputFeatureSet.Board768
 
 
 class NnHalfKP(torch.nn.Module):
@@ -59,6 +62,9 @@ class NnHalfKP(torch.nn.Module):
 
         return torch.sigmoid(self.out(hidden))
 
+    def input_feature_set(self) -> InputFeatureSet:
+        return InputFeatureSet.HalfKp
+
 
 class NnHalfKA(torch.nn.Module):
     def __init__(self, ft_out: int):
@@ -93,3 +99,6 @@ class NnHalfKA(torch.nn.Module):
         hidden = torch.clamp(torch.cat((stm_ft, nstm_ft), dim=1), 0, 1)
 
         return torch.sigmoid(self.out(hidden))
+
+    def input_feature_set(self) -> InputFeatureSet:
+        return InputFeatureSet.HalfKa

@@ -25,6 +25,16 @@ TRAIN_ID = "baseline"
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
+class WeightClipper:
+    def __init__(self, frequency=1):
+        self.frequency = frequency
+
+    def __call__(self, module):
+        if hasattr(module, "weight"):
+            w = module.weight.data
+            w = w.clamp(-1.98, 1.98)
+
+
 def train(
     model,
     optimizer,
@@ -36,6 +46,7 @@ def train(
     lr_drop: Union[None, int] = None,
     train_log: Union[None, TrainLog] = None,
 ):
+    clipper = WeightClipper()
     running_loss = 0.0
     start_time = time.time()
     iterations = 0
@@ -52,6 +63,7 @@ def train(
         loss = torch.mean((prediction - expected) ** 2)
         loss.backward()
         optimizer.step()
+        model.apply(clipper)
 
         running_loss += loss.item()
         iterations += 1
@@ -109,6 +121,8 @@ def main():
         help="The epoch learning rate will be dropped",
     )
     args = parser.parse_args()
+
+    assert args.train_id is not None
 
     train_log = TrainLog(args.train_id)
 

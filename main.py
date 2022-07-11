@@ -14,13 +14,6 @@ from trainlog import TrainLog
 
 
 EPOCH_FENS = 1_000_000
-SCALE = 400
-
-
-WDL = 0.1  # 0.0 <= WDL <= 1.0
-DATADIR = "train/syzygy"
-MODEL = "nn"
-TRAIN_ID = "baseline"
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -36,13 +29,15 @@ class WeightClipper:
 
 
 def train(
-    model,
-    optimizer,
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
     dataloader: BatchLoader,
-    wdl,
-    epochs,
-    save_epochs,
-    epochs_iter,
+    wdl: float,
+    scale: float,
+    epochs: int,
+    save_epochs: int,
+    epochs_iter: int,
+    train_id: str,
     lr_drop: Union[None, int] = None,
     train_log: Union[None, TrainLog] = None,
 ):
@@ -58,7 +53,7 @@ def train(
         optimizer.zero_grad()
         batch = dataloader.read_batch(DEVICE)
         prediction = model(batch)
-        expected = torch.sigmoid(batch.cp / SCALE) * (1 - wdl) + batch.wdl * wdl
+        expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
 
         loss = torch.mean((prediction - expected) ** 2)
         loss.backward()
@@ -87,10 +82,11 @@ def train(
                 optimizer.param_groups[0]["lr"] *= 0.1
 
             if epoch % save_epochs == 0:
+                torch.save(model.state_dict(), f"{train_id}_{epoch}")
                 param_map = {}
                 for name, param in model.named_parameters():
                     param_map[name] = param.detach().cpu().numpy().T.tolist()
-                with open(f"nn/{MODEL}.json", "w") as json_file:
+                with open(f"nn/model.json", "w") as json_file:
                     json.dump(param_map, json_file)
         if epoch >= epochs:
             return
@@ -108,6 +104,7 @@ def main():
     parser.add_argument("--epochs", type=int, help="Epochs to train for")
     parser.add_argument("--batch-size", type=int, default=16384, help="Batch size")
     parser.add_argument("--wdl", type=float, default=0.0, help="WDL weight to be used")
+    parser.add_argument("--scale", type=float, help="WDL weight to be used")
     parser.add_argument(
         "--save-epochs",
         type=int,
@@ -123,6 +120,7 @@ def main():
     args = parser.parse_args()
 
     assert args.train_id is not None
+    assert args.scale is not None
 
     train_log = TrainLog(args.train_id)
 
@@ -139,8 +137,10 @@ def main():
         optimizer,
         dataloader,
         args.wdl,
+        args.scale,
         args.epochs,
         args.save_epochs,
+        args.train_id,
         EPOCH_FENS // args.batch_size,
         lr_drop=args.lr_drop,
         train_log=train_log,

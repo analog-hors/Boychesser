@@ -59,7 +59,8 @@ def train(
         optimizer.step()
         model.apply(clipper)
 
-        running_loss += loss
+        with torch.no_grad():
+            running_loss += loss
         iterations += 1
         fens += batch.size
 

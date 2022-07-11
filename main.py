@@ -93,7 +93,7 @@ def main():
         dataloader,
         epochs=2800,
         save_epochs=100,
-        lr_drop=1,
+        lr_drop=700,
         train_log=train_log,
     )
 

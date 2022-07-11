@@ -12,10 +12,10 @@ class NnBoard768(torch.nn.Module):
     def forward(self, batch: Batch):
         board_stm_sparse = torch.sparse_coo_tensor(
             batch.stm_indices, batch.values, (batch.size, 768)
-        )
+        ).to_dense()
         board_nstm_sparse = torch.sparse_coo_tensor(
             batch.nstm_indices, batch.values, (batch.size, 768)
-        )
+        ).to_dense()
 
         stm_ft = self.ft(board_stm_sparse)
         nstm_ft = self.ft(board_nstm_sparse)
@@ -50,10 +50,10 @@ class NnHalfKP(torch.nn.Module):
         v_nstm_indices[1][:] %= 640
         v_board_stm_sparse = torch.sparse_coo_tensor(
             v_stm_indices, batch.values, (batch.size, 640)
-        )
+        ).to_dense()
         v_board_nstm_sparse = torch.sparse_coo_tensor(
             v_nstm_indices, batch.values, (batch.size, 640)
-        )
+        ).to_dense()
 
         stm_ft = self.ft(board_stm_sparse) + self.fft(v_board_stm_sparse)
         nstm_ft = self.ft(board_nstm_sparse) + self.fft(v_board_nstm_sparse)
@@ -88,10 +88,10 @@ class NnHalfKA(torch.nn.Module):
         v_nstm_indices[1][:] %= 768
         v_board_stm_sparse = torch.sparse_coo_tensor(
             v_stm_indices, batch.values, (batch.size, 768)
-        )
+        ).to_dense()
         v_board_nstm_sparse = torch.sparse_coo_tensor(
             v_nstm_indices, batch.values, (batch.size, 768)
-        )
+        ).to_dense()
 
         stm_ft = self.ft(board_stm_sparse) + self.fft(v_board_stm_sparse)
         nstm_ft = self.ft(board_nstm_sparse) + self.fft(v_board_nstm_sparse)

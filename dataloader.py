@@ -58,7 +58,6 @@ class Batch:
 
 
 class ParserBatch:
-
     def __init__(self, batch_size: int, max_features: int) -> None:
         self._ptr = ctypes.c_void_p(
             PARSE_LIB.batch_new(
@@ -79,28 +78,28 @@ class ParserBatch:
     def __exit__(self) -> None:
         self.drop()
 
-    def get_capacity(self) -> ctypes._NamedFuncPointer:
+    def get_capacity(self) -> int:
         return PARSE_LIB.batch_get_capacity(self._ptr)
 
     def get_len(self) -> int:
         return PARSE_LIB.batch_get_len(self._ptr)
 
-    def get_stm_feature_buffer_ptr(self) -> ctypes._NamedFuncPointer:
+    def get_stm_feature_buffer_ptr(self) -> ctypes.pointer[ctypes.c_float]:
         return PARSE_LIB.batch_get_stm_feature_buffer_ptr(self._ptr)
 
-    def get_nstm_feature_buffer_ptr(self) -> ctypes._NamedFuncPointer:
+    def get_nstm_feature_buffer_ptr(self) -> ctypes.pointer[ctypes.c_float]:
         return PARSE_LIB.batch_get_nstm_feature_buffer_ptr(self._ptr)
 
-    def get_values_ptr(self) -> ctypes._NamedFuncPointer:
+    def get_values_ptr(self) -> ctypes.pointer[ctypes.c_float]:
         return PARSE_LIB.batch_get_values_ptr(self._ptr)
 
-    def get_total_features(self) -> ctypes._NamedFuncPointer:
+    def get_total_features(self) -> int:
         return PARSE_LIB.batch_get_total_features(self._ptr)
 
-    def get_cp_ptr(self) -> ctypes._NamedFuncPointer:
+    def get_cp_ptr(self) -> ctypes.pointer[ctypes.c_float]:
         return PARSE_LIB.batch_get_cp_ptr(self._ptr)
 
-    def get_wdl_ptr(self) -> ctypes._NamedFuncPointer:
+    def get_wdl_ptr(self) -> ctypes.pointer[ctypes.c_float]:
         return PARSE_LIB.batch_get_wdl_ptr(self._ptr)
 
     def to_pytorch_batch(self, device: torch.device) -> Batch:
@@ -135,7 +134,6 @@ class ParserBatch:
 
 
 class ParserFileReader:
-
     def __init__(self, path: str) -> None:
         self._ptr = ctypes.c_void_p(
             PARSE_LIB.file_reader_new(ctypes.create_string_buffer(bytes(path, "ascii")))
@@ -157,12 +155,11 @@ class ParserFileReader:
 
 def read_batch_into(
     reader: ParserFileReader, feature_set: InputFeatureSet, parser_batch: ParserBatch
-) -> ctypes._NamedFuncPointer:
+) -> bool:
     return PARSE_LIB.read_batch_into(reader._ptr, feature_set, parser_batch._ptr)
 
 
 class BatchLoader:
-
     def __init__(
         self, files: list[str], feature_set: InputFeatureSet, batch_size: int
     ) -> None:
@@ -174,10 +171,9 @@ class BatchLoader:
         self._batch = ParserBatch(batch_size, feature_set.max_features())
 
     def read_batch(self, device: torch.device) -> Batch:
-        file_count = len(self._files)
         while not read_batch_into(self._reader, self._feature_set, self._batch):
             self._reader.drop()
-            self._file_index = (self._file_index + 1) % file_count
+            self._file_index = (self._file_index + 1) % len(self._files)
             self._reader = ParserFileReader(self._files[self._file_index])
         return self._batch.to_pytorch_batch(device)
 

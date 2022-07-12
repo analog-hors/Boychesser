@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import pathlib
 
 from dataloader import BatchLoader
@@ -71,9 +72,10 @@ def train(
                 train_log.save()
             epoch += 1
             print(
-                f"epoch {epoch}\n"
-                f"running loss: {train_loss}\n"
-                f"FEN/s: {fens / (time() - start_time)}"
+                f"epoch {epoch}\n",
+                f"running loss: {train_loss}\n",
+                f"FEN/s: {fens / (time() - start_time)}",
+                sep=os.linesep,
             )
 
             running_loss = torch.zeros((1,), device=DEVICE)

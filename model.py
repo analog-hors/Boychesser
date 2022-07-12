@@ -25,7 +25,7 @@ class NnBoard768(torch.nn.Module):
         return torch.sigmoid(self.out(hidden))
 
     def input_feature_set(self) -> InputFeatureSet:
-        return InputFeatureSet.Board768
+        return InputFeatureSet.BOARD_768
 
 
 class NnHalfKP(torch.nn.Module):
@@ -63,7 +63,7 @@ class NnHalfKP(torch.nn.Module):
         return torch.sigmoid(self.out(hidden))
 
     def input_feature_set(self) -> InputFeatureSet:
-        return InputFeatureSet.HalfKp
+        return InputFeatureSet.HALF_KP
 
 
 class NnHalfKA(torch.nn.Module):
@@ -101,4 +101,4 @@ class NnHalfKA(torch.nn.Module):
         return torch.sigmoid(self.out(hidden))
 
     def input_feature_set(self) -> InputFeatureSet:
-        return InputFeatureSet.HalfKa
+        return InputFeatureSet.HALF_KA

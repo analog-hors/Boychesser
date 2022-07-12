@@ -72,8 +72,8 @@ def train(
                 train_log.save()
             epoch += 1
             print(
-                f"epoch {epoch}\n",
-                f"running loss: {train_loss}\n",
+                f"epoch {epoch}",
+                f"running loss: {train_loss}",
                 f"FEN/s: {fens / (time() - start_time)}",
                 sep=os.linesep,
             )

@@ -1,4 +1,4 @@
-use cozy_chess::{Board, Color, Piece};
+use cozy_chess::{Board, Color, Piece, Square};
 
 use crate::batch::EntryFeatureWriter;
 
@@ -12,40 +12,26 @@ impl InputFeatureSet for Board768 {
     fn add_features(board: Board, mut entry: EntryFeatureWriter) {
         let stm = board.side_to_move();
 
-        let white = board.colors(Color::White);
-        let black = board.colors(Color::Black);
-
-        let pawns = board.pieces(Piece::Pawn);
-        let knights = board.pieces(Piece::Knight);
-        let bishops = board.pieces(Piece::Bishop);
-        let rooks = board.pieces(Piece::Rook);
-        let queens = board.pieces(Piece::Queen);
-        let kings = board.pieces(Piece::King);
-
-        let array = [
-            (white & pawns),
-            (white & knights),
-            (white & bishops),
-            (white & rooks),
-            (white & queens),
-            (white & kings),
-            (black & pawns),
-            (black & knights),
-            (black & bishops),
-            (black & rooks),
-            (black & queens),
-            (black & kings),
-        ];
-        for (index, &pieces) in array.iter().enumerate() {
-            for sq in pieces {
-                let (stm_index, stm_sq, nstm_index, nstm_sq) = match stm {
-                    Color::White => (index, sq as usize, ((index + 6) % 12), sq as usize ^ 56),
-                    Color::Black => (((index + 6) % 12), sq as usize ^ 56, index, sq as usize),
-                };
-                let stm_feature = (stm_index * 64 + stm_sq) as i64;
-                let nstm_feature = (nstm_index * 64 + nstm_sq) as i64;
-                entry.add_feature(stm_feature, nstm_feature);
+        for &color in &Color::ALL {
+            for &piece in &Piece::ALL {
+                for square in board.pieces(piece) & board.colors(color) {
+                    let stm_feature = feature(stm, color, piece, square);
+                    let nstm_feature = feature(!stm, color, piece, square);
+                    entry.add_feature(stm_feature as i64, nstm_feature as i64);
+                }
             }
         }
     }
+}
+
+fn feature(perspective: Color, color: Color, piece: Piece, square: Square) -> usize {
+    let (square, color) = match perspective {
+        Color::White => (square, color),
+        Color::Black => (square.flip_rank(), !color)
+    };
+    let mut index = 0;
+    index = index * Color::NUM + color as usize;
+    index = index * Piece::NUM + piece as usize;
+    index = index * Square::NUM + square as usize;
+    index
 }

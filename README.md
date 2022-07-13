@@ -5,8 +5,7 @@ Neural Network training repository for the Black Marlin chess engine
 - Python 3
 - Cargo(Rust)
 - Numpy
-- Tensorflow
-- Tensorflow Addons
+- PyTorch
 
 # Fen Parse
 `fen_parse` requires files to be saved as following:
@@ -28,4 +27,4 @@ locate the .so/.dylib/.dll in target/release and move it to project root.
 mkdir nn
 ```
 
-Run main.py after setting the appropriate global parameters in the file.
+Run main.py with the proper command line arguments

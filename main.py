@@ -26,6 +26,7 @@ class WeightClipper:
         if hasattr(module, "weight"):
             w = module.weight.data
             w = w.clamp(-1.98, 1.98)
+            module.weight.data = w
 
 
 def train(

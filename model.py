@@ -1,5 +1,4 @@
 import torch
-from cudasparse import DoubleFeatureTransformerSlice
 
 from dataloader import Batch, InputFeatureSet
 
@@ -112,6 +111,8 @@ class NnHalfKA(torch.nn.Module):
 
 class NnBoard768Cuda(torch.nn.Module):
     def __init__(self, ft_out: int):
+        from cudasparse import DoubleFeatureTransformerSlice
+
         super().__init__()
         self.max_features = InputFeatureSet.BOARD_768_CUDA.max_features()
         self.ft = DoubleFeatureTransformerSlice(768, ft_out)
@@ -143,6 +144,8 @@ class NnBoard768Cuda(torch.nn.Module):
 class NnHalfKPCuda(torch.nn.Module):
     def __init__(self, ft_out: int):
         super().__init__()
+        from cudasparse import DoubleFeatureTransformerSlice
+
         self.max_features = InputFeatureSet.HALF_KP_CUDA.max_features()
         self.ft = DoubleFeatureTransformerSlice(40960, ft_out)
         self.fft = DoubleFeatureTransformerSlice(640, ft_out)
@@ -163,7 +166,7 @@ class NnHalfKPCuda(torch.nn.Module):
             values,
         )
         v_stm_ft, v_nstm_ft = self.fft(
-            stm_indices % 640, values, nstm_indices % 640, values
+            stm_indices.fmod(640), values, nstm_indices.fmod(640), values
         )
 
         hidden = torch.clamp(
@@ -179,6 +182,8 @@ class NnHalfKPCuda(torch.nn.Module):
 class NnHalfKACuda(torch.nn.Module):
     def __init__(self, ft_out: int):
         super().__init__()
+        from cudasparse import DoubleFeatureTransformerSlice
+
         self.max_features = InputFeatureSet.HALF_KA_CUDA.max_features()
         self.ft = DoubleFeatureTransformerSlice(49152, ft_out)
         self.fft = DoubleFeatureTransformerSlice(768, ft_out)
@@ -199,7 +204,7 @@ class NnHalfKACuda(torch.nn.Module):
             values,
         )
         v_stm_ft, v_nstm_ft = self.fft(
-            stm_indices % 768, values, nstm_indices % 768, values
+            stm_indices.fmod(768), values, nstm_indices.fmod(768), values
         )
 
         hidden = torch.clamp(

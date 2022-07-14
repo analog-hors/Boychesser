@@ -8,6 +8,7 @@ pub struct Batch {
     nstm_feature_buffer: Box<[i64]>,
     values: Box<[f32]>,
     total_features: usize,
+    indices_per_feature: usize,
 
     cp: Box<[f32]>,
     wdl: Box<[f32]>,
@@ -17,13 +18,16 @@ pub struct Batch {
 }
 
 impl Batch {
-    pub fn new(capacity: usize, max_features: usize) -> Self {
+    pub fn new(capacity: usize, max_features: usize, indices_per_feature: usize) -> Self {
         Self {
             capacity,
             max_features,
-            stm_feature_buffer: vec![0; capacity * max_features].into_boxed_slice(),
-            nstm_feature_buffer: vec![0; capacity * max_features].into_boxed_slice(),
+            stm_feature_buffer: vec![0; capacity * max_features * indices_per_feature]
+                .into_boxed_slice(),
+            nstm_feature_buffer: vec![0; capacity * max_features * indices_per_feature]
+                .into_boxed_slice(),
             total_features: 0,
+            indices_per_feature,
             values: vec![1.0; capacity * max_features].into_boxed_slice(),
             cp: vec![0_f32; capacity].into_boxed_slice(),
             wdl: vec![0_f32; capacity].into_boxed_slice(),
@@ -71,6 +75,10 @@ impl Batch {
         self.total_features
     }
 
+    pub fn indices_per_feature(&self) -> usize {
+        self.indices_per_feature
+    }
+
     pub fn cp_ptr(&self) -> *const f32 {
         &self.cp[0]
     }
@@ -100,6 +108,7 @@ impl CudaBatchWriter<'_> {
     pub fn add_feature(&mut self, stm_feature: i64, nstm_feature: i64) {
         self.entry_feature_writer
             .add_feature_cuda(stm_feature, nstm_feature);
+        self.count += 1;
     }
 }
 
@@ -129,17 +138,17 @@ impl<'b> EntryFeatureWriter<'b> {
     }
 
     fn add_feature_sparse(&mut self, stm_feature: i64, nstm_feature: i64) {
-        let index = self.batch.total_features * 2;
-        self.batch.stm_feature_buffer[index] = self.index_in_batch as i64;
-        self.batch.nstm_feature_buffer[index] = self.index_in_batch as i64;
-        self.batch.stm_feature_buffer[index + 1] = stm_feature;
-        self.batch.nstm_feature_buffer[index + 1] = nstm_feature;
+        let index = self.batch.total_features;
+        self.batch.stm_feature_buffer[index * 2] = self.index_in_batch as i64;
+        self.batch.nstm_feature_buffer[index * 2] = self.index_in_batch as i64;
+        self.batch.stm_feature_buffer[index * 2 + 1] = stm_feature;
+        self.batch.nstm_feature_buffer[index * 2 + 1] = nstm_feature;
         self.batch.total_features += 1;
     }
 
     fn add_feature_cuda(&mut self, stm_feature: i64, nstm_feature: i64) {
         self.batch.stm_feature_buffer[self.batch.total_features] = stm_feature;
-        self.batch.nstm_feature_buffer[self.batch.total_features + 1] = nstm_feature;
+        self.batch.nstm_feature_buffer[self.batch.total_features] = nstm_feature;
         self.batch.total_features += 1;
     }
 

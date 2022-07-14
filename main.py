@@ -6,7 +6,7 @@ import os
 import pathlib
 
 from dataloader import BatchLoader
-from model import NnBoard768, NnHalfKA, NnHalfKP
+from model import NnBoard768Cuda, NnBoard768, NnHalfKA, NnHalfKP, NnHalfKPCuda
 from time import time
 
 import torch
@@ -129,7 +129,7 @@ def main():
 
     train_log = TrainLog(args.train_id)
 
-    model = NnHalfKP(128).to(DEVICE)
+    model = NnHalfKPCuda(128).to(DEVICE)
 
     data_path = pathlib.Path(args.data_root)
     paths = list(map(str, data_path.glob("*.txt")))

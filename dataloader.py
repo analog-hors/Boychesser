@@ -28,7 +28,8 @@ def _load_parse_lib():
     lib.file_reader_new.restype = ctypes.c_void_p
     lib.file_reader_drop.restype = None
 
-    lib.input_feature_set_get_max_indices.restype = ctypes.c_uint32
+    lib.input_feature_set_get_max_features.restype = ctypes.c_uint32
+    lib.input_feature_set_get_indices_per_feature.restype = ctypes.c_uint32
 
     lib.read_batch_into.restype = ctypes.c_bool
 
@@ -42,9 +43,15 @@ class InputFeatureSet(IntEnum):
     BOARD_768 = 0
     HALF_KP = 1
     HALF_KA = 2
+    BOARD_768_CUDA = 3
+    HALF_KP_CUDA = 4
+    HALF_KA_CUDA = 5
 
-    def max_indices(self) -> int:
-        return PARSE_LIB.input_feature_set_get_max_indices(self)
+    def max_features(self) -> int:
+        return PARSE_LIB.input_feature_set_get_max_features(self)
+
+    def indices_per_feature(self) -> int:
+        return PARSE_LIB.input_feature_set_get_indices_per_feature(self)
 
 
 @dataclass
@@ -58,10 +65,14 @@ class Batch:
 
 
 class ParserBatch:
-    def __init__(self, batch_size: int, max_indices: int) -> None:
+    def __init__(
+        self, batch_size: int, max_features: int, indices_per_feature: int
+    ) -> None:
         self._ptr = ctypes.c_void_p(
             PARSE_LIB.batch_new(
-                ctypes.c_uint32(batch_size), ctypes.c_uint32(max_indices)
+                ctypes.c_uint32(batch_size),
+                ctypes.c_uint32(max_features),
+                ctypes.c_uint32(indices_per_feature),
             )
         )
         if self._ptr.value is None:
@@ -96,6 +107,9 @@ class ParserBatch:
     def get_total_features(self) -> int:
         return PARSE_LIB.batch_get_total_features(self._ptr)
 
+    def get_indices_per_feature(self) -> int:
+        return PARSE_LIB.batch_get_indices_per_feature(self._ptr)
+
     def get_cp_ptr(self) -> ctypes.pointer[ctypes.c_float]:
         return PARSE_LIB.batch_get_cp_ptr(self._ptr)
 
@@ -110,15 +124,18 @@ class ParserBatch:
             return tch_array.to(device, non_blocking=True)
 
         total_features = self.get_total_features()
+        indices_per_feature = self.get_indices_per_feature()
         boards_stm = to_pytorch(
             np.ctypeslib.as_array(
-                self.get_stm_feature_buffer_ptr(), shape=(total_features, 2)
-            ).T
+                self.get_stm_feature_buffer_ptr(),
+                shape=(total_features * indices_per_feature,),
+            )
         )
         boards_nstm = to_pytorch(
             np.ctypeslib.as_array(
-                self.get_nstm_feature_buffer_ptr(), shape=(total_features, 2)
-            ).T
+                self.get_nstm_feature_buffer_ptr(),
+                shape=(total_features * indices_per_feature,),
+            )
         )
         values = to_pytorch(
             np.ctypeslib.as_array(self.get_values_ptr(), shape=(total_features,))
@@ -168,7 +185,9 @@ class BatchLoader:
         self._files = files
         self._file_index = 0
         self._reader = ParserFileReader(self._files[self._file_index])
-        self._batch = ParserBatch(batch_size, feature_set.max_indices())
+        self._batch = ParserBatch(
+            batch_size, feature_set.max_features(), feature_set.indices_per_feature()
+        )
 
     def read_batch(self, device: torch.device) -> Batch:
         while not read_batch_into(self._reader, self._feature_set, self._batch):

@@ -9,7 +9,8 @@ pub struct HalfKp;
 pub struct HalfKpCuda;
 
 impl InputFeatureSet for HalfKp {
-    const MAX_INDICES: usize = 60;
+    const MAX_FEATURES: usize = 30;
+    const INDICES_PER_FEATURE: usize = 2;
 
     fn add_features(board: Board, entry: EntryFeatureWriter) {
         let mut sparse_entry = entry.sparse();
@@ -34,7 +35,8 @@ impl InputFeatureSet for HalfKp {
 }
 
 impl InputFeatureSet for HalfKpCuda {
-    const MAX_INDICES: usize = 30;
+    const MAX_FEATURES: usize = 30;
+    const INDICES_PER_FEATURE: usize = 1;
 
     fn add_features(board: Board, entry: EntryFeatureWriter) {
         let mut cuda_entry = entry.cuda();

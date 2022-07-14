@@ -28,7 +28,7 @@ def _load_parse_lib():
     lib.file_reader_new.restype = ctypes.c_void_p
     lib.file_reader_drop.restype = None
 
-    lib.input_feature_set_get_max_features.restype = ctypes.c_uint32
+    lib.input_feature_set_get_max_indices.restype = ctypes.c_uint32
 
     lib.read_batch_into.restype = ctypes.c_bool
 
@@ -43,8 +43,8 @@ class InputFeatureSet(IntEnum):
     HALF_KP = 1
     HALF_KA = 2
 
-    def max_features(self) -> int:
-        return PARSE_LIB.input_feature_set_get_max_features(self)
+    def max_indices(self) -> int:
+        return PARSE_LIB.input_feature_set_get_max_indices(self)
 
 
 @dataclass
@@ -58,10 +58,10 @@ class Batch:
 
 
 class ParserBatch:
-    def __init__(self, batch_size: int, max_features: int) -> None:
+    def __init__(self, batch_size: int, max_indices: int) -> None:
         self._ptr = ctypes.c_void_p(
             PARSE_LIB.batch_new(
-                ctypes.c_uint32(batch_size), ctypes.c_uint32(max_features)
+                ctypes.c_uint32(batch_size), ctypes.c_uint32(max_indices)
             )
         )
         if self._ptr.value is None:
@@ -168,7 +168,7 @@ class BatchLoader:
         self._files = files
         self._file_index = 0
         self._reader = ParserFileReader(self._files[self._file_index])
-        self._batch = ParserBatch(batch_size, feature_set.max_features())
+        self._batch = ParserBatch(batch_size, feature_set.max_indices())
 
     def read_batch(self, device: torch.device) -> Batch:
         while not read_batch_into(self._reader, self._feature_set, self._batch):

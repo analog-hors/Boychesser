@@ -71,11 +71,11 @@ pub enum InputFeatureSetType {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn input_feature_set_get_max_features(feature_set: InputFeatureSetType) -> u32 {
+pub unsafe extern "C" fn input_feature_set_get_max_indices(feature_set: InputFeatureSetType) -> u32 {
     let max_features = match feature_set {
-        InputFeatureSetType::Board768 => Board768::MAX_FEATURES,
-        InputFeatureSetType::HalfKp => HalfKp::MAX_FEATURES,
-        InputFeatureSetType::HalfKa => HalfKa::MAX_FEATURES
+        InputFeatureSetType::Board768 => Board768::MAX_INDICES,
+        InputFeatureSetType::HalfKp => HalfKp::MAX_INDICES,
+        InputFeatureSetType::HalfKa => HalfKa::MAX_INDICES
     };
     max_features as u32
 }

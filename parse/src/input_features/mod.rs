@@ -11,7 +11,7 @@ pub use half_kp::HalfKp;
 pub use half_ka::HalfKa;
 
 pub trait InputFeatureSet {
-    const MAX_FEATURES: usize;
+    const MAX_INDICES: usize;
 
     fn add_features(board: Board, entry: EntryFeatureWriter);
 }

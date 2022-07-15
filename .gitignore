@@ -1,6 +1,6 @@
-nn
-train
-runs
+data
+trainer/nn
+trainer/runs
 /target
 libparse.dylib
 libparse.dll

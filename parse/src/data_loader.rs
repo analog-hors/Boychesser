@@ -1,10 +1,8 @@
-use std::{
-    fs::File,
-    io::{BufRead, BufReader, Lines},
-    path::Path
-};
+use std::{fs::File, io::Read, path::Path};
 
+use bytemuck::Zeroable;
 use cozy_chess::{Board, Color};
+use marlinformat::PackedBoard;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::batch::Batch;
@@ -27,38 +25,46 @@ impl AnnotatedBoard {
 }
 
 pub struct FileReader {
-    file: Lines<BufReader<File>>,
-    string_buffer: Vec<String>,
+    file: File,
+    packed_buffer: Vec<PackedBoard>,
     board_buffer: Vec<Option<AnnotatedBoard>>,
 }
 
 impl FileReader {
     pub fn new(path: impl AsRef<Path>) -> std::io::Result<Self> {
         let file = File::open(path)?;
-        let file = BufReader::new(file).lines();
         Ok(Self {
             file,
-            string_buffer: vec![],
+            packed_buffer: vec![],
             board_buffer: vec![],
         })
     }
 
     fn try_fill_buffer(&mut self, chunk_size: usize) -> bool {
-        self.string_buffer.clear();
-        self.string_buffer.extend((&mut self.file).flat_map(Result::ok).take(chunk_size));
-        self.string_buffer
-            .par_iter()
-            .map(|line| {
-                let (board, annotation) = line.split_once(" | ")?;
-                let (cp, wdl) = annotation.split_once(" | ")?;
+        self.packed_buffer.resize(chunk_size, PackedBoard::zeroed());
+        let buffer = bytemuck::cast_slice_mut(&mut self.packed_buffer);
+        let mut bytes_read = 0;
+        loop {
+            match self.file.read(&mut buffer[bytes_read..]) {
+                Ok(0) => break,
+                Ok(some) => bytes_read += some,
+                Err(_) => break,
+            }
+        }
+        let elems = bytes_read / std::mem::size_of::<PackedBoard>();
+        self.packed_buffer.truncate(elems);
 
-                let cp = cp.parse::<f32>().ok()?;
+        self.packed_buffer
+            .par_iter()
+            .map(|packed| {
+                let (board, cp, wdl, _) = packed.unpack()?;
+                let cp = cp as f32;
+                let wdl = wdl as f32 / 2.0;
+
                 if cp.abs() > 3000.0 {
                     return None;
                 }
-                let wdl = wdl.parse::<f32>().ok()?;
-                let board = board.parse::<Board>().ok()?;
-                
+
                 Some(AnnotatedBoard { board, cp, wdl })
             })
             .rev()

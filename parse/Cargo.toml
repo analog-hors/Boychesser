@@ -7,9 +7,6 @@ edition = "2018"
 [lib]
 crate-type = ["cdylib"]
 
-[profile.release]
-lto = "fat"
-
 [dependencies]
 cozy-chess = "0.2.1"
 cozy-syzygy = { git = "https://github.com/MinusKelvin/cozy-syzygy" }

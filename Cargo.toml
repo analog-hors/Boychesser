@@ -1,0 +1,10 @@
+[workspace]
+
+members = [
+    "parse",
+    "utils",
+    "marlinformat",
+]
+
+[profile.release]
+lto = true

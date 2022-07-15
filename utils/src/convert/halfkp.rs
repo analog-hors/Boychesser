@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::utils;
+use super::utils;
 
 #[derive(Serialize, Deserialize)]
 pub struct HalfKp {

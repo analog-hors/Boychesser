@@ -1,7 +1,7 @@
 nn
 train
 runs
-parse/target
+target
 convert/target
 libparse.dylib
 libparse.dll

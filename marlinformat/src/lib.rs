@@ -15,11 +15,11 @@ pub struct PackedBoard {
     fullmove_number: util::U16Le,
     eval: util::I16Le,
     wdl: u8,
-    _padding: u8,
+    extra: u8,
 }
 
 impl PackedBoard {
-    pub fn pack(board: &Board, eval: i16, wdl: u8) -> Self {
+    pub fn pack(board: &Board, eval: i16, wdl: u8, extra: u8) -> Self {
         let occupancy = board.occupied();
 
         let mut pieces = util::U4Array32::default();
@@ -52,11 +52,11 @@ impl PackedBoard {
             fullmove_number: util::U16Le::new(board.fullmove_number()),
             wdl,
             eval: util::I16Le::new(eval),
-            _padding: 0,
+            extra,
         }
     }
 
-    pub fn unpack(&self) -> Option<(Board, i16, u8)> {
+    pub fn unpack(&self) -> Option<(Board, i16, u8, u8)> {
         let mut builder = BoardBuilder::empty();
 
         let mut seen_king = [false; 2];
@@ -85,7 +85,7 @@ impl PackedBoard {
         builder.halfmove_clock = self.halfmove_clock;
         builder.fullmove_number = core::num::NonZeroU16::new(self.fullmove_number.get())?;
 
-        Some((builder.build().ok()?, self.eval.get(), self.wdl))
+        Some((builder.build().ok()?, self.eval.get(), self.wdl, self.extra))
     }
 }
 
@@ -160,8 +160,8 @@ mod tests {
         // Grab `valid.sfens` from `cozy-chess` to run test
         for sfen in include_str!("valid.sfens").lines() {
             let board = Board::from_fen(sfen, true).unwrap();
-            let packed = PackedBoard::pack(&board, 0, 0);
-            let (unpacked, _, _) = packed
+            let packed = PackedBoard::pack(&board, 0, 0, 0);
+            let (unpacked, _, _, _) = packed
                 .unpack()
                 .unwrap_or_else(|| panic!("Failed to unpack {}. {:#X?}", sfen, packed));
             assert_eq!(board, unpacked, "{}", sfen);

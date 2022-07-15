@@ -57,7 +57,7 @@ impl FileReader {
         self.packed_buffer
             .par_iter()
             .map(|packed| {
-                let (board, cp, wdl) = packed.unpack()?;
+                let (board, cp, wdl, _) = packed.unpack()?;
                 let cp = cp as f32;
                 let wdl = wdl as f32 / 2.0;
 

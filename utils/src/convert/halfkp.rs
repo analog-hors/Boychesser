@@ -49,7 +49,7 @@ impl HalfKp {
         utils::serialize_dense_i16(&summed_weights, &mut bin, ft_scale);
         utils::serialize_flat_i16(&summed_bias, &mut bin, ft_scale);
         utils::serialize_dense_i8(&self.out_weights, &mut bin, scale);
-        utils::serialize_flat_i8(&self.out_bias, &mut bin, scale);
+        utils::serialize_flat_i16(&self.out_bias, &mut bin, ft_scale * scale);
 
         bin
     }

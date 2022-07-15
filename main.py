@@ -132,7 +132,7 @@ def main():
     model = NnHalfKPCuda(128).to(DEVICE)
 
     data_path = pathlib.Path(args.data_root)
-    paths = list(map(str, data_path.glob("*.txt")))
+    paths = list(map(str, data_path.glob("*.bin")))
     dataloader = BatchLoader(paths, model.input_feature_set(), args.batch_size)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)

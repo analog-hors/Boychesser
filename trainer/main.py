@@ -11,11 +11,9 @@ from time import time
 
 import torch
 from trainlog import TrainLog
-
-
-EPOCH_FENS = 1_000_000
-
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+LOG_ITERS = 10_000_000
 
 
 class WeightClipper:
@@ -37,7 +35,6 @@ def train(
     scale: float,
     epochs: int,
     save_epochs: int,
-    epochs_iter: int,
     train_id: str,
     lr_drop: int | None = None,
     train_log: TrainLog | None = None,
@@ -46,12 +43,13 @@ def train(
     running_loss = torch.zeros((1,), device=DEVICE)
     start_time = time()
     iterations = 0
+    iter_since_log = 0
     fens = 0
     epoch = 0
 
     while epoch < epochs:
         optimizer.zero_grad()
-        batch = dataloader.read_batch(DEVICE)
+        new_epoch, batch = dataloader.read_batch(DEVICE)
         prediction = model(batch)
         expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
 
@@ -63,11 +61,16 @@ def train(
         with torch.no_grad():
             running_loss += loss
         iterations += 1
+        iter_since_log += 1
         fens += batch.size
 
-        if iterations % epochs_iter == 0:
+        if iter_since_log * batch.size > LOG_ITERS:
+            print(f"At {iterations * batch.size} positions")
+            iter_since_log = 0
+
+        if new_epoch:
             running_loss = running_loss.item()
-            train_loss = running_loss / epochs_iter
+            train_loss = running_loss / iterations
             if train_log is not None:
                 train_log.update(train_loss)
                 train_log.save()
@@ -145,7 +148,6 @@ def main():
         args.scale,
         args.epochs,
         args.save_epochs,
-        EPOCH_FENS // args.batch_size,
         args.train_id,
         lr_drop=args.lr_drop,
         train_log=train_log,

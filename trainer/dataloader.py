@@ -189,12 +189,14 @@ class BatchLoader:
             batch_size, feature_set.max_features(), feature_set.indices_per_feature()
         )
 
-    def read_batch(self, device: torch.device) -> Batch:
+    def read_batch(self, device: torch.device) -> tuple[bool, Batch]:
+        new_epoch = False
         while not read_batch_into(self._reader, self._feature_set, self._batch):
             self._reader.drop()
             self._file_index = (self._file_index + 1) % len(self._files)
             self._reader = ParserFileReader(self._files[self._file_index])
-        return self._batch.to_pytorch_batch(device)
+            new_epoch = self._file_index == 0
+        return new_epoch, self._batch.to_pytorch_batch(device)
 
     def drop(self) -> None:
         self._reader.drop()

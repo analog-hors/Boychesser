@@ -13,3 +13,4 @@ marlinformat = { path = "../marlinformat" }
 rand = "0.8.5"
 bytemuck = "1.10.0"
 cozy-chess = "0.2.2"
+tempfile = "3.3.0"

@@ -11,6 +11,7 @@ from time import time
 
 import torch
 from trainlog import TrainLog
+
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 LOG_ITERS = 10_000_000
@@ -43,7 +44,10 @@ def train(
     running_loss = torch.zeros((1,), device=DEVICE)
     start_time = time()
     iterations = 0
+
+    loss_since_log = torch.zeros((1,), device=DEVICE)
     iter_since_log = 0
+
     fens = 0
     epoch = 0
 
@@ -60,13 +64,19 @@ def train(
 
         with torch.no_grad():
             running_loss += loss
+            loss_since_log += loss
         iterations += 1
         iter_since_log += 1
         fens += batch.size
 
         if iter_since_log * batch.size > LOG_ITERS:
-            print(f"At {iterations * batch.size} positions")
+            print(
+                f"At {iterations * batch.size} positions",
+                f"Running Loss: {loss_since_log.item() / iter_since_log}",
+                sep=os.linesep,
+            )
             iter_since_log = 0
+            loss_since_log = torch.zeros((1,), device=DEVICE)
 
         if new_epoch:
             running_loss = running_loss.item()
@@ -77,8 +87,8 @@ def train(
             epoch += 1
             print(
                 f"epoch {epoch}",
-                f"running loss: {train_loss}",
-                f"FEN/s: {fens / (time() - start_time)}",
+                f"epoch train loss: {train_loss}",
+                f"epoch pos/s: {fens / (time() - start_time)}",
                 sep=os.linesep,
             )
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+import pathlib
 
 import re
 import sys
@@ -25,8 +26,9 @@ def main():
     files = [arg for arg in sys.argv if arg.endswith(".txt")]
     for f in files:
         epochs, losses = _read_file(f)
-        plt.plot(epochs, losses)
-
+        name = pathlib.Path(f).name.split(".")[-2]
+        plt.plot(epochs, losses, label=name)
+    plt.legend()
     plt.show()
 
 

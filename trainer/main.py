@@ -6,7 +6,14 @@ import os
 import pathlib
 
 from dataloader import BatchLoader
-from model import NnBoard768Cuda, NnBoard768, NnHalfKA, NnHalfKP, NnHalfKPCuda
+from model import (
+    NnBoard768Cuda,
+    NnBoard768,
+    NnHalfKA,
+    NnHalfKACuda,
+    NnHalfKP,
+    NnHalfKPCuda,
+)
 from time import time
 
 import torch
@@ -52,8 +59,34 @@ def train(
     epoch = 0
 
     while epoch < epochs:
-        optimizer.zero_grad()
         new_epoch, batch = dataloader.read_batch(DEVICE)
+        if new_epoch:
+            epoch += 1
+            if epoch == lr_drop:
+                optimizer.param_groups[0]["lr"] *= 0.1
+            print(
+                f"epoch {epoch}",
+                f"epoch train loss: {running_loss.item() / iterations}",
+                f"epoch pos/s: {fens / (time() - start_time)}",
+                sep=os.linesep,
+            )
+
+            running_loss = torch.zeros((1,), device=DEVICE)
+            start_time = time()
+            iterations = 0
+            fens = 0
+
+            if epoch % save_epochs == 0:
+                torch.save(model.state_dict(), f"nn/{train_id}_{epoch}")
+                param_map = {
+                    name: param.detach().cpu().numpy().tolist()
+                    for name, param in model.named_parameters()
+                }
+                with open(f"nn/{train_id}.json", "w") as json_file:
+                    json.dump(param_map, json_file)
+
+
+        optimizer.zero_grad()
         prediction = model(batch)
         expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
 
@@ -70,44 +103,17 @@ def train(
         fens += batch.size
 
         if iter_since_log * batch.size > LOG_ITERS:
+            loss = loss_since_log.item() / iter_since_log
             print(
                 f"At {iterations * batch.size} positions",
-                f"Running Loss: {loss_since_log.item() / iter_since_log}",
+                f"Running Loss: {loss}",
                 sep=os.linesep,
             )
+            if train_log is not None:
+                train_log.update(loss)
+                train_log.save()
             iter_since_log = 0
             loss_since_log = torch.zeros((1,), device=DEVICE)
-
-        if new_epoch:
-            running_loss = running_loss.item()
-            train_loss = running_loss / iterations
-            if train_log is not None:
-                train_log.update(train_loss)
-                train_log.save()
-            epoch += 1
-            print(
-                f"epoch {epoch}",
-                f"epoch train loss: {train_loss}",
-                f"epoch pos/s: {fens / (time() - start_time)}",
-                sep=os.linesep,
-            )
-
-            running_loss = torch.zeros((1,), device=DEVICE)
-            start_time = time()
-            iterations = 0
-            fens = 0
-
-            if epoch == lr_drop:
-                optimizer.param_groups[0]["lr"] *= 0.1
-
-            if epoch % save_epochs == 0:
-                torch.save(model.state_dict(), f"nn/{train_id}_{epoch}")
-                param_map = {
-                    name: param.detach().cpu().numpy().T.tolist()
-                    for name, param in model.named_parameters()
-                }
-                with open(f"nn/{train_id}.json", "w") as json_file:
-                    json.dump(param_map, json_file)
 
 
 def main():

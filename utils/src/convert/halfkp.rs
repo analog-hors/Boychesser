@@ -27,13 +27,13 @@ impl HalfKp {
         let mut bin = vec![];
         bin.extend((self.feature_weights.len() as u32).to_le_bytes());
         bin.extend((self.feature_weights[0].len() as u32).to_le_bytes());
-        bin.extend((self.out_weights[0].len() as u32).to_le_bytes());
+        bin.extend((self.out_weights.len() as u32).to_le_bytes());
 
         let mut summed_weights = self.feature_weights.clone();
         let mut summed_bias = self.feature_bias.clone();
 
         let planes = summed_weights.len() / self.v_weights.len();
-        println!("{}", planes);
+        assert_eq!(planes, 64);
         for i in 0..planes {
             for j in 0..self.v_weights.len() {
                 assert_eq!(self.v_weights[0].len(), summed_weights[0].len());

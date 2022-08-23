@@ -29,10 +29,10 @@ pub struct Options {
 }
 
 pub fn run(options: Options) -> Result<()> {
-    let output = options
-        .output
-        .unwrap_or_else(|| options.dataset.clone())
-        .canonicalize()?;
+    let output = options.output.unwrap_or_else(|| options.dataset.clone());
+    let output_dir = output
+        .parent()
+        .expect("Could not get nominal parent directory of the oiutput file");
 
     let mut dataset = File::open(options.dataset)?;
     let positions = dataset.seek(SeekFrom::End(0))? / std::mem::size_of::<PackedBoard>() as u64;
@@ -43,7 +43,7 @@ pub fn run(options: Options) -> Result<()> {
         let mut data = read(&mut dataset, positions)?;
         drop(dataset);
         data.shuffle(&mut thread_rng());
-        let mut target = tempfile::NamedTempFile::new_in(output.parent().unwrap())?;
+        let mut target = tempfile::NamedTempFile::new_in(output_dir)?;
         target.write_all(bytemuck::cast_slice(&data))?;
         target.persist(output)?;
         return Ok(());
@@ -55,21 +55,19 @@ pub fn run(options: Options) -> Result<()> {
 
     let mut remaining = positions;
     let mut blocks_shuffled = 0;
-    std::thread::spawn(move || {
-        loop {
-            if remaining == 0 {
-                break;
-            }
-            let count = remaining.min(options.block_size);
-            remaining -= count;
-            let mut data = read(&mut dataset, count).unwrap();
-            data.shuffle(&mut thread_rng());
-            let mut f = tempfile::tempfile().unwrap();
-            f.write_all(bytemuck::cast_slice(&data)).unwrap();
-            send.send(f).unwrap();
-            blocks_shuffled += 1;
-            println!("blocks: {blocks_shuffled}/{block_count}");
+    std::thread::spawn(move || loop {
+        if remaining == 0 {
+            break;
         }
+        let count = remaining.min(options.block_size);
+        remaining -= count;
+        let mut data = read(&mut dataset, count).unwrap();
+        data.shuffle(&mut thread_rng());
+        let mut f = tempfile::tempfile().unwrap();
+        f.write_all(bytemuck::cast_slice(&data)).unwrap();
+        send.send(f).unwrap();
+        blocks_shuffled += 1;
+        println!("blocks: {blocks_shuffled}/{block_count}");
     });
 
     let mut items = block_count;
@@ -100,7 +98,7 @@ pub fn run(options: Options) -> Result<()> {
     }
 
     let mut files: Vec<_> = recv.into_iter().collect();
-    let mut target = tempfile::NamedTempFile::new_in(output.parent().unwrap())?;
+    let mut target = tempfile::NamedTempFile::new_in(output_dir)?;
     interleave(target.as_file_mut(), &mut files, |_, _| {})?;
     target.persist(output)?;
 

@@ -83,7 +83,7 @@ impl PackedBoard {
         builder.en_passant = Square::try_index(self.stm_ep_square as usize & 0b01111111);
         builder.side_to_move = Color::try_index(self.stm_ep_square as usize >> 7)?;
         builder.halfmove_clock = self.halfmove_clock;
-        builder.fullmove_number = core::num::NonZeroU16::new(self.fullmove_number.get())?;
+        builder.fullmove_number = self.fullmove_number.get();
 
         Some((builder.build().ok()?, self.eval.get(), self.wdl, self.extra))
     }

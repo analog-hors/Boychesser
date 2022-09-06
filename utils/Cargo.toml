@@ -12,5 +12,5 @@ structopt = "0.3.26"
 marlinformat = { path = "../marlinformat" }
 rand = "0.8.5"
 bytemuck = "1.10.0"
-cozy-chess = "0.2.2"
+cozy-chess = "0.3"
 tempfile = "3.3.0"

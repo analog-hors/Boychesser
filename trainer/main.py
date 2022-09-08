@@ -69,6 +69,7 @@ def train(
                 f"epoch train loss: {running_loss.item() / iterations}",
                 f"epoch pos/s: {fens / (time() - start_time)}",
                 sep=os.linesep,
+                flush=True,
             )
 
             running_loss = torch.zeros((1,), device=DEVICE)
@@ -108,6 +109,7 @@ def train(
                 f"At {iterations * batch.size} positions",
                 f"Running Loss: {loss}",
                 sep=os.linesep,
+                flush=True,
             )
             if train_log is not None:
                 train_log.update(loss)

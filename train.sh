@@ -16,7 +16,7 @@ CUTECHESS_ARGS="$CUTECHESS_ARGS -resign movecount=4 score=500"
 CUTECHESS_ARGS="$CUTECHESS_ARGS -each nodes=10000 proto=uci"
 
 for net in nn/"$TRAIN_ID"_*.json; do
-    ./json-to-frozenight.py "$net" >../frozenight/frozenight/model.rs
+    ./json-to-frozenight.py "$net" ../frozenight/frozenight/model.rs
     pushd ../frozenight
     cargo build --release
     popd

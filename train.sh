@@ -1,14 +1,16 @@
 #!/bin/bash
 
+TRAIN_ID=$(date -u '+%F-%N')-`basename "$1" .bin`
+
 cargo build --release --lib
 cp target/release/libparse.so .
+mkdir -p nn/ runs/ networks/ builds/ .data/
+ln $1 .data/
 
-TRAIN_ID="$(date -u '+%F-%N')"
+python3 trainer/main.py --train-id "$TRAIN_ID" --data-root .data --scale 1016 --save-epochs 5 --lr 0.001 --epochs 50
 
-python3 trainer/main.py --train-id "$TRAIN_ID" --data-root data --scale 1016 --save-epochs 5 --lr 0.001 --epochs 50 "$@"
+rm .data/*
 
-rm -r builds
-mkdir -P builds
 CUTECHESS_ARGS="-repeat -recover -games 5000 -tournament knockout -concurrency 16"
 CUTECHESS_ARGS="$CUTECHESS_ARGS -openings file=4moves_noob.epd format=epd order=random"
 CUTECHESS_ARGS="$CUTECHESS_ARGS -draw movenumber=40 movecount=5 score=10"

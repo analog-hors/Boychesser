@@ -82,7 +82,7 @@ def train(
                     name: param.detach().cpu().numpy().tolist()
                     for name, param in model.named_parameters()
                 }
-                with open(f"nn/{train_id}.json", "w") as json_file:
+                with open(f"nn/{train_id}_{epoch}.json", "w") as json_file:
                     json.dump(param_map, json_file)
 
 

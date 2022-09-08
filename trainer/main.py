@@ -20,8 +20,6 @@ import torch
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-LOG_ITERS = 10_000_000
-
 
 class WeightClipper:
     def __init__(self, frequency=1):
@@ -49,9 +47,6 @@ def train(
     start_time = time()
     iterations = 0
 
-    loss_since_log = torch.zeros((1,), device=DEVICE)
-    iter_since_log = 0
-
     fens = 0
     epoch = 0
 
@@ -62,10 +57,10 @@ def train(
             if epoch == lr_drop:
                 optimizer.param_groups[0]["lr"] *= 0.1
             print(
-                f"epoch {epoch}",
-                f"epoch train loss: {running_loss.item() / iterations}",
-                f"epoch pos/s: {fens / (time() - start_time)}",
-                sep=os.linesep,
+                f"epoch: {epoch}",
+                f"loss: {running_loss.item() / iterations:.4g}",
+                f"pos/s: {fens / (time() - start_time):.0f}",
+                sep="\t",
                 flush=True,
             )
 
@@ -94,21 +89,8 @@ def train(
 
         with torch.no_grad():
             running_loss += loss
-            loss_since_log += loss
         iterations += 1
-        iter_since_log += 1
         fens += batch.size
-
-        if iter_since_log * batch.size > LOG_ITERS:
-            loss = loss_since_log.item() / iter_since_log
-            print(
-                f"At {iterations * batch.size} positions",
-                f"Running Loss: {loss}",
-                sep=os.linesep,
-                flush=True,
-            )
-            iter_since_log = 0
-            loss_since_log = torch.zeros((1,), device=DEVICE)
 
 
 def main():

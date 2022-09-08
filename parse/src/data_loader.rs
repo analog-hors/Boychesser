@@ -6,6 +6,7 @@ use marlinformat::PackedBoard;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::batch::Batch;
+use crate::bucketing::BucketingScheme;
 use crate::input_features::InputFeatureSet;
 
 #[derive(Debug)]
@@ -97,11 +98,14 @@ impl Iterator for FileReader {
     }
 }
 
-pub fn read_batch_into<F: InputFeatureSet>(reader: &mut FileReader, batch: &mut Batch) -> bool {
+pub fn read_batch_into<F: InputFeatureSet, B: BucketingScheme>(
+    reader: &mut FileReader,
+    batch: &mut Batch,
+) -> bool {
     batch.clear();
     for annotated in reader.take(batch.capacity()) {
         let (cp, wdl) = annotated.relative_value();
-        let entry = batch.make_entry(cp, wdl);
+        let entry = batch.make_entry(cp, wdl, B::bucket(&annotated.board));
         F::add_features(annotated.board, entry);
     }
     batch.capacity() == batch.len()

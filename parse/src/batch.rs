@@ -12,6 +12,7 @@ pub struct Batch {
 
     cp: Box<[f32]>,
     wdl: Box<[f32]>,
+    buckets: Box<[i32]>,
 
     // The number of entries actually written
     entries: usize,
@@ -31,15 +32,17 @@ impl Batch {
             values: vec![1.0; capacity * max_features].into_boxed_slice(),
             cp: vec![0_f32; capacity].into_boxed_slice(),
             wdl: vec![0_f32; capacity].into_boxed_slice(),
+            buckets: vec![0; capacity].into_boxed_slice(),
             entries: 0,
         }
     }
 
-    pub fn make_entry(&mut self, cp: f32, wdl: f32) -> EntryFeatureWriter {
+    pub fn make_entry(&mut self, cp: f32, wdl: f32, bucket: i32) -> EntryFeatureWriter {
         let index_in_batch = self.entries;
         self.entries += 1;
         self.cp[index_in_batch] = cp;
         self.wdl[index_in_batch] = wdl;
+        self.buckets[index_in_batch] = bucket;
         EntryFeatureWriter {
             batch: self,
             index_in_batch,
@@ -85,6 +88,10 @@ impl Batch {
 
     pub fn wdl_ptr(&self) -> *const f32 {
         &self.wdl[0]
+    }
+
+    pub fn bucket_ptr(&self) -> *const i32 {
+        self.buckets.as_ptr()
     }
 }
 

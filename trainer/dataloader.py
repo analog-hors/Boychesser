@@ -24,12 +24,15 @@ def _load_parse_lib():
     lib.batch_get_total_features.restype = ctypes.c_uint32
     lib.batch_get_cp_ptr.restype = ctypes.POINTER(ctypes.c_float)
     lib.batch_get_wdl_ptr.restype = ctypes.POINTER(ctypes.c_float)
+    lib.batch_get_bucket_ptr.restype = ctypes.POINTER(ctypes.c_int32)
 
     lib.file_reader_new.restype = ctypes.c_void_p
     lib.file_reader_drop.restype = None
 
     lib.input_feature_set_get_max_features.restype = ctypes.c_uint32
     lib.input_feature_set_get_indices_per_feature.restype = ctypes.c_uint32
+
+    lib.bucketing_scheme_get_bucket_count.restype = ctypes.c_uint32
 
     lib.read_batch_into.restype = ctypes.c_bool
 
@@ -53,6 +56,12 @@ class InputFeatureSet(IntEnum):
     def indices_per_feature(self) -> int:
         return PARSE_LIB.input_feature_set_get_indices_per_feature(self)
 
+class BucketingScheme(IntEnum):
+    NO_BUCKETING = 0
+
+    def bucket_count(self) -> int:
+        return PARSE_LIB.bucketing_scheme_get_bucket_count(self)
+
 
 @dataclass
 class Batch:
@@ -61,6 +70,7 @@ class Batch:
     values: torch.Tensor
     cp: torch.Tensor
     wdl: torch.Tensor
+    buckets: torch.Tensor
     size: int
 
 
@@ -116,6 +126,9 @@ class ParserBatch:
     def get_wdl_ptr(self) -> ctypes.pointer[ctypes.c_float]:
         return PARSE_LIB.batch_get_wdl_ptr(self._ptr)
 
+    def get_bucket_ptr(self) -> ctypes.pointer[ctypes.c_int32]:
+        return PARSE_LIB.batch_get_bucket_ptr(self._ptr)
+
     def to_pytorch_batch(self, device: torch.device) -> Batch:
         def to_pytorch(array: np.ndarray) -> torch.Tensor:
             tch_array = torch.from_numpy(array)
@@ -146,8 +159,9 @@ class ParserBatch:
         wdl = to_pytorch(
             np.ctypeslib.as_array(self.get_wdl_ptr(), shape=(batch_len, 1))
         )
+        buckets = to_pytorch(np.ctypeslib.as_array(self.get_bucket_ptr(), shape=(batch_len, 1)))
 
-        return Batch(boards_stm, boards_nstm, values, cp, wdl, batch_len)
+        return Batch(boards_stm, boards_nstm, values, cp, wdl, buckets, batch_len)
 
 
 class ParserFileReader:
@@ -171,17 +185,18 @@ class ParserFileReader:
 
 
 def read_batch_into(
-    reader: ParserFileReader, feature_set: InputFeatureSet, parser_batch: ParserBatch
+    reader: ParserFileReader, feature_set: InputFeatureSet, bucketing_scheme: BucketingScheme, parser_batch: ParserBatch
 ) -> bool:
-    return PARSE_LIB.read_batch_into(reader._ptr, feature_set, parser_batch._ptr)
+    return PARSE_LIB.read_batch_into(reader._ptr, feature_set, bucketing_scheme, parser_batch._ptr)
 
 
 class BatchLoader:
     def __init__(
-        self, files: list[str], feature_set: InputFeatureSet, batch_size: int
+        self, files: list[str], feature_set: InputFeatureSet, bucketing_scheme: BucketingScheme, batch_size: int
     ) -> None:
         assert files
         self._feature_set = feature_set
+        self._bucketing_scheme = bucketing_scheme
         self._files = files
         self._file_index = 0
         self._reader = ParserFileReader(self._files[self._file_index])
@@ -191,7 +206,7 @@ class BatchLoader:
 
     def read_batch(self, device: torch.device) -> tuple[bool, Batch]:
         new_epoch = False
-        while not read_batch_into(self._reader, self._feature_set, self._batch):
+        while not read_batch_into(self._reader, self._feature_set, self._bucketing_scheme, self._batch):
             self._reader.drop()
             self._file_index = (self._file_index + 1) % len(self._files)
             self._reader = ParserFileReader(self._files[self._file_index])

@@ -2,12 +2,14 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 
 use batch::Batch;
+use bucketing::{NoBucketing, BucketingScheme};
 use data_loader::FileReader;
 use input_features::{
     Board768, Board768Cuda, HalfKa, HalfKaCuda, HalfKp, HalfKpCuda, InputFeatureSet,
 };
 
 mod batch;
+mod bucketing;
 mod data_loader;
 mod input_features;
 
@@ -53,6 +55,7 @@ export_batch_getters! {
     indices_per_feature as u32      : batch_get_indices_per_feature -> u32,
     cp_ptr                          : batch_get_cp_ptr -> *const f32,
     wdl_ptr                         : batch_get_wdl_ptr -> *const f32,
+    bucket_ptr                      : batch_get_bucket_ptr -> *const i32,
 }
 
 #[no_mangle]
@@ -114,26 +117,60 @@ pub unsafe extern "C" fn input_feature_set_get_indices_per_feature(
     indices_per_feature as u32
 }
 
+#[repr(C)]
+pub enum BucketingSchemeType {
+    NoBucketing,
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn bucketing_scheme_get_bucket_count(
+    bucketing_scheme: BucketingSchemeType,
+) -> u32 {
+    let bucket_count = match bucketing_scheme {
+        BucketingSchemeType::NoBucketing => NoBucketing::BUCKET_COUNT
+    };
+    bucket_count as u32
+}
+
 #[no_mangle]
 pub unsafe extern "C" fn read_batch_into(
     reader: *mut FileReader,
     feature_set: InputFeatureSetType,
+    bucketing_scheme: BucketingSchemeType,
     batch: *mut Batch,
 ) -> bool {
     let reader = reader.as_mut().unwrap();
     let batch = batch.as_mut().unwrap();
     match feature_set {
-        InputFeatureSetType::Board768 => data_loader::read_batch_into::<Board768>(reader, batch),
-        InputFeatureSetType::HalfKp => data_loader::read_batch_into::<HalfKp>(reader, batch),
-        InputFeatureSetType::HalfKa => data_loader::read_batch_into::<HalfKa>(reader, batch),
-        InputFeatureSetType::Board768Cuda => {
-            data_loader::read_batch_into::<Board768Cuda>(reader, batch)
-        }
-        InputFeatureSetType::HalfKpCuda => {
-            data_loader::read_batch_into::<HalfKpCuda>(reader, batch)
-        }
-        InputFeatureSetType::HalfKaCuda => {
-            data_loader::read_batch_into::<HalfKaCuda>(reader, batch)
-        }
+        InputFeatureSetType::Board768 => match bucketing_scheme {
+            BucketingSchemeType::NoBucketing => {
+                data_loader::read_batch_into::<Board768, NoBucketing>(reader, batch)
+            }
+        },
+        InputFeatureSetType::HalfKp => match bucketing_scheme {
+            BucketingSchemeType::NoBucketing => {
+                data_loader::read_batch_into::<HalfKp, NoBucketing>(reader, batch)
+            }
+        },
+        InputFeatureSetType::HalfKa => match bucketing_scheme {
+            BucketingSchemeType::NoBucketing => {
+                data_loader::read_batch_into::<HalfKa, NoBucketing>(reader, batch)
+            }
+        },
+        InputFeatureSetType::Board768Cuda => match bucketing_scheme {
+            BucketingSchemeType::NoBucketing => {
+                data_loader::read_batch_into::<Board768Cuda, NoBucketing>(reader, batch)
+            }
+        },
+        InputFeatureSetType::HalfKpCuda => match bucketing_scheme {
+            BucketingSchemeType::NoBucketing => {
+                data_loader::read_batch_into::<HalfKpCuda, NoBucketing>(reader, batch)
+            }
+        },
+        InputFeatureSetType::HalfKaCuda => match bucketing_scheme {
+            BucketingSchemeType::NoBucketing => {
+                data_loader::read_batch_into::<HalfKaCuda, NoBucketing>(reader, batch)
+            }
+        },
     }
 }

@@ -1,13 +1,16 @@
 import torch
 
-from dataloader import Batch, InputFeatureSet
+from dataloader import Batch, InputFeatureSet, BucketingScheme
 
 
 class NnBoard768(torch.nn.Module):
-    def __init__(self, ft_out: int):
+    def __init__(self, ft_out: int, bucketing_scheme: BucketingScheme):
         super().__init__()
+        self.bucketing_scheme = bucketing_scheme
+        self.bucket_count = bucketing_scheme.bucket_count()
         self.ft = torch.nn.Linear(768, ft_out)
-        self.out = torch.nn.Linear(ft_out * 2, 1)
+        self.out = torch.nn.Linear(ft_out * 2, 1 * self.bucket_count)
+        self.idx_cache = None
 
     def forward(self, batch: Batch):
         stm_indices = batch.stm_indices.reshape(-1, 2).T
@@ -24,18 +27,30 @@ class NnBoard768(torch.nn.Module):
 
         hidden = torch.clamp(torch.cat((stm_ft, nstm_ft), dim=1), 0, 1)
 
-        return torch.sigmoid(self.out(hidden))
+        if self.idx_cache is None or self.idx_cache.shape[0] != hidden.shape[0]:
+            self.idx_cache = torch.arange(
+                0, hidden.shape[0] * self.bucket_count, self.bucket_count,
+                device=batch.buckets.device
+            )
+        indices = batch.buckets.flatten() + self.idx_cache
+
+        l1_out = self.out(hidden).view(-1, 1)[indices]
+
+        return torch.sigmoid(l1_out)
 
     def input_feature_set(self) -> InputFeatureSet:
         return InputFeatureSet.BOARD_768
 
 
 class NnHalfKP(torch.nn.Module):
-    def __init__(self, ft_out: int):
+    def __init__(self, ft_out: int, bucketing_scheme: BucketingScheme):
         super().__init__()
+        self.bucketing_scheme = bucketing_scheme
+        self.bucket_count = bucketing_scheme.bucket_count()
         self.ft = torch.nn.Linear(40960, ft_out)
         self.fft = torch.nn.Linear(640, ft_out)
         self.out = torch.nn.Linear(ft_out * 2, 1)
+        self.idx_cache = None
 
     def forward(self, batch: Batch):
 
@@ -64,18 +79,30 @@ class NnHalfKP(torch.nn.Module):
 
         hidden = torch.clamp(torch.cat((stm_ft, nstm_ft), dim=1), 0, 1)
 
-        return torch.sigmoid(self.out(hidden))
+        if self.idx_cache is None or self.idx_cache.shape[0] != hidden.shape[0]:
+            self.idx_cache = torch.arange(
+                0, hidden.shape[0] * self.bucket_count, self.bucket_count,
+                device=batch.buckets.device
+            )
+        indices = batch.buckets.flatten() + self.idx_cache
+
+        l1_out = self.out(hidden).view(-1, 1)[indices]
+
+        return torch.sigmoid(l1_out)
 
     def input_feature_set(self) -> InputFeatureSet:
         return InputFeatureSet.HALF_KP
 
 
 class NnHalfKA(torch.nn.Module):
-    def __init__(self, ft_out: int):
+    def __init__(self, ft_out: int, bucketing_scheme: BucketingScheme):
         super().__init__()
+        self.bucketing_scheme = bucketing_scheme
+        self.bucket_count = bucketing_scheme.bucket_count()
         self.ft = torch.nn.Linear(49152, ft_out)
         self.fft = torch.nn.Linear(768, ft_out)
         self.out = torch.nn.Linear(ft_out * 2, 1)
+        self.idx_cache = None
 
     def forward(self, batch: Batch):
         stm_indices = batch.stm_indices.reshape(-1, 2).T
@@ -103,20 +130,32 @@ class NnHalfKA(torch.nn.Module):
 
         hidden = torch.clamp(torch.cat((stm_ft, nstm_ft), dim=1), 0, 1)
 
-        return torch.sigmoid(self.out(hidden))
+        if self.idx_cache is None or self.idx_cache.shape[0] != hidden.shape[0]:
+            self.idx_cache = torch.arange(
+                0, hidden.shape[0] * self.bucket_count, self.bucket_count,
+                device=batch.buckets.device
+            )
+        indices = batch.buckets.flatten() + self.idx_cache
+
+        l1_out = self.out(hidden).view(-1, 1)[indices]
+
+        return torch.sigmoid(l1_out)
 
     def input_feature_set(self) -> InputFeatureSet:
         return InputFeatureSet.HALF_KA
 
 
 class NnBoard768Cuda(torch.nn.Module):
-    def __init__(self, ft_out: int):
+    def __init__(self, ft_out: int, bucketing_scheme: BucketingScheme):
         from cudasparse import DoubleFeatureTransformerSlice
 
         super().__init__()
+        self.bucketing_scheme = bucketing_scheme
+        self.bucket_count = bucketing_scheme.bucket_count()
         self.max_features = InputFeatureSet.BOARD_768_CUDA.max_features()
         self.ft = DoubleFeatureTransformerSlice(768, ft_out)
         self.out = torch.nn.Linear(ft_out * 2, 1)
+        self.idx_cache = None
 
     def forward(self, batch: Batch):
         values = batch.values.reshape(-1, self.max_features)
@@ -135,21 +174,33 @@ class NnBoard768Cuda(torch.nn.Module):
 
         hidden = torch.clamp(torch.cat((stm_ft, nstm_ft), dim=1), 0, 1)
 
-        return torch.sigmoid(self.out(hidden))
+        if self.idx_cache is None or self.idx_cache.shape[0] != hidden.shape[0]:
+            self.idx_cache = torch.arange(
+                0, hidden.shape[0] * self.bucket_count, self.bucket_count,
+                device=batch.buckets.device
+            )
+        indices = batch.buckets.flatten() + self.idx_cache
+
+        l1_out = self.out(hidden).view(-1, 1)[indices]
+
+        return torch.sigmoid(l1_out)
 
     def input_feature_set(self) -> InputFeatureSet:
         return InputFeatureSet.BOARD_768_CUDA
 
 
 class NnHalfKPCuda(torch.nn.Module):
-    def __init__(self, ft_out: int):
-        super().__init__()
+    def __init__(self, ft_out: int, bucketing_scheme: BucketingScheme):
         from cudasparse import DoubleFeatureTransformerSlice
 
+        super().__init__()
+        self.bucketing_scheme = bucketing_scheme
+        self.bucket_count = bucketing_scheme.bucket_count()
         self.max_features = InputFeatureSet.HALF_KP_CUDA.max_features()
         self.ft = DoubleFeatureTransformerSlice(40960, ft_out)
         self.fft = DoubleFeatureTransformerSlice(640, ft_out)
         self.out = torch.nn.Linear(ft_out * 2, 1)
+        self.idx_cache = None
 
     def forward(self, batch: Batch):
         values = batch.values.reshape(-1, self.max_features)
@@ -173,21 +224,33 @@ class NnHalfKPCuda(torch.nn.Module):
             torch.cat((stm_ft + v_stm_ft, nstm_ft + v_nstm_ft), dim=1), 0, 1
         )
 
-        return torch.sigmoid(self.out(hidden))
+        if self.idx_cache is None or self.idx_cache.shape[0] != hidden.shape[0]:
+            self.idx_cache = torch.arange(
+                0, hidden.shape[0] * self.bucket_count, self.bucket_count,
+                device=batch.buckets.device
+            )
+        indices = batch.buckets.flatten() + self.idx_cache
+
+        l1_out = self.out(hidden).view(-1, 1)[indices]
+
+        return torch.sigmoid(l1_out)
 
     def input_feature_set(self) -> InputFeatureSet:
         return InputFeatureSet.HALF_KP_CUDA
 
 
 class NnHalfKACuda(torch.nn.Module):
-    def __init__(self, ft_out: int):
-        super().__init__()
+    def __init__(self, ft_out: int, bucketing_scheme: BucketingScheme):
         from cudasparse import DoubleFeatureTransformerSlice
 
+        super().__init__()
+        self.bucketing_scheme = bucketing_scheme
+        self.bucket_count = bucketing_scheme.bucket_count()
         self.max_features = InputFeatureSet.HALF_KA_CUDA.max_features()
         self.ft = DoubleFeatureTransformerSlice(49152, ft_out)
         self.fft = DoubleFeatureTransformerSlice(768, ft_out)
         self.out = torch.nn.Linear(ft_out * 2, 1)
+        self.idx_cache = None
 
     def forward(self, batch: Batch):
         values = batch.values.reshape(-1, self.max_features)
@@ -211,7 +274,16 @@ class NnHalfKACuda(torch.nn.Module):
             torch.cat((stm_ft + v_stm_ft, nstm_ft + v_nstm_ft), dim=1), 0, 1
         )
 
-        return torch.sigmoid(self.out(hidden))
+        if self.idx_cache is None or self.idx_cache.shape[0] != hidden.shape[0]:
+            self.idx_cache = torch.arange(
+                0, hidden.shape[0] * self.bucket_count, self.bucket_count,
+                device=batch.buckets.device
+            )
+        indices = batch.buckets.flatten() + self.idx_cache
+
+        l1_out = self.out(hidden).view(-1, 1)[indices]
+
+        return torch.sigmoid(l1_out)
 
     def input_feature_set(self) -> InputFeatureSet:
         return InputFeatureSet.HALF_KA_CUDA

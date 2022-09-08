@@ -5,7 +5,7 @@ import json
 import os
 import pathlib
 
-from dataloader import BatchLoader
+from dataloader import BatchLoader, BucketingScheme
 from model import (
     NnBoard768Cuda,
     NnBoard768,
@@ -148,11 +148,11 @@ def main():
 
     train_log = TrainLog(args.train_id)
 
-    model = NnHalfKPCuda(128).to(DEVICE)
+    model = NnHalfKA(128, BucketingScheme.NO_BUCKETING).to(DEVICE)
 
     data_path = pathlib.Path(args.data_root)
     paths = list(map(str, data_path.glob("*.bin")))
-    dataloader = BatchLoader(paths, model.input_feature_set(), args.batch_size)
+    dataloader = BatchLoader(paths, model.input_feature_set(), model.bucketing_scheme, args.batch_size)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 

@@ -58,6 +58,7 @@ class InputFeatureSet(IntEnum):
 
 class BucketingScheme(IntEnum):
     NO_BUCKETING = 0
+    MODIFIED_MATERIAL = 1
 
     def bucket_count(self) -> int:
         return PARSE_LIB.bucketing_scheme_get_bucket_count(self)

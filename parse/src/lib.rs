@@ -2,7 +2,7 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 
 use batch::Batch;
-use bucketing::{NoBucketing, BucketingScheme};
+use bucketing::{BucketingScheme, ModifiedMaterial, NoBucketing};
 use data_loader::FileReader;
 use input_features::{
     Board768, Board768Cuda, HalfKa, HalfKaCuda, HalfKp, HalfKpCuda, InputFeatureSet,
@@ -120,6 +120,7 @@ pub unsafe extern "C" fn input_feature_set_get_indices_per_feature(
 #[repr(C)]
 pub enum BucketingSchemeType {
     NoBucketing,
+    ModifiedMaterial,
 }
 
 #[no_mangle]
@@ -127,7 +128,8 @@ pub unsafe extern "C" fn bucketing_scheme_get_bucket_count(
     bucketing_scheme: BucketingSchemeType,
 ) -> u32 {
     let bucket_count = match bucketing_scheme {
-        BucketingSchemeType::NoBucketing => NoBucketing::BUCKET_COUNT
+        BucketingSchemeType::NoBucketing => NoBucketing::BUCKET_COUNT,
+        BucketingSchemeType::ModifiedMaterial => ModifiedMaterial::BUCKET_COUNT,
     };
     bucket_count as u32
 }
@@ -146,30 +148,48 @@ pub unsafe extern "C" fn read_batch_into(
             BucketingSchemeType::NoBucketing => {
                 data_loader::read_batch_into::<Board768, NoBucketing>(reader, batch)
             }
+            BucketingSchemeType::ModifiedMaterial => {
+                data_loader::read_batch_into::<Board768, ModifiedMaterial>(reader, batch)
+            }
         },
         InputFeatureSetType::HalfKp => match bucketing_scheme {
             BucketingSchemeType::NoBucketing => {
                 data_loader::read_batch_into::<HalfKp, NoBucketing>(reader, batch)
+            }
+            BucketingSchemeType::ModifiedMaterial => {
+                data_loader::read_batch_into::<HalfKp, ModifiedMaterial>(reader, batch)
             }
         },
         InputFeatureSetType::HalfKa => match bucketing_scheme {
             BucketingSchemeType::NoBucketing => {
                 data_loader::read_batch_into::<HalfKa, NoBucketing>(reader, batch)
             }
+            BucketingSchemeType::ModifiedMaterial => {
+                data_loader::read_batch_into::<HalfKa, ModifiedMaterial>(reader, batch)
+            }
         },
         InputFeatureSetType::Board768Cuda => match bucketing_scheme {
             BucketingSchemeType::NoBucketing => {
                 data_loader::read_batch_into::<Board768Cuda, NoBucketing>(reader, batch)
+            }
+            BucketingSchemeType::ModifiedMaterial => {
+                data_loader::read_batch_into::<Board768Cuda, ModifiedMaterial>(reader, batch)
             }
         },
         InputFeatureSetType::HalfKpCuda => match bucketing_scheme {
             BucketingSchemeType::NoBucketing => {
                 data_loader::read_batch_into::<HalfKpCuda, NoBucketing>(reader, batch)
             }
+            BucketingSchemeType::ModifiedMaterial => {
+                data_loader::read_batch_into::<HalfKpCuda, ModifiedMaterial>(reader, batch)
+            }
         },
         InputFeatureSetType::HalfKaCuda => match bucketing_scheme {
             BucketingSchemeType::NoBucketing => {
                 data_loader::read_batch_into::<HalfKaCuda, NoBucketing>(reader, batch)
+            }
+            BucketingSchemeType::ModifiedMaterial => {
+                data_loader::read_batch_into::<HalfKaCuda, ModifiedMaterial>(reader, batch)
             }
         },
     }

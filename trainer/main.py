@@ -148,7 +148,7 @@ def main():
 
     train_log = TrainLog(args.train_id)
 
-    model = NnHalfKA(128, BucketingScheme.NO_BUCKETING).to(DEVICE)
+    model = NnBoard768(32, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE)
 
     data_path = pathlib.Path(args.data_root)
     paths = list(map(str, data_path.glob("*.bin")))

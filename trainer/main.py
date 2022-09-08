@@ -78,12 +78,11 @@ def train(
             fens = 0
 
             if epoch % save_epochs == 0:
-                torch.save(model.state_dict(), f"nn/{train_id}_{epoch}")
                 param_map = {
                     name: param.detach().cpu().numpy().tolist()
                     for name, param in model.named_parameters()
                 }
-                with open(f"nn/{train_id}_{epoch}.json", "w") as json_file:
+                with open(f"nn/{epoch}.json", "w") as json_file:
                     json.dump(param_map, json_file)
 
 
@@ -125,7 +124,6 @@ def main():
     parser.add_argument(
         "--data-root", type=str, help="Root directory of the data files"
     )
-    parser.add_argument("--train-id", type=str, help="ID to save train logs with")
     parser.add_argument("--lr", type=float, help="Initial learning rate")
     parser.add_argument("--epochs", type=int, help="Epochs to train for")
     parser.add_argument("--batch-size", type=int, default=16384, help="Batch size")
@@ -147,8 +145,6 @@ def main():
 
     assert args.train_id is not None
     assert args.scale is not None
-
-    train_log = TrainLog(args.train_id)
 
     model = NnBoard768(32, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE)
 

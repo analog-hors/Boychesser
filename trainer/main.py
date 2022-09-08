@@ -17,7 +17,6 @@ from model import (
 from time import time
 
 import torch
-from trainlog import TrainLog
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -43,9 +42,7 @@ def train(
     scale: float,
     epochs: int,
     save_epochs: int,
-    train_id: str,
     lr_drop: int | None = None,
-    train_log: TrainLog | None = None,
 ) -> None:
     clipper = WeightClipper()
     running_loss = torch.zeros((1,), device=DEVICE)
@@ -110,9 +107,6 @@ def train(
                 sep=os.linesep,
                 flush=True,
             )
-            if train_log is not None:
-                train_log.update(loss)
-                train_log.save()
             iter_since_log = 0
             loss_since_log = torch.zeros((1,), device=DEVICE)
 
@@ -143,7 +137,6 @@ def main():
     )
     args = parser.parse_args()
 
-    assert args.train_id is not None
     assert args.scale is not None
 
     model = NnBoard768(32, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE)
@@ -162,9 +155,7 @@ def main():
         args.scale,
         args.epochs,
         args.save_epochs,
-        args.train_id,
         lr_drop=args.lr_drop,
-        train_log=train_log,
     )
 
 

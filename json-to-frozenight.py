@@ -5,7 +5,13 @@ import json, sys
 WEIGHT_SCALE = 64
 ACTIVATION_RANGE = 127
 
-def save_tensor(file, tensor, scale):
+def save_tensor(file, tensor, scale, transpose=False):
+    if transpose:
+        new_tensor = [[0] * len(tensor) for _ in range(len(tensor[0]))]
+        for y in range(len(tensor)):
+            for x in range(len(tensor[0])):
+                new_tensor[x][y] = tensor[y][x]
+        tensor = new_tensor
     if type(tensor[0]) != list and len(tensor) == 1:
         file.write(f"{round(tensor[0] * scale)}")
         return
@@ -24,7 +30,7 @@ with open(sys.argv[1]) as f:
 with open(sys.argv[2], "w") as file:
     file.write("Nnue {")
     file.write("input_layer:")
-    save_tensor(file, state["ft.weight"], ACTIVATION_RANGE)
+    save_tensor(file, state["ft.weight"], ACTIVATION_RANGE, transpose=True)
     file.write(",input_layer_bias:")
     save_tensor(file, state["ft.bias"], ACTIVATION_RANGE)
     file.write(",hidden_layer:")

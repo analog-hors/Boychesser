@@ -1,6 +1,6 @@
 #!/bin/bash
 
-TRAIN_ID="$(date -u '+%F-%N')-$1"
+TRAIN_ID="$(date -u '+%F-%H%M%S')-$1"
 
 rm -r nn data
 mkdir -p nn data

@@ -15,6 +15,7 @@ from model import (
     NnHalfKPCuda,
 )
 from time import time
+from to_frozenight import to_frozenight
 
 import torch
 
@@ -75,7 +76,7 @@ def train(
                     for name, param in model.named_parameters()
                 }
                 with open(f"nn/{epoch}.json", "w") as json_file:
-                    json.dump(param_map, json_file)
+                    json.dump(to_frozenight(param_map), json_file)
 
 
         optimizer.zero_grad()

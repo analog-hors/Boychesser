@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 TRAIN_ID="$(date -u '+%F-%H%M%S')-$1"
 

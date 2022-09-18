@@ -31,3 +31,13 @@ impl BucketingScheme for ModifiedMaterial {
         (material * 16 / 76).min(15)
     }
 }
+
+pub struct PieceCount;
+
+impl BucketingScheme for PieceCount {
+    const BUCKET_COUNT: usize = 8;
+
+    fn bucket(board: &Board) -> i32 {
+        ((board.occupied().len() as i32 - 1) / 4).min(7)
+    }
+}

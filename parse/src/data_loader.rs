@@ -62,10 +62,6 @@ impl FileReader {
                 let cp = cp as f32;
                 let wdl = wdl as f32 / 2.0;
 
-                if cp.abs() > 3000.0 {
-                    return None;
-                }
-
                 Some(AnnotatedBoard { board, cp, wdl })
             })
             .rev()

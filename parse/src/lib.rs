@@ -12,25 +12,6 @@ mod bucketing;
 mod data_loader;
 mod input_features;
 
-#[no_mangle]
-pub unsafe extern "C" fn batch_new(
-    batch_size: u32,
-    max_features: u32,
-    indices_per_feature: u32,
-) -> *mut Batch {
-    let batch = Batch::new(
-        batch_size as usize,
-        max_features as usize,
-        indices_per_feature as usize,
-    );
-    Box::into_raw(Box::new(batch))
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn batch_drop(batch: *mut Batch) {
-    let _ = Box::from_raw(batch);
-}
-
 macro_rules! export_batch_getters {
     ($($getter:ident $(as $cast_type:ty)?: $exported:ident -> $type:ty,)*) => {$(
         #[no_mangle]
@@ -112,7 +93,7 @@ pub unsafe extern "C" fn bucketing_scheme_get_bucket_count(
 pub unsafe extern "C" fn read_batch(reader: *mut BatchReader) -> *mut Batch {
     let reader = reader.as_mut().unwrap();
     match reader.next_batch() {
-        Some(v) => Box::into_raw(v),
+        Some(v) => v as *mut Batch,
         None => std::ptr::null_mut(),
     }
 }

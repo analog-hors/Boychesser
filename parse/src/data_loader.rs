@@ -14,7 +14,10 @@ use crate::input_features::*;
 const BUFFERED_BATCHES: usize = 64;
 
 pub struct BatchReader {
-    recv: Receiver<Box<Batch>>,
+    recv: Receiver<Vec<Batch>>,
+    reuse: SyncSender<Vec<Batch>>,
+    batches: Vec<Batch>,
+    index: usize,
     dataset_size: u64,
 }
 
@@ -28,32 +31,58 @@ impl BatchReader {
         let mut file = File::open(path)?;
         let dataset_size = file.seek(SeekFrom::End(0))? / std::mem::size_of::<PackedBoard>() as u64;
         file.seek(SeekFrom::Start(0))?;
-        let (send, recv) = sync_channel(BUFFERED_BATCHES);
+        let (send, recv) = sync_channel(2);
+        let (reuse, reuse_recv) = sync_channel(2);
         std::thread::spawn(move || {
-            dataloader_thread(send, file, feature_format, bucketing_scheme, batch_size)
+            dataloader_thread(
+                send,
+                reuse_recv,
+                file,
+                feature_format,
+                bucketing_scheme,
+                batch_size,
+            )
         });
-        Ok(Self { recv, dataset_size })
+        let _ = reuse.send(batch_buffer(feature_format, batch_size));
+        Ok(Self {
+            recv,
+            reuse,
+            dataset_size,
+            batches: batch_buffer(feature_format, batch_size),
+            index: 0,
+        })
     }
 
     pub fn dataset_size(&self) -> u64 {
         self.dataset_size
     }
 
-    pub fn next_batch(&mut self) -> Option<Box<Batch>> {
-        self.recv.recv().ok()
+    pub fn next_batch(&mut self) -> Option<&mut Batch> {
+        loop {
+            while self.index < self.batches.len() {
+                let i = self.index;
+                self.index += 1;
+                if self.batches[i].len() > 0 {
+                    return Some(&mut self.batches[i]);
+                }
+            }
+            let _ = self.reuse.send(std::mem::take(&mut self.batches));
+            self.batches = self.recv.recv().ok()?;
+            self.index = 0;
+        }
     }
 }
 
 fn dataloader_thread(
-    send: SyncSender<Box<Batch>>,
+    send: SyncSender<Vec<Batch>>,
+    reuse: Receiver<Vec<Batch>>,
     mut file: File,
     feature_format: InputFeatureSetType,
     bucketing_scheme: BucketingSchemeType,
     batch_size: usize,
 ) {
     let mut board_buffer = vec![PackedBoard::zeroed(); batch_size * BUFFERED_BATCHES];
-    let mut batches = vec![];
-    loop {
+    for mut batches in reuse {
         let buffer = bytemuck::cast_slice_mut(&mut board_buffer);
         let mut bytes_read = 0;
         loop {
@@ -69,96 +98,85 @@ fn dataloader_thread(
         }
         let boards = &board_buffer[..elems];
 
+        for batch in &mut batches {
+            batch.clear();
+        }
+
         boards
             .par_chunks(batch_size)
-            .map(|boards| match feature_format {
+            .zip(batches.par_iter_mut())
+            .for_each(|(boards, batch)| match feature_format {
                 InputFeatureSetType::Board768 => match bucketing_scheme {
                     BucketingSchemeType::NoBucketing => {
-                        process::<Board768, NoBucketing>(batch_size, boards)
+                        process::<Board768, NoBucketing>(batch, boards)
                     }
                     BucketingSchemeType::ModifiedMaterial => {
-                        process::<Board768, ModifiedMaterial>(batch_size, boards)
+                        process::<Board768, ModifiedMaterial>(batch, boards)
                     }
                     BucketingSchemeType::PieceCount => {
-                        process::<Board768, PieceCount>(batch_size, boards)
+                        process::<Board768, PieceCount>(batch, boards)
                     }
                 },
                 InputFeatureSetType::HalfKp => match bucketing_scheme {
                     BucketingSchemeType::NoBucketing => {
-                        process::<HalfKp, NoBucketing>(batch_size, boards)
+                        process::<HalfKp, NoBucketing>(batch, boards)
                     }
                     BucketingSchemeType::ModifiedMaterial => {
-                        process::<HalfKp, ModifiedMaterial>(batch_size, boards)
+                        process::<HalfKp, ModifiedMaterial>(batch, boards)
                     }
-                    BucketingSchemeType::PieceCount => {
-                        process::<HalfKp, PieceCount>(batch_size, boards)
-                    }
+                    BucketingSchemeType::PieceCount => process::<HalfKp, PieceCount>(batch, boards),
                 },
                 InputFeatureSetType::HalfKa => match bucketing_scheme {
                     BucketingSchemeType::NoBucketing => {
-                        process::<HalfKa, NoBucketing>(batch_size, boards)
+                        process::<HalfKa, NoBucketing>(batch, boards)
                     }
                     BucketingSchemeType::ModifiedMaterial => {
-                        process::<HalfKa, ModifiedMaterial>(batch_size, boards)
+                        process::<HalfKa, ModifiedMaterial>(batch, boards)
                     }
-                    BucketingSchemeType::PieceCount => {
-                        process::<HalfKa, PieceCount>(batch_size, boards)
-                    }
+                    BucketingSchemeType::PieceCount => process::<HalfKa, PieceCount>(batch, boards),
                 },
                 InputFeatureSetType::Board768Cuda => match bucketing_scheme {
                     BucketingSchemeType::NoBucketing => {
-                        process::<Board768Cuda, NoBucketing>(batch_size, boards)
+                        process::<Board768Cuda, NoBucketing>(batch, boards)
                     }
                     BucketingSchemeType::ModifiedMaterial => {
-                        process::<Board768Cuda, ModifiedMaterial>(batch_size, boards)
+                        process::<Board768Cuda, ModifiedMaterial>(batch, boards)
                     }
                     BucketingSchemeType::PieceCount => {
-                        process::<Board768Cuda, PieceCount>(batch_size, boards)
+                        process::<Board768Cuda, PieceCount>(batch, boards)
                     }
                 },
                 InputFeatureSetType::HalfKpCuda => match bucketing_scheme {
                     BucketingSchemeType::NoBucketing => {
-                        process::<HalfKpCuda, NoBucketing>(batch_size, boards)
+                        process::<HalfKpCuda, NoBucketing>(batch, boards)
                     }
                     BucketingSchemeType::ModifiedMaterial => {
-                        process::<HalfKpCuda, ModifiedMaterial>(batch_size, boards)
+                        process::<HalfKpCuda, ModifiedMaterial>(batch, boards)
                     }
                     BucketingSchemeType::PieceCount => {
-                        process::<HalfKpCuda, PieceCount>(batch_size, boards)
+                        process::<HalfKpCuda, PieceCount>(batch, boards)
                     }
                 },
                 InputFeatureSetType::HalfKaCuda => match bucketing_scheme {
                     BucketingSchemeType::NoBucketing => {
-                        process::<HalfKaCuda, NoBucketing>(batch_size, boards)
+                        process::<HalfKaCuda, NoBucketing>(batch, boards)
                     }
                     BucketingSchemeType::ModifiedMaterial => {
-                        process::<HalfKaCuda, ModifiedMaterial>(batch_size, boards)
+                        process::<HalfKaCuda, ModifiedMaterial>(batch, boards)
                     }
                     BucketingSchemeType::PieceCount => {
-                        process::<HalfKaCuda, PieceCount>(batch_size, boards)
+                        process::<HalfKaCuda, PieceCount>(batch, boards)
                     }
                 },
-            })
-            .collect_into_vec(&mut batches);
+            });
 
-        for batch in batches.drain(..) {
-            if send.send(batch).is_err() {
-                break;
-            }
+        if send.send(batches).is_err() {
+            break;
         }
     }
 }
 
-fn process<F: InputFeatureSet, B: BucketingScheme>(
-    batch_size: usize,
-    boards: &[PackedBoard],
-) -> Box<Batch> {
-    let mut batch = Box::new(Batch::new(
-        batch_size,
-        F::MAX_FEATURES,
-        F::INDICES_PER_FEATURE,
-    ));
-
+fn process<F: InputFeatureSet, B: BucketingScheme>(batch: &mut Batch, boards: &[PackedBoard]) {
     for packed in boards {
         (|| {
             let (board, cp, wdl, _) = packed.unpack()?;
@@ -176,6 +194,16 @@ fn process<F: InputFeatureSet, B: BucketingScheme>(
             Some(())
         })();
     }
+}
 
-    batch
+fn batch_buffer(feature_format: InputFeatureSetType, batch_size: usize) -> Vec<Batch> {
+    let mut v = vec![];
+    v.resize_with(BUFFERED_BATCHES, || {
+        Batch::new(
+            batch_size,
+            feature_format.max_features(),
+            feature_format.indices_per_feature(),
+        )
+    });
+    v
 }

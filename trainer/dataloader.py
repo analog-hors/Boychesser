@@ -14,8 +14,6 @@ def _load_parse_lib():
     path = "./libparse.dll" if os.name == "nt" else "./libparse.so"
     lib = ctypes.cdll.LoadLibrary(path)
 
-    lib.batch_new.restype = ctypes.c_void_p
-    lib.batch_drop.restype = None
     lib.batch_get_capacity.restype = ctypes.c_uint32
     lib.batch_get_len.restype = ctypes.c_uint32
     lib.batch_get_stm_feature_buffer_ptr.restype = ctypes.POINTER(ctypes.c_int64)
@@ -84,9 +82,7 @@ class ParserBatch:
             raise Exception("Failed to create batch")
 
     def drop(self) -> None:
-        if self._ptr.value is not None:
-            PARSE_LIB.batch_drop(self._ptr)
-            self._ptr.value = None
+        pass
 
     def __enter__(self) -> ParserBatch:
         return self
@@ -208,14 +204,12 @@ class BatchLoader:
         self._reader = ParserBatchReader(
             self._files[self._file_index], batch_size, feature_set, bucketing_scheme
         )
-        self._batch = None
 
     def read_batch(self, device: torch.device) -> tuple[bool, Batch]:
-        if self._batch is not None:
-            self._batch.drop()
-            self._batch = None
         new_epoch = False
-        while (batch := self._reader.next_batch()) is None:
+        while True:
+            batch = self._reader.next_batch()
+            if batch is not None: break
             self._reader.drop()
             self._file_index = (self._file_index + 1) % len(self._files)
             self._reader = ParserBatchReader(
@@ -225,16 +219,12 @@ class BatchLoader:
                 self._bucketing_scheme
             )
             new_epoch = self._file_index == 0
-        self._batch = batch
-        return new_epoch, self._batch.to_pytorch_batch(device)
+        return new_epoch, batch.to_pytorch_batch(device)
 
     def drop(self) -> None:
         if self._reader is not None:
             self._reader.drop()
             self._reader = None
-        if self._batch is not None:
-            self._batch.drop()
-            self._batch = None
 
     def __enter__(self) -> BatchLoader:
         return self

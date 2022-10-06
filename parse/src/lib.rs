@@ -2,11 +2,10 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 
 use batch::Batch;
-use bucketing::{BucketingScheme, ModifiedMaterial, NoBucketing, PieceCount};
-use data_loader::FileReader;
-use input_features::{
-    Board768, Board768Cuda, HalfKa, HalfKaCuda, HalfKp, HalfKpCuda, InputFeatureSet,
-};
+use bucketing::BucketingSchemeType;
+use input_features::InputFeatureSetType;
+
+use crate::data_loader::BatchReader;
 
 mod batch;
 mod bucketing;
@@ -29,12 +28,7 @@ pub unsafe extern "C" fn batch_new(
 
 #[no_mangle]
 pub unsafe extern "C" fn batch_drop(batch: *mut Batch) {
-    Box::from_raw(batch);
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn batch_clear(batch: *mut Batch) {
-    batch.as_mut().unwrap().clear();
+    let _ = Box::from_raw(batch);
 }
 
 macro_rules! export_batch_getters {
@@ -59,158 +53,66 @@ export_batch_getters! {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn file_reader_new(path: *const c_char) -> *mut FileReader {
-    pub unsafe fn try_new_file_reader(path: *const c_char) -> Option<FileReader> {
+pub unsafe extern "C" fn batch_reader_new(
+    path: *const c_char,
+    batch_size: u32,
+    feature_set: InputFeatureSetType,
+    bucketing_scheme: BucketingSchemeType,
+) -> *mut BatchReader {
+    let reader = (|| {
         let path = CStr::from_ptr(path).to_str().ok()?;
-        let reader = FileReader::new(path).ok()?;
+        let reader = BatchReader::new(
+            path.as_ref(),
+            feature_set,
+            bucketing_scheme,
+            batch_size as usize,
+        )
+        .ok()?;
         Some(reader)
-    }
-    if let Some(reader) = try_new_file_reader(path) {
-        Box::into_raw(Box::new(reader))
-    } else {
-        std::ptr::null_mut()
+    })();
+    match reader {
+        Some(reader) => Box::into_raw(Box::new(reader)),
+        None => std::ptr::null_mut(),
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn file_reader_drop(reader: *mut FileReader) {
-    Box::from_raw(reader);
+pub unsafe extern "C" fn batch_reader_dataset_size(reader: *mut BatchReader) -> u64 {
+    let reader = reader.as_mut().unwrap();
+    reader.dataset_size()
 }
 
-#[repr(C)]
-pub enum InputFeatureSetType {
-    Board768,
-    HalfKp,
-    HalfKa,
-    Board768Cuda,
-    HalfKpCuda,
-    HalfKaCuda,
+#[no_mangle]
+pub unsafe extern "C" fn batch_reader_drop(reader: *mut BatchReader) {
+    let _ = Box::from_raw(reader);
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn input_feature_set_get_max_features(
     feature_set: InputFeatureSetType,
 ) -> u32 {
-    let max_features = match feature_set {
-        InputFeatureSetType::Board768 => Board768::MAX_FEATURES,
-        InputFeatureSetType::HalfKp => HalfKp::MAX_FEATURES,
-        InputFeatureSetType::HalfKa => HalfKa::MAX_FEATURES,
-        InputFeatureSetType::Board768Cuda => Board768Cuda::MAX_FEATURES,
-        InputFeatureSetType::HalfKpCuda => HalfKpCuda::MAX_FEATURES,
-        InputFeatureSetType::HalfKaCuda => HalfKaCuda::MAX_FEATURES,
-    };
-    max_features as u32
+    feature_set.max_features() as u32
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn input_feature_set_get_indices_per_feature(
     feature_set: InputFeatureSetType,
 ) -> u32 {
-    let indices_per_feature = match feature_set {
-        InputFeatureSetType::Board768 => Board768::INDICES_PER_FEATURE,
-        InputFeatureSetType::HalfKp => HalfKp::INDICES_PER_FEATURE,
-        InputFeatureSetType::HalfKa => HalfKa::INDICES_PER_FEATURE,
-        InputFeatureSetType::Board768Cuda => Board768Cuda::INDICES_PER_FEATURE,
-        InputFeatureSetType::HalfKpCuda => HalfKpCuda::INDICES_PER_FEATURE,
-        InputFeatureSetType::HalfKaCuda => HalfKaCuda::INDICES_PER_FEATURE,
-    };
-    indices_per_feature as u32
-}
-
-#[repr(C)]
-pub enum BucketingSchemeType {
-    NoBucketing,
-    ModifiedMaterial,
-    PieceCount,
+    feature_set.indices_per_feature() as u32
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn bucketing_scheme_get_bucket_count(
     bucketing_scheme: BucketingSchemeType,
 ) -> u32 {
-    let bucket_count = match bucketing_scheme {
-        BucketingSchemeType::NoBucketing => NoBucketing::BUCKET_COUNT,
-        BucketingSchemeType::ModifiedMaterial => ModifiedMaterial::BUCKET_COUNT,
-        BucketingSchemeType::PieceCount => PieceCount::BUCKET_COUNT,
-    };
-    bucket_count as u32
+    bucketing_scheme.bucket_count() as u32
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn read_batch_into(
-    reader: *mut FileReader,
-    feature_set: InputFeatureSetType,
-    bucketing_scheme: BucketingSchemeType,
-    batch: *mut Batch,
-) -> bool {
+pub unsafe extern "C" fn read_batch(reader: *mut BatchReader) -> *mut Batch {
     let reader = reader.as_mut().unwrap();
-    let batch = batch.as_mut().unwrap();
-    match feature_set {
-        InputFeatureSetType::Board768 => match bucketing_scheme {
-            BucketingSchemeType::NoBucketing => {
-                data_loader::read_batch_into::<Board768, NoBucketing>(reader, batch)
-            }
-            BucketingSchemeType::ModifiedMaterial => {
-                data_loader::read_batch_into::<Board768, ModifiedMaterial>(reader, batch)
-            }
-            BucketingSchemeType::PieceCount => {
-                data_loader::read_batch_into::<Board768, PieceCount>(reader, batch)
-            }
-        },
-        InputFeatureSetType::HalfKp => match bucketing_scheme {
-            BucketingSchemeType::NoBucketing => {
-                data_loader::read_batch_into::<HalfKp, NoBucketing>(reader, batch)
-            }
-            BucketingSchemeType::ModifiedMaterial => {
-                data_loader::read_batch_into::<HalfKp, ModifiedMaterial>(reader, batch)
-            }
-            BucketingSchemeType::PieceCount => {
-                data_loader::read_batch_into::<HalfKp, PieceCount>(reader, batch)
-            }
-        },
-        InputFeatureSetType::HalfKa => match bucketing_scheme {
-            BucketingSchemeType::NoBucketing => {
-                data_loader::read_batch_into::<HalfKa, NoBucketing>(reader, batch)
-            }
-            BucketingSchemeType::ModifiedMaterial => {
-                data_loader::read_batch_into::<HalfKa, ModifiedMaterial>(reader, batch)
-            }
-            BucketingSchemeType::PieceCount => {
-                data_loader::read_batch_into::<HalfKa, PieceCount>(reader, batch)
-            }
-        },
-        InputFeatureSetType::Board768Cuda => match bucketing_scheme {
-            BucketingSchemeType::NoBucketing => {
-                data_loader::read_batch_into::<Board768Cuda, NoBucketing>(reader, batch)
-            }
-            BucketingSchemeType::ModifiedMaterial => {
-                data_loader::read_batch_into::<Board768Cuda, ModifiedMaterial>(reader, batch)
-            }
-            BucketingSchemeType::PieceCount => {
-                data_loader::read_batch_into::<Board768Cuda, PieceCount>(reader, batch)
-            }
-        },
-        InputFeatureSetType::HalfKpCuda => match bucketing_scheme {
-            BucketingSchemeType::NoBucketing => {
-                data_loader::read_batch_into::<HalfKpCuda, NoBucketing>(reader, batch)
-            }
-            BucketingSchemeType::ModifiedMaterial => {
-                data_loader::read_batch_into::<HalfKpCuda, ModifiedMaterial>(reader, batch)
-            }
-            BucketingSchemeType::PieceCount => {
-                data_loader::read_batch_into::<HalfKpCuda, PieceCount>(reader, batch)
-            }
-        },
-        InputFeatureSetType::HalfKaCuda => match bucketing_scheme {
-            BucketingSchemeType::NoBucketing => {
-                data_loader::read_batch_into::<HalfKaCuda, NoBucketing>(reader, batch)
-            }
-            BucketingSchemeType::ModifiedMaterial => {
-                data_loader::read_batch_into::<HalfKaCuda, ModifiedMaterial>(reader, batch)
-            }
-            BucketingSchemeType::PieceCount => {
-                data_loader::read_batch_into::<HalfKaCuda, PieceCount>(reader, batch)
-            }
-        },
+    match reader.next_batch() {
+        Some(v) => Box::into_raw(v),
+        None => std::ptr::null_mut(),
     }
 }

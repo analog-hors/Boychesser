@@ -1,5 +1,22 @@
 use cozy_chess::{Board, Piece};
 
+#[repr(C)]
+pub enum BucketingSchemeType {
+    NoBucketing,
+    ModifiedMaterial,
+    PieceCount,
+}
+
+impl BucketingSchemeType {
+    pub fn bucket_count(self) -> usize {
+        match self {
+            BucketingSchemeType::NoBucketing => NoBucketing::BUCKET_COUNT,
+            BucketingSchemeType::ModifiedMaterial => ModifiedMaterial::BUCKET_COUNT,
+            BucketingSchemeType::PieceCount => PieceCount::BUCKET_COUNT,
+        }
+    }
+}
+
 pub trait BucketingScheme {
     const BUCKET_COUNT: usize;
 

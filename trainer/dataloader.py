@@ -26,15 +26,16 @@ def _load_parse_lib():
     lib.batch_get_wdl_ptr.restype = ctypes.POINTER(ctypes.c_float)
     lib.batch_get_bucket_ptr.restype = ctypes.POINTER(ctypes.c_int32)
 
-    lib.file_reader_new.restype = ctypes.c_void_p
-    lib.file_reader_drop.restype = None
+    lib.batch_reader_new.restype = ctypes.c_void_p
+    lib.batch_reader_dataset_size.restype = ctypes.c_uint64
+    lib.batch_reader_drop.restype = None
 
     lib.input_feature_set_get_max_features.restype = ctypes.c_uint32
     lib.input_feature_set_get_indices_per_feature.restype = ctypes.c_uint32
 
     lib.bucketing_scheme_get_bucket_count.restype = ctypes.c_uint32
 
-    lib.read_batch_into.restype = ctypes.c_bool
+    lib.read_batch.restype = ctypes.c_void_p
 
     return lib
 
@@ -77,16 +78,8 @@ class Batch:
 
 
 class ParserBatch:
-    def __init__(
-        self, batch_size: int, max_features: int, indices_per_feature: int
-    ) -> None:
-        self._ptr = ctypes.c_void_p(
-            PARSE_LIB.batch_new(
-                ctypes.c_uint32(batch_size),
-                ctypes.c_uint32(max_features),
-                ctypes.c_uint32(indices_per_feature),
-            )
-        )
+    def __init__(self, ptr: ctypes.c_void_p) -> None:
+        self._ptr = ptr
         if self._ptr.value is None:
             raise Exception("Failed to create batch")
 
@@ -166,31 +159,41 @@ class ParserBatch:
         return Batch(boards_stm, boards_nstm, values, cp, wdl, buckets, batch_len)
 
 
-class ParserFileReader:
-    def __init__(self, path: str) -> None:
-        self._ptr = ctypes.c_void_p(
-            PARSE_LIB.file_reader_new(ctypes.create_string_buffer(bytes(path, "ascii")))
-        )
+class ParserBatchReader:
+    def __init__(
+        self,
+        path: str,
+        batch_size: int,
+        feature_set: InputFeatureSet,
+        bucketing_scheme: BucketingScheme
+    ) -> None:
+        path_buf = ctypes.create_string_buffer(bytes(path, "utf-8"))
+        self._ptr = ctypes.c_void_p(PARSE_LIB.batch_reader_new(
+            path_buf, batch_size, feature_set, bucketing_scheme
+        ))
         if self._ptr.value is None:
             raise Exception("Failed to create file reader")
 
+    def next_batch(self):
+        ptr = ctypes.c_void_p(PARSE_LIB.read_batch(self._ptr))
+        if ptr.value is None:
+            return None
+        else:
+            return ParserBatch(ptr)
+
+    def dataset_size(self) -> int:
+        return PARSE_LIB.batch_reader_dataset_size(self._ptr)
+
     def drop(self) -> None:
         if self._ptr.value is not None:
-            PARSE_LIB.file_reader_drop(self._ptr)
+            PARSE_LIB.batch_reader_drop(self._ptr)
             self._ptr.value = None
 
-    def __enter__(self) -> ParserFileReader:
+    def __enter__(self) -> ParserBatchReader:
         return self
 
     def __exit__(self) -> None:
         self.drop()
-
-
-def read_batch_into(
-    reader: ParserFileReader, feature_set: InputFeatureSet, bucketing_scheme: BucketingScheme, parser_batch: ParserBatch
-) -> bool:
-    return PARSE_LIB.read_batch_into(reader._ptr, feature_set, bucketing_scheme, parser_batch._ptr)
-
 
 class BatchLoader:
     def __init__(
@@ -199,25 +202,39 @@ class BatchLoader:
         assert files
         self._feature_set = feature_set
         self._bucketing_scheme = bucketing_scheme
+        self._batch_size = batch_size
         self._files = files
         self._file_index = 0
-        self._reader = ParserFileReader(self._files[self._file_index])
-        self._batch = ParserBatch(
-            batch_size, feature_set.max_features(), feature_set.indices_per_feature()
+        self._reader = ParserBatchReader(
+            self._files[self._file_index], batch_size, feature_set, bucketing_scheme
         )
+        self._batch = None
 
     def read_batch(self, device: torch.device) -> tuple[bool, Batch]:
+        if self._batch is not None:
+            self._batch.drop()
+            self._batch = None
         new_epoch = False
-        while not read_batch_into(self._reader, self._feature_set, self._bucketing_scheme, self._batch):
+        while (batch := self._reader.next_batch()) is None:
             self._reader.drop()
             self._file_index = (self._file_index + 1) % len(self._files)
-            self._reader = ParserFileReader(self._files[self._file_index])
+            self._reader = ParserBatchReader(
+                self._files[self._file_index],
+                self._batch_size,
+                self._feature_set,
+                self._bucketing_scheme
+            )
             new_epoch = self._file_index == 0
+        self._batch = batch
         return new_epoch, self._batch.to_pytorch_batch(device)
 
     def drop(self) -> None:
-        self._reader.drop()
-        self._batch.drop()
+        if self._reader is not None:
+            self._reader.drop()
+            self._reader = None
+        if self._batch is not None:
+            self._batch.drop()
+            self._batch = None
 
     def __enter__(self) -> BatchLoader:
         return self

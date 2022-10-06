@@ -1,108 +1,176 @@
+use std::io::{Seek, SeekFrom};
+use std::sync::mpsc::{sync_channel, Receiver, SyncSender};
+use std::sync::Mutex;
 use std::{fs::File, io::Read, path::Path};
 
 use bytemuck::Zeroable;
-use cozy_chess::{Board, Color};
+use cozy_chess::Color;
 use marlinformat::PackedBoard;
-use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::*;
 
 use crate::batch::Batch;
-use crate::bucketing::BucketingScheme;
-use crate::input_features::InputFeatureSet;
+use crate::bucketing::*;
+use crate::input_features::*;
 
-#[derive(Debug)]
-pub struct AnnotatedBoard {
-    board: Board,
-    cp: f32,
-    wdl: f32,
+pub struct BatchReader {
+    recv: Receiver<Box<Batch>>,
+    dataset_size: u64,
 }
 
-impl AnnotatedBoard {
-    pub fn relative_value(&self) -> (f32, f32) {
-        match self.board.side_to_move() {
-            Color::White => (self.cp, self.wdl),
-            Color::Black => (-self.cp, 1.0 - self.wdl),
-        }
+impl BatchReader {
+    pub fn new(
+        path: &Path,
+        feature_format: InputFeatureSetType,
+        bucketing_scheme: BucketingSchemeType,
+        batch_size: usize,
+    ) -> std::io::Result<Self> {
+        let mut file = File::open(path)?;
+        let dataset_size = file.seek(SeekFrom::End(0))? / std::mem::size_of::<PackedBoard>() as u64;
+        file.seek(SeekFrom::Start(0))?;
+        let (send, recv) = sync_channel(4);
+        std::thread::spawn(move || {
+            dataloader_thread(send, file, feature_format, bucketing_scheme, batch_size)
+        });
+        Ok(Self { recv, dataset_size })
+    }
+
+    pub fn dataset_size(&self) -> u64 {
+        self.dataset_size
+    }
+
+    pub fn next_batch(&mut self) -> Option<Box<Batch>> {
+        self.recv.recv().ok()
     }
 }
 
-pub struct FileReader {
-    file: File,
-    packed_buffer: Vec<PackedBoard>,
-    board_buffer: Vec<Option<AnnotatedBoard>>,
-}
-
-impl FileReader {
-    pub fn new(path: impl AsRef<Path>) -> std::io::Result<Self> {
-        let file = File::open(path)?;
-        Ok(Self {
-            file,
-            packed_buffer: vec![],
-            board_buffer: vec![],
-        })
-    }
-
-    fn try_fill_buffer(&mut self, chunk_size: usize) -> bool {
-        self.packed_buffer.resize(chunk_size, PackedBoard::zeroed());
-        let buffer = bytemuck::cast_slice_mut(&mut self.packed_buffer);
+fn dataloader_thread(
+    send: SyncSender<Box<Batch>>,
+    mut file: File,
+    feature_format: InputFeatureSetType,
+    bucketing_scheme: BucketingSchemeType,
+    batch_size: usize,
+) {
+    let mut board_buffer = vec![PackedBoard::zeroed(); batch_size];
+    loop {
+        let buffer = bytemuck::cast_slice_mut(&mut board_buffer);
         let mut bytes_read = 0;
         loop {
-            match self.file.read(&mut buffer[bytes_read..]) {
+            match file.read(&mut buffer[bytes_read..]) {
                 Ok(0) => break,
                 Ok(some) => bytes_read += some,
-                Err(_) => break,
+                Err(_) => return,
             }
         }
         let elems = bytes_read / std::mem::size_of::<PackedBoard>();
-        self.packed_buffer.truncate(elems);
-
-        self.packed_buffer
-            .par_iter()
-            .map(|packed| {
-                let (board, cp, wdl, _) = packed.unpack()?;
-                let cp = cp as f32;
-                let wdl = wdl as f32 / 2.0;
-
-                Some(AnnotatedBoard { board, cp, wdl })
-            })
-            .rev()
-            .collect_into_vec(&mut self.board_buffer);
-        !self.board_buffer.is_empty()
-    }
-
-    fn next_from_buffer(&mut self) -> Option<AnnotatedBoard> {
-        while let Some(maybe_board) = self.board_buffer.pop() {
-            if let Some(board) = maybe_board {
-                return Some(board);
-            }
+        if elems == 0 {
+            return;
         }
-        None
+        let boards = &board_buffer[..elems];
+
+        let batch = match feature_format {
+            InputFeatureSetType::Board768 => match bucketing_scheme {
+                BucketingSchemeType::NoBucketing => {
+                    process::<Board768, NoBucketing>(batch_size, boards)
+                }
+                BucketingSchemeType::ModifiedMaterial => {
+                    process::<Board768, ModifiedMaterial>(batch_size, boards)
+                }
+                BucketingSchemeType::PieceCount => {
+                    process::<Board768, PieceCount>(batch_size, boards)
+                }
+            },
+            InputFeatureSetType::HalfKp => match bucketing_scheme {
+                BucketingSchemeType::NoBucketing => {
+                    process::<HalfKp, NoBucketing>(batch_size, boards)
+                }
+                BucketingSchemeType::ModifiedMaterial => {
+                    process::<HalfKp, ModifiedMaterial>(batch_size, boards)
+                }
+                BucketingSchemeType::PieceCount => {
+                    process::<HalfKp, PieceCount>(batch_size, boards)
+                }
+            },
+            InputFeatureSetType::HalfKa => match bucketing_scheme {
+                BucketingSchemeType::NoBucketing => {
+                    process::<HalfKa, NoBucketing>(batch_size, boards)
+                }
+                BucketingSchemeType::ModifiedMaterial => {
+                    process::<HalfKa, ModifiedMaterial>(batch_size, boards)
+                }
+                BucketingSchemeType::PieceCount => {
+                    process::<HalfKa, PieceCount>(batch_size, boards)
+                }
+            },
+            InputFeatureSetType::Board768Cuda => match bucketing_scheme {
+                BucketingSchemeType::NoBucketing => {
+                    process::<Board768Cuda, NoBucketing>(batch_size, boards)
+                }
+                BucketingSchemeType::ModifiedMaterial => {
+                    process::<Board768Cuda, ModifiedMaterial>(batch_size, boards)
+                }
+                BucketingSchemeType::PieceCount => {
+                    process::<Board768Cuda, PieceCount>(batch_size, boards)
+                }
+            },
+            InputFeatureSetType::HalfKpCuda => match bucketing_scheme {
+                BucketingSchemeType::NoBucketing => {
+                    process::<HalfKpCuda, NoBucketing>(batch_size, boards)
+                }
+                BucketingSchemeType::ModifiedMaterial => {
+                    process::<HalfKpCuda, ModifiedMaterial>(batch_size, boards)
+                }
+                BucketingSchemeType::PieceCount => {
+                    process::<HalfKpCuda, PieceCount>(batch_size, boards)
+                }
+            },
+            InputFeatureSetType::HalfKaCuda => match bucketing_scheme {
+                BucketingSchemeType::NoBucketing => {
+                    process::<HalfKaCuda, NoBucketing>(batch_size, boards)
+                }
+                BucketingSchemeType::ModifiedMaterial => {
+                    process::<HalfKaCuda, ModifiedMaterial>(batch_size, boards)
+                }
+                BucketingSchemeType::PieceCount => {
+                    process::<HalfKaCuda, PieceCount>(batch_size, boards)
+                }
+            },
+        };
+
+        if send.send(batch).is_err() {
+            break;
+        }
     }
 }
 
-impl Iterator for FileReader {
-    type Item = AnnotatedBoard;
+fn process<F: InputFeatureSet, B: BucketingScheme>(
+    batch_size: usize,
+    boards: &[PackedBoard],
+) -> Box<Batch> {
+    let batch = Mutex::new(Box::new(Batch::new(
+        batch_size,
+        F::MAX_FEATURES,
+        F::INDICES_PER_FEATURE,
+    )));
 
-    fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            if let Some(board) = self.next_from_buffer() {
-                return Some(board);
-            }
-            if !self.try_fill_buffer(32_000) {
-                return None;
-            }
-        }
-    }
-}
+    let foreach = |packed: &PackedBoard| {
+        (|| {
+            let (board, cp, wdl, _) = packed.unpack()?;
+            let cp = cp as f32;
+            let wdl = wdl as f32 / 2.0;
 
-pub fn read_batch_into<F: InputFeatureSet, B: BucketingScheme>(
-    reader: &mut FileReader,
-    batch: &mut Batch,
-) -> bool {
-    batch.clear();
-    for annotated in reader.take(batch.capacity()) {
-        let (cp, wdl) = annotated.relative_value();
-        let entry = batch.make_entry(cp, wdl, B::bucket(&annotated.board));
-        F::add_features(annotated.board, entry);
-    }
-    batch.capacity() == batch.len()
+            let (cp, wdl) = match board.side_to_move() {
+                Color::White => (cp, wdl),
+                Color::Black => (-cp, 1.0 - wdl),
+            };
+
+            let mut batch = batch.lock().unwrap();
+            let entry = batch.make_entry(cp, wdl, B::bucket(&board));
+            F::add_features(board, entry);
+
+            Some(())
+        })();
+    };
+
+    boards.iter().for_each(foreach);
+    batch.into_inner().unwrap()
 }

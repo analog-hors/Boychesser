@@ -42,6 +42,7 @@ def train(
     epochs: int,
     save_epochs: int,
     lr_drop: int | None = None,
+    dryrun = False
 ) -> None:
     clipper = WeightClipper()
     running_loss = torch.zeros((1,), device=DEVICE)
@@ -70,7 +71,7 @@ def train(
             iterations = 0
             fens = 0
 
-            if epoch % save_epochs == 0:
+            if epoch % save_epochs == 0 and not dryrun:
                 param_map = {
                     name: param.detach().cpu().numpy().tolist()
                     for name, param in model.named_parameters()
@@ -78,18 +79,18 @@ def train(
                 with open(f"nn/{epoch}.json", "w") as json_file:
                     json.dump(to_frozenight(param_map), json_file)
 
+        if not dryrun:
+            optimizer.zero_grad()
+            prediction = model(batch)
+            expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
 
-        optimizer.zero_grad()
-        prediction = model(batch)
-        expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
+            loss = torch.mean((prediction - expected) ** 2)
+            loss.backward()
+            optimizer.step()
+            model.apply(clipper)
 
-        loss = torch.mean((prediction - expected) ** 2)
-        loss.backward()
-        optimizer.step()
-        model.apply(clipper)
-
-        with torch.no_grad():
-            running_loss += loss
+            with torch.no_grad():
+                running_loss += loss
         iterations += 1
         fens += batch.size
 
@@ -139,6 +140,7 @@ def main():
         args.epochs,
         args.save_epochs,
         lr_drop=args.lr_drop,
+        dryrun=False
     )
 
 

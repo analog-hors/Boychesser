@@ -139,7 +139,9 @@ def main():
         paths, models[0].input_feature_set(), models[0].bucketing_scheme, args.batch_size
     )
 
-    optimizer = torch.optim.Adam([param for param in model for model in models], lr=args.lr)
+    optimizer = torch.optim.Adam([
+        param for model in models for param in models.parameters()
+    ], lr=args.lr)
 
     train(
         models,

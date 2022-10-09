@@ -34,7 +34,7 @@ class WeightClipper:
 
 
 def train(
-    model: torch.nn.Module,
+    models: list[torch.nn.Module],
     optimizer: torch.optim.Optimizer,
     dataloader: BatchLoader,
     wdl: float,
@@ -42,10 +42,9 @@ def train(
     epochs: int,
     save_epochs: int,
     lr_drop: int | None = None,
-    dryrun = False
 ) -> None:
     clipper = WeightClipper()
-    running_loss = torch.zeros((1,), device=DEVICE)
+    running_loss = [torch.zeros((1,), device=DEVICE) for _ in models]
     start_time = time()
     iterations = 0
 
@@ -58,28 +57,27 @@ def train(
             epoch += 1
             if epoch == lr_drop:
                 optimizer.param_groups[0]["lr"] *= 0.1
-            print(
-                f"epoch: {epoch}",
-                f"loss: {running_loss.item() / iterations:.4g}",
-                f"pos/s: {fens / (time() - start_time):.0f}",
-                sep="\t",
-                flush=True,
-            )
+            print(f"epoch: {epoch}", end="\t")
+            print(f"losses:", end="\t")
+            for loss in running_loss:
+                print(f"{loss.item() / iterations:.4g}", end="\t")
+            print(f"pos/s: {fens / (time() - start_time):.0f}", flush=True)
 
-            running_loss = torch.zeros((1,), device=DEVICE)
+            running_loss = [torch.zeros((1,), device=DEVICE) for _ in models]
             start_time = time()
             iterations = 0
             fens = 0
 
-            if epoch % save_epochs == 0 and not dryrun:
-                param_map = {
-                    name: param.detach().cpu().numpy().tolist()
-                    for name, param in model.named_parameters()
-                }
-                with open(f"nn/{epoch}.json", "w") as json_file:
-                    json.dump(to_frozenight(param_map), json_file)
+            if epoch % save_epochs == 0:
+                for i, model in enumerate(models):
+                    param_map = {
+                        name: param.detach().cpu().numpy().tolist()
+                        for name, param in model.named_parameters()
+                    }
+                    with open(f"nn/{i}-{epoch}.json", "w") as json_file:
+                        json.dump(to_frozenight(param_map), json_file)
 
-        if not dryrun:
+        for model, run_loss in zip(models, running_loss):
             optimizer.zero_grad()
             prediction = model(batch)
             expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
@@ -90,7 +88,7 @@ def train(
             model.apply(clipper)
 
             with torch.no_grad():
-                running_loss += loss
+                run_loss += loss
         iterations += 1
         fens += batch.size
 
@@ -119,20 +117,30 @@ def main():
         default=None,
         help="The epoch learning rate will be dropped",
     )
+    parser.add_argument(
+        "--models",
+        type=int,
+        default=1,
+        help="The number of models to train in parallel"
+    )
     args = parser.parse_args()
 
     assert args.scale is not None
 
-    model = NnBoard768(256, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE)
+    models = []
+    for i in range(args.models):
+        models.append(NnBoard768(256, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE))
 
     data_path = pathlib.Path(args.data_root)
     paths = list(map(str, data_path.glob("*.bin")))
-    dataloader = BatchLoader(paths, model.input_feature_set(), model.bucketing_scheme, args.batch_size)
+    dataloader = BatchLoader(
+        paths, models[0].input_feature_set(), models[0].bucketing_scheme, args.batch_size
+    )
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam([param for param in model for model in models], lr=args.lr)
 
     train(
-        model,
+        models,
         optimizer,
         dataloader,
         args.wdl,
@@ -140,7 +148,6 @@ def main():
         args.epochs,
         args.save_epochs,
         lr_drop=args.lr_drop,
-        dryrun=False
     )
 
 

@@ -123,7 +123,7 @@ def main():
 
     assert args.scale is not None
 
-    model = NnBoard768(32, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE)
+    model = NnBoard768(256, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE)
 
     data_path = pathlib.Path(args.data_root)
     paths = list(map(str, data_path.glob("*.bin")))

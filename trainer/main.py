@@ -77,18 +77,20 @@ def train(
                     with open(f"nn/{i}-{epoch}.json", "w") as json_file:
                         json.dump(to_frozenight(param_map), json_file)
 
+        expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
+        optimizer.zero_grad()
         for model, run_loss in zip(models, running_loss):
-            optimizer.zero_grad()
             prediction = model(batch)
-            expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
 
             loss = torch.mean((prediction - expected) ** 2)
             loss.backward()
-            optimizer.step()
-            model.apply(clipper)
 
             with torch.no_grad():
                 run_loss += loss
+        optimizer.step()
+        for model in models:
+            model.apply(clipper)
+
         iterations += 1
         fens += batch.size
 

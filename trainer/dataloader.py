@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import IntEnum
+from typing import Callable
 
 import ctypes
 import os
@@ -191,35 +192,30 @@ class ParserBatchReader:
     def __exit__(self) -> None:
         self.drop()
 
+
 class BatchLoader:
     def __init__(
-        self, files: list[str], feature_set: InputFeatureSet, bucketing_scheme: BucketingScheme, batch_size: int
+        self,
+        next_file: Callable[[], str],
+        feature_set: InputFeatureSet, bucketing_scheme: BucketingScheme,
+        batch_size: int,
     ) -> None:
-        assert files
         self._feature_set = feature_set
         self._bucketing_scheme = bucketing_scheme
+        self._next_file = next_file
         self._batch_size = batch_size
-        self._files = files
-        self._file_index = 0
-        self._reader = ParserBatchReader(
-            self._files[self._file_index], batch_size, feature_set, bucketing_scheme
-        )
+        self._reader = ParserBatchReader(next_file(), batch_size, feature_set, bucketing_scheme)
 
     def read_batch(self, device: torch.device) -> tuple[bool, Batch]:
-        new_epoch = False
-        while True:
-            batch = self._reader.next_batch()
-            if batch is not None: break
-            self._reader.drop()
-            self._file_index = (self._file_index + 1) % len(self._files)
-            self._reader = ParserBatchReader(
-                self._files[self._file_index],
-                self._batch_size,
-                self._feature_set,
-                self._bucketing_scheme
-            )
-            new_epoch = self._file_index == 0
-        return new_epoch, batch.to_pytorch_batch(device)
+        batch = self._reader.next_batch()
+        if batch is not None:
+            return False, batch.to_pytorch_batch(device)
+
+        self._reader.drop()
+        self._reader = ParserBatchReader(
+            self._next_file(), self._batch_size, self._feature_set, self._bucketing_scheme
+        )
+        return True, self.read_batch(device)[1]
 
     def drop(self) -> None:
         if self._reader is not None:

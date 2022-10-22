@@ -4,6 +4,7 @@ import argparse
 import json
 import os
 import pathlib
+import subprocess
 
 from dataloader import BatchLoader, BucketingScheme
 from model import (
@@ -100,7 +101,7 @@ def main():
     parser = argparse.ArgumentParser(description="")
 
     parser.add_argument(
-        "--data-root", type=str, help="Root directory of the data files"
+        "--data", type=str, help="The data file"
     )
     parser.add_argument("--lr", type=float, help="Initial learning rate")
     parser.add_argument("--epochs", type=int, help="Epochs to train for")
@@ -133,10 +134,17 @@ def main():
     for i in range(args.models):
         models.append(NnBoard768(256, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE))
 
-    data_path = pathlib.Path(args.data_root)
-    paths = list(map(str, data_path.glob("*.bin")))
     dataloader = BatchLoader(
-        paths, models[0].input_feature_set(), models[0].bucketing_scheme, args.batch_size
+        lambda: [
+            subprocess.run(
+                ["./marlinflow-utils", "shuffle", "-i", args.data],
+                stdout=subprocess.DEVNULL
+            ),
+            args.data
+        ][-1],
+        models[0].input_feature_set(),
+        models[0].bucketing_scheme,
+        args.batch_size
     )
 
     optimizer = torch.optim.Adam([

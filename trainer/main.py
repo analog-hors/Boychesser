@@ -140,7 +140,7 @@ def main():
     )
 
     optimizer = torch.optim.Adam([
-        param for model in models for param in models.parameters()
+        param for model in models for param in model.parameters()
     ], lr=args.lr)
 
     train(

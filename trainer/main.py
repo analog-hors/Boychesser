@@ -43,6 +43,7 @@ def train(
     epochs: int,
     save_epochs: int,
     lr_drop: int | None = None,
+    lr_decay: float = 1.0,
 ) -> None:
     clipper = WeightClipper()
     running_loss = [torch.zeros((1,), device=DEVICE) for _ in models]
@@ -56,6 +57,7 @@ def train(
         new_epoch, batch = dataloader.read_batch(DEVICE)
         if new_epoch:
             epoch += 1
+            optimizer.param_groups[0]["lr"] *= lr_decay
             if epoch == lr_drop:
                 optimizer.param_groups[0]["lr"] *= 0.1
             print(f"epoch: {epoch}", end="\t")
@@ -126,6 +128,12 @@ def main():
         default=1,
         help="The number of models to train in parallel"
     )
+    parser.add_argument(
+        "--lr-decay",
+        type=float,
+        default=1,
+        help="Factor to multiply LR by every epoch"
+    )
     args = parser.parse_args()
 
     assert args.scale is not None
@@ -160,6 +168,7 @@ def main():
         args.epochs,
         args.save_epochs,
         lr_drop=args.lr_drop,
+        lr_decay=args.lr_decay,
     )
 
 

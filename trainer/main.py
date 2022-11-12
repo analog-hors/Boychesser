@@ -85,7 +85,7 @@ def train(
         for model, run_loss in zip(models, running_loss):
             prediction = model(batch)
 
-            loss = torch.mean((prediction - expected) ** 2)
+            loss = torch.mean(torch.abs(prediction - expected) ** 2.6)
             loss.backward()
 
             with torch.no_grad():
@@ -144,10 +144,10 @@ def main():
 
     dataloader = BatchLoader(
         lambda: [
-            subprocess.run(
-                ["./marlinflow-utils", "shuffle", "-i", args.data],
-                stdout=subprocess.DEVNULL
-            ),
+#            subprocess.run(
+#                ["./marlinflow-utils", "shuffle", "-i", args.data],
+#                stdout=subprocess.DEVNULL
+#            ),
             args.data
         ][-1],
         models[0].input_feature_set(),

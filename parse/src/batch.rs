@@ -2,12 +2,7 @@ pub struct Batch {
     // The maximum number of entries
     capacity: usize,
 
-    max_features: usize,
-
-    stm_feature_buffer: Box<[i64]>,
-    nstm_feature_buffer: Box<[i64]>,
-    values: Box<[f32]>,
-    total_features: usize,
+    features: Box<[SparseTensorList]>,
     indices_per_feature: usize,
 
     cp: Box<[f32]>,
@@ -18,18 +13,39 @@ pub struct Batch {
     entries: usize,
 }
 
+#[derive(Clone)]
+struct SparseTensorList {
+    feature_buffer: Box<[i64]>,
+    values: Box<[f32]>,
+    feature_count: usize,
+}
+
+impl SparseTensorList {
+    fn new(capacity: usize, max_features: usize, indices_per_feature: usize) -> Self {
+        Self {
+            feature_buffer: vec![0; capacity * max_features * indices_per_feature]
+                .into_boxed_slice(),
+            values: vec![0.0; capacity * max_features].into_boxed_slice(),
+            feature_count: 0,
+        }
+    }
+}
+
 impl Batch {
-    pub fn new(capacity: usize, max_features: usize, indices_per_feature: usize) -> Self {
+    pub fn new(
+        capacity: usize,
+        max_features: usize,
+        indices_per_feature: usize,
+        tensors_per_board: usize,
+    ) -> Self {
         Self {
             capacity,
-            max_features,
-            stm_feature_buffer: vec![0; capacity * max_features * indices_per_feature]
-                .into_boxed_slice(),
-            nstm_feature_buffer: vec![0; capacity * max_features * indices_per_feature]
-                .into_boxed_slice(),
-            total_features: 0,
+            features: vec![
+                SparseTensorList::new(capacity, max_features, indices_per_feature);
+                tensors_per_board
+            ]
+            .into_boxed_slice(),
             indices_per_feature,
-            values: vec![1.0; capacity * max_features].into_boxed_slice(),
             cp: vec![0_f32; capacity].into_boxed_slice(),
             wdl: vec![0_f32; capacity].into_boxed_slice(),
             buckets: vec![0; capacity].into_boxed_slice(),
@@ -51,7 +67,9 @@ impl Batch {
 
     pub fn clear(&mut self) {
         self.entries = 0;
-        self.total_features = 0;
+        for list in &mut *self.features {
+            list.feature_count = 0;
+        }
     }
 
     pub fn capacity(&self) -> usize {
@@ -62,20 +80,20 @@ impl Batch {
         self.entries
     }
 
-    pub fn stm_feature_buffer_ptr(&self) -> *const i64 {
-        &self.stm_feature_buffer[0]
+    pub fn feature_buffer_ptr(&self, tensor: usize) -> *const i64 {
+        self.features[tensor].feature_buffer.as_ptr()
     }
 
-    pub fn nstm_feature_buffer_ptr(&self) -> *const i64 {
-        &self.nstm_feature_buffer[0]
+    pub fn feature_values_ptr(&self, tensor: usize) -> *const f32 {
+        self.features[tensor].values.as_ptr()
     }
 
-    pub fn values_ptr(&self) -> *const f32 {
-        &self.values[0]
+    pub fn feature_count(&self, tensor: usize) -> usize {
+        self.features[tensor].feature_count
     }
 
-    pub fn total_features(&self) -> usize {
-        self.total_features
+    pub fn tensors_per_board(&self) -> usize {
+        self.features.len()
     }
 
     pub fn indices_per_feature(&self) -> usize {
@@ -95,76 +113,18 @@ impl Batch {
     }
 }
 
-pub struct SparseBatchWriter<'b> {
-    entry_feature_writer: EntryFeatureWriter<'b>,
-}
-
-impl SparseBatchWriter<'_> {
-    pub fn add_feature(&mut self, stm_feature: i64, nstm_feature: i64) {
-        self.entry_feature_writer
-            .add_feature_sparse(stm_feature, nstm_feature);
-    }
-}
-
-pub struct CudaBatchWriter<'b> {
-    entry_feature_writer: EntryFeatureWriter<'b>,
-    count: usize,
-}
-
-impl CudaBatchWriter<'_> {
-    pub fn add_feature(&mut self, stm_feature: i64, nstm_feature: i64) {
-        self.entry_feature_writer
-            .add_feature_cuda(stm_feature, nstm_feature);
-        self.count += 1;
-    }
-}
-
-impl<'b> Drop for CudaBatchWriter<'b> {
-    fn drop(&mut self) {
-        self.entry_feature_writer.complete_cuda(self.count);
-    }
-}
-
 pub struct EntryFeatureWriter<'b> {
     batch: &'b mut Batch,
     index_in_batch: usize,
 }
 
 impl<'b> EntryFeatureWriter<'b> {
-    pub fn sparse(self) -> SparseBatchWriter<'b> {
-        SparseBatchWriter {
-            entry_feature_writer: self,
-        }
-    }
-
-    pub fn cuda(self) -> CudaBatchWriter<'b> {
-        CudaBatchWriter {
-            entry_feature_writer: self,
-            count: 0,
-        }
-    }
-
-    fn add_feature_sparse(&mut self, stm_feature: i64, nstm_feature: i64) {
-        let index = self.batch.total_features;
-        self.batch.stm_feature_buffer[index * 2] = self.index_in_batch as i64;
-        self.batch.nstm_feature_buffer[index * 2] = self.index_in_batch as i64;
-        self.batch.stm_feature_buffer[index * 2 + 1] = stm_feature;
-        self.batch.nstm_feature_buffer[index * 2 + 1] = nstm_feature;
-        self.batch.total_features += 1;
-    }
-
-    fn add_feature_cuda(&mut self, stm_feature: i64, nstm_feature: i64) {
-        self.batch.stm_feature_buffer[self.batch.total_features] = stm_feature;
-        self.batch.nstm_feature_buffer[self.batch.total_features] = nstm_feature;
-        self.batch.total_features += 1;
-    }
-
-    fn complete_cuda(&mut self, count: usize) {
-        let left_to_fill = self.batch.max_features - count;
-        for _ in 0..left_to_fill {
-            self.batch.stm_feature_buffer[self.batch.total_features] = -1;
-            self.batch.nstm_feature_buffer[self.batch.total_features] = -1;
-            self.batch.total_features += 1;
-        }
+    pub fn add_feature(&mut self, tensor: usize, feature: i64, value: f32) {
+        let list = &mut self.batch.features[tensor];
+        let index = list.feature_count;
+        list.feature_buffer[index * 2] = self.index_in_batch as i64;
+        list.feature_buffer[index * 2 + 1] = feature;
+        list.values[index] = value;
+        list.feature_count += 1;
     }
 }

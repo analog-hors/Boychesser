@@ -17,10 +17,10 @@ def _load_parse_lib():
 
     lib.batch_get_capacity.restype = ctypes.c_uint32
     lib.batch_get_len.restype = ctypes.c_uint32
-    lib.batch_get_stm_feature_buffer_ptr.restype = ctypes.POINTER(ctypes.c_int64)
-    lib.batch_get_nstm_feature_buffer_ptr.restype = ctypes.POINTER(ctypes.c_int64)
-    lib.batch_get_values_ptr.restype = ctypes.POINTER(ctypes.c_float)
-    lib.batch_get_total_features.restype = ctypes.c_uint32
+    lib.batch_get_feature_buffer_ptr.restype = ctypes.POINTER(ctypes.c_int64)
+    lib.batch_get_feature_values_ptr.restype = ctypes.POINTER(ctypes.c_float)
+    lib.batch_get_feature_count.restype = ctypes.c_uint32
+    lib.batch_get_tensors_per_board.restype = ctypes.c_uint32
     lib.batch_get_cp_ptr.restype = ctypes.POINTER(ctypes.c_float)
     lib.batch_get_wdl_ptr.restype = ctypes.POINTER(ctypes.c_float)
     lib.batch_get_bucket_ptr.restype = ctypes.POINTER(ctypes.c_int32)
@@ -46,9 +46,7 @@ class InputFeatureSet(IntEnum):
     BOARD_768 = 0
     HALF_KP = 1
     HALF_KA = 2
-    BOARD_768_CUDA = 3
-    HALF_KP_CUDA = 4
-    HALF_KA_CUDA = 5
+    HM_STM_BOARD_192 = 3
 
     def max_features(self) -> int:
         return PARSE_LIB.input_feature_set_get_max_features(self)
@@ -67,9 +65,8 @@ class BucketingScheme(IntEnum):
 
 @dataclass
 class Batch:
-    stm_indices: torch.Tensor
-    nstm_indices: torch.Tensor
-    values: torch.Tensor
+    indices: list[torch.Tensor]
+    values: list[torch.Tensor]
     cp: torch.Tensor
     wdl: torch.Tensor
     buckets: torch.Tensor
@@ -97,17 +94,17 @@ class ParserBatch:
     def get_len(self) -> int:
         return PARSE_LIB.batch_get_len(self._ptr)
 
-    def get_stm_feature_buffer_ptr(self) -> ctypes.pointer[ctypes.c_float]:
-        return PARSE_LIB.batch_get_stm_feature_buffer_ptr(self._ptr)
+    def get_feature_buffer_ptr(self, tensor: int) -> ctypes.pointer[ctypes.c_float]:
+        return PARSE_LIB.batch_get_feature_buffer_ptr(self._ptr, tensor)
 
-    def get_nstm_feature_buffer_ptr(self) -> ctypes.pointer[ctypes.c_float]:
-        return PARSE_LIB.batch_get_nstm_feature_buffer_ptr(self._ptr)
+    def get_feature_values_ptr(self, tensor: int) -> ctypes.pointer[ctypes.c_float]:
+        return PARSE_LIB.batch_get_feature_values_ptr(self._ptr, tensor)
 
-    def get_values_ptr(self) -> ctypes.pointer[ctypes.c_float]:
-        return PARSE_LIB.batch_get_values_ptr(self._ptr)
+    def get_feature_count(self, tensor: int) -> int:
+        return PARSE_LIB.batch_get_feature_count(self._ptr, tensor)
 
-    def get_total_features(self) -> int:
-        return PARSE_LIB.batch_get_total_features(self._ptr)
+    def get_tensors_per_board(self) -> int:
+        return PARSE_LIB.batch_get_tensors_per_board(self._ptr)
 
     def get_indices_per_feature(self) -> int:
         return PARSE_LIB.batch_get_indices_per_feature(self._ptr)
@@ -128,23 +125,20 @@ class ParserBatch:
                 tch_array = tch_array.pin_memory()
             return tch_array.to(device, non_blocking=True)
 
-        total_features = self.get_total_features()
         indices_per_feature = self.get_indices_per_feature()
-        boards_stm = to_pytorch(
-            np.ctypeslib.as_array(
-                self.get_stm_feature_buffer_ptr(),
-                shape=(total_features * indices_per_feature,),
-            )
-        )
-        boards_nstm = to_pytorch(
-            np.ctypeslib.as_array(
-                self.get_nstm_feature_buffer_ptr(),
-                shape=(total_features * indices_per_feature,),
-            )
-        )
-        values = to_pytorch(
-            np.ctypeslib.as_array(self.get_values_ptr(), shape=(total_features,))
-        )
+        indices = []
+        values = []
+        for i in range(self.get_tensors_per_board()):
+            count = self.get_feature_count(i)
+            indices.append(to_pytorch(
+                np.ctypeslib.as_array(
+                    self.get_feature_buffer_ptr(i),
+                    shape=(count * indices_per_feature,),
+                )
+            ))
+            values.append(to_pytorch(
+                np.ctypeslib.as_array(self.get_feature_values_ptr(i), shape=(count,))
+            ))
 
         batch_len = self.get_len()
         cp = to_pytorch(np.ctypeslib.as_array(self.get_cp_ptr(), shape=(batch_len, 1)))
@@ -153,7 +147,7 @@ class ParserBatch:
         )
         buckets = to_pytorch(np.ctypeslib.as_array(self.get_bucket_ptr(), shape=(batch_len, 1)))
 
-        return Batch(boards_stm, boards_nstm, values, cp, wdl, buckets, batch_len)
+        return Batch(indices, values, cp, wdl, buckets, batch_len)
 
 
 class ParserBatchReader:

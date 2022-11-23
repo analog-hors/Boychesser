@@ -3,6 +3,34 @@ import torch
 from dataloader import Batch, InputFeatureSet, BucketingScheme
 
 
+def get_tensors(batch: Batch, feature_count: int) -> list[torch.Tensor]:
+    tensors = []
+    for indices, values in zip(batch.indices, batch.values):
+        t = indices.reshape(-1, 2).T
+        tensors.append(torch.sparse_coo_tensor(
+            t, values, (batch.size, feature_count)
+        ).to_dense())
+    return tensors
+
+
+class Ice4Model(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.pst = torch.nn.Linear(192, 1)
+        self.bucketing_scheme = BucketingScheme.NO_BUCKETING
+
+    def forward(self, batch: Batch):
+        stml, stmr, nstml, nstmr = get_tensors(batch, 192)
+
+        stm = self.pst(stml) + self.pst(stmr)
+        nstm = self.pst(nstml) + self.pst(nstmr)
+
+        return torch.sigmoid(stm - nstm)
+
+    def input_feature_set(self) -> InputFeatureSet:
+        return InputFeatureSet.HM_STM_BOARD_192
+
+
 class NnBoard768(torch.nn.Module):
     def __init__(self, ft_out: int, bucketing_scheme: BucketingScheme):
         super().__init__()

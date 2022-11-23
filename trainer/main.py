@@ -7,16 +7,9 @@ import pathlib
 import subprocess
 
 from dataloader import BatchLoader, BucketingScheme
-from model import (
-    NnBoard768Cuda,
-    NnBoard768,
-    NnHalfKA,
-    NnHalfKACuda,
-    NnHalfKP,
-    NnHalfKPCuda,
-)
+from model import Ice4Model
 from time import time
-from to_frozenight import to_frozenight
+from to_ice4 import to_ice4
 
 import torch
 
@@ -79,7 +72,7 @@ def train(
                         for name, param in model.named_parameters()
                     }
                     with open(f"{nndir}/{i}-{epoch}.json", "w") as json_file:
-                        json.dump(to_frozenight(param_map), json_file)
+                        json.dump(to_ice4(param_map), json_file)
 
         expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
         optimizer.zero_grad()
@@ -92,8 +85,8 @@ def train(
             with torch.no_grad():
                 run_loss += loss
         optimizer.step()
-        for model in models:
-            model.apply(clipper)
+        # for model in models:
+        #     model.apply(clipper)
 
         iterations += 1
         fens += batch.size
@@ -142,7 +135,7 @@ def main():
 
     models = []
     for i in range(args.models):
-        models.append(NnBoard768(256, BucketingScheme.MODIFIED_MATERIAL).to(DEVICE))
+        models.append(Ice4Model().to(DEVICE))
 
     dataloader = BatchLoader(
         lambda: [

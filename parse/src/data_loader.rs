@@ -135,37 +135,15 @@ fn dataloader_thread(
                     }
                     BucketingSchemeType::PieceCount => process::<HalfKa, PieceCount>(batch, boards),
                 },
-                InputFeatureSetType::Board768Cuda => match bucketing_scheme {
+                InputFeatureSetType::HmStmBoard192 => match bucketing_scheme {
                     BucketingSchemeType::NoBucketing => {
-                        process::<Board768Cuda, NoBucketing>(batch, boards)
+                        process::<HmStmBoard192, NoBucketing>(batch, boards)
                     }
                     BucketingSchemeType::ModifiedMaterial => {
-                        process::<Board768Cuda, ModifiedMaterial>(batch, boards)
+                        process::<HmStmBoard192, ModifiedMaterial>(batch, boards)
                     }
                     BucketingSchemeType::PieceCount => {
-                        process::<Board768Cuda, PieceCount>(batch, boards)
-                    }
-                },
-                InputFeatureSetType::HalfKpCuda => match bucketing_scheme {
-                    BucketingSchemeType::NoBucketing => {
-                        process::<HalfKpCuda, NoBucketing>(batch, boards)
-                    }
-                    BucketingSchemeType::ModifiedMaterial => {
-                        process::<HalfKpCuda, ModifiedMaterial>(batch, boards)
-                    }
-                    BucketingSchemeType::PieceCount => {
-                        process::<HalfKpCuda, PieceCount>(batch, boards)
-                    }
-                },
-                InputFeatureSetType::HalfKaCuda => match bucketing_scheme {
-                    BucketingSchemeType::NoBucketing => {
-                        process::<HalfKaCuda, NoBucketing>(batch, boards)
-                    }
-                    BucketingSchemeType::ModifiedMaterial => {
-                        process::<HalfKaCuda, ModifiedMaterial>(batch, boards)
-                    }
-                    BucketingSchemeType::PieceCount => {
-                        process::<HalfKaCuda, PieceCount>(batch, boards)
+                        process::<HmStmBoard192, PieceCount>(batch, boards)
                     }
                 },
             });
@@ -203,6 +181,7 @@ fn batch_buffer(feature_format: InputFeatureSetType, batch_size: usize) -> Vec<B
             batch_size,
             feature_format.max_features(),
             feature_format.indices_per_feature(),
+            feature_format.tensors_per_board(),
         )
     });
     v

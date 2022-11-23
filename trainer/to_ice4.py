@@ -17,10 +17,8 @@ def transpose(matrix):
             t[i][j] = matrix[j][i]
     return t
 
-def to_frozenight(params):
+def to_ice4(params):
     return {
-        "ft.weight": transpose(quantize(params["ft.weight"], ACTIVATION_RANGE)),
-        "ft.bias": quantize(params["ft.bias"], ACTIVATION_RANGE),
-        "out.weight": quantize(params["out.weight"], WEIGHT_SCALE),
-        "out.bias": quantize(params["out.bias"], ACTIVATION_RANGE * WEIGHT_SCALE),
+        "pst.weight": transpose(params["pst.weight"]),
+        "pst.bias": params["pst.bias"],
     }

@@ -44,6 +44,7 @@ def train(
     save_epochs: int,
     lr_drop: int | None = None,
     lr_decay: float = 1.0,
+    nndir: str = "nn"
 ) -> None:
     clipper = WeightClipper()
     running_loss = [torch.zeros((1,), device=DEVICE) for _ in models]
@@ -77,7 +78,7 @@ def train(
                         name: param.detach().cpu().numpy().tolist()
                         for name, param in model.named_parameters()
                     }
-                    with open(f"nn/{i}-{epoch}.json", "w") as json_file:
+                    with open(f"{nndir}/{i}-{epoch}.json", "w") as json_file:
                         json.dump(to_frozenight(param_map), json_file)
 
         expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
@@ -105,6 +106,7 @@ def main():
     parser.add_argument(
         "--data", type=str, help="The data file"
     )
+    parser.add_argument("--nndir", type=str, default="nn", help="")
     parser.add_argument("--lr", type=float, help="Initial learning rate")
     parser.add_argument("--epochs", type=int, help="Epochs to train for")
     parser.add_argument("--batch-size", type=int, default=16384, help="Batch size")
@@ -169,6 +171,7 @@ def main():
         args.save_epochs,
         lr_drop=args.lr_drop,
         lr_decay=args.lr_decay,
+        nndir=args.nndir,
     )
 
 

@@ -16,11 +16,11 @@ def get_tensors(batch: Batch, feature_count: int) -> list[torch.Tensor]:
 class Ice4Model(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.pst = torch.nn.Linear(192, 1)
+        self.pst = torch.nn.Linear(384, 1)
         self.bucketing_scheme = BucketingScheme.NO_BUCKETING
 
     def forward(self, batch: Batch):
-        stml, stmr, nstml, nstmr = get_tensors(batch, 192)
+        stml, stmr, nstml, nstmr = get_tensors(batch, 384)
 
         stm = self.pst(stml) + self.pst(stmr)
         nstm = self.pst(nstml) + self.pst(nstmr)
@@ -28,7 +28,7 @@ class Ice4Model(torch.nn.Module):
         return torch.sigmoid(stm - nstm)
 
     def input_feature_set(self) -> InputFeatureSet:
-        return InputFeatureSet.HM_STM_BOARD_192
+        return InputFeatureSet.PHASED_HM_STM_BOARD_192
 
 
 class NnBoard768(torch.nn.Module):

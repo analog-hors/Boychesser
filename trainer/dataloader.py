@@ -47,6 +47,7 @@ class InputFeatureSet(IntEnum):
     HALF_KP = 1
     HALF_KA = 2
     HM_STM_BOARD_192 = 3
+    PHASED_HM_STM_BOARD_192 = 4
 
     def max_features(self) -> int:
         return PARSE_LIB.input_feature_set_get_max_features(self)

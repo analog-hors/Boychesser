@@ -157,6 +157,17 @@ fn dataloader_thread(
                         process::<PhasedHmStmBoard192, PieceCount>(batch, boards)
                     }
                 },
+                InputFeatureSetType::PhasedStmBoard384 => match bucketing_scheme {
+                    BucketingSchemeType::NoBucketing => {
+                        process::<PhasedStmBoard384, NoBucketing>(batch, boards)
+                    }
+                    BucketingSchemeType::ModifiedMaterial => {
+                        process::<PhasedStmBoard384, ModifiedMaterial>(batch, boards)
+                    }
+                    BucketingSchemeType::PieceCount => {
+                        process::<PhasedStmBoard384, PieceCount>(batch, boards)
+                    }
+                },
             });
 
         if send.send(batches).is_err() {

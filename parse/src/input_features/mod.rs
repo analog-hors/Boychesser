@@ -8,6 +8,7 @@ mod half_kp;
 mod hm_stm_board_192;
 mod phased_hm_stm_board_192;
 mod phased_stm_board_384;
+mod ice4_input_features;
 
 pub use board_768::Board768;
 pub use half_ka::HalfKa;
@@ -15,6 +16,7 @@ pub use half_kp::HalfKp;
 pub use hm_stm_board_192::HmStmBoard192;
 pub use phased_hm_stm_board_192::PhasedHmStmBoard192;
 pub use phased_stm_board_384::PhasedStmBoard384;
+pub use ice4_input_features::Ice4InputFeatures;
 
 pub trait InputFeatureSet {
     const INDICES_PER_FEATURE: usize;
@@ -33,6 +35,7 @@ pub enum InputFeatureSetType {
     HmStmBoard192,
     PhasedHmStmBoard192,
     PhasedStmBoard384,
+    Ice4InputFeatures,
 }
 
 impl InputFeatureSetType {
@@ -44,6 +47,7 @@ impl InputFeatureSetType {
             InputFeatureSetType::HmStmBoard192 => HmStmBoard192::MAX_FEATURES,
             InputFeatureSetType::PhasedHmStmBoard192 => PhasedHmStmBoard192::MAX_FEATURES,
             InputFeatureSetType::PhasedStmBoard384 => PhasedStmBoard384::MAX_FEATURES,
+            InputFeatureSetType::Ice4InputFeatures => Ice4InputFeatures::MAX_FEATURES,
         }
     }
 
@@ -55,6 +59,7 @@ impl InputFeatureSetType {
             InputFeatureSetType::HmStmBoard192 => HmStmBoard192::INDICES_PER_FEATURE,
             InputFeatureSetType::PhasedHmStmBoard192 => PhasedHmStmBoard192::INDICES_PER_FEATURE,
             InputFeatureSetType::PhasedStmBoard384 => PhasedStmBoard384::INDICES_PER_FEATURE,
+            InputFeatureSetType::Ice4InputFeatures => Ice4InputFeatures::INDICES_PER_FEATURE,
         }
     }
 
@@ -66,6 +71,7 @@ impl InputFeatureSetType {
             InputFeatureSetType::HmStmBoard192 => HmStmBoard192::TENSORS_PER_BOARD,
             InputFeatureSetType::PhasedHmStmBoard192 => PhasedHmStmBoard192::TENSORS_PER_BOARD,
             InputFeatureSetType::PhasedStmBoard384 => PhasedStmBoard384::TENSORS_PER_BOARD,
+            InputFeatureSetType::Ice4InputFeatures => Ice4InputFeatures::TENSORS_PER_BOARD,
         }
     }
 }

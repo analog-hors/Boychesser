@@ -7,3 +7,4 @@ libparse.dll
 libparse.so
 __pycache__
 venv
+*.tar.zst

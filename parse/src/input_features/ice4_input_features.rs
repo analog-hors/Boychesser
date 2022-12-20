@@ -59,8 +59,8 @@ impl InputFeatureSet for Ice4InputFeatures {
                     true => 1,
                 };
                 let feature = match color {
-                    Color::White => square.flip_rank(),
-                    Color::Black => square,
+                    Color::White => square,
+                    Color::Black => square.flip_rank(),
                 } as usize + 768;
                 entry.add_feature(tensor, feature as i64, phase);
                 entry.add_feature(tensor, feature as i64 + 64, 1.0 - phase);

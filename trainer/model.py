@@ -13,16 +13,17 @@ def get_tensors(batch: Batch, feature_count: int) -> list[torch.Tensor]:
     return tensors
 
 
+FEATURES = (64+32+32+32+32+64+64)*2
 class Ice4Model(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.pst = torch.nn.Linear(64*6*2 + 64*2, 1)
+        self.params = torch.nn.Linear(FEATURES, 1, bias=False)
         self.bucketing_scheme = BucketingScheme.NO_BUCKETING
 
     def forward(self, batch: Batch):
-        stm, nstm = get_tensors(batch, 64*6*2 + 64*2)
+        features, = get_tensors(batch, FEATURES)
 
-        result = self.pst(stm) - self.pst(nstm)
+        result = self.params(features)
 
         return torch.sigmoid(result)
 

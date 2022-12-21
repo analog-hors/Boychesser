@@ -194,11 +194,6 @@ fn process<F: InputFeatureSet, B: BucketingScheme>(batch: &mut Batch, boards: &[
             let cp = cp as f32;
             let wdl = wdl as f32 / 2.0;
 
-            let (cp, wdl) = match board.side_to_move() {
-                Color::White => (cp, wdl),
-                Color::Black => (-cp, 1.0 - wdl),
-            };
-
             let entry = batch.make_entry(cp, wdl, B::bucket(&board));
             F::add_features(board, entry);
 

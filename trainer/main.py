@@ -9,7 +9,6 @@ import subprocess
 from dataloader import BatchLoader, BucketingScheme
 from model import Ice4Model
 from time import time
-from to_ice4 import to_ice4
 
 import torch
 
@@ -72,7 +71,7 @@ def train(
                         for name, param in model.named_parameters()
                     }
                     with open(f"{nndir}/{i}-{epoch}.json", "w") as json_file:
-                        json.dump(to_ice4(param_map), json_file)
+                        json.dump(param_map, json_file)
 
         expected = torch.sigmoid(batch.cp / scale) * (1 - wdl) + batch.wdl * wdl
         optimizer.zero_grad()

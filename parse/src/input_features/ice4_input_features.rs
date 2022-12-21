@@ -13,7 +13,8 @@ const ROOK_PST_OFFSET: usize = BISHOP_PST_OFFSET + 32;
 const QUEEN_PST_OFFSET: usize = ROOK_PST_OFFSET + 32;
 const KING_PST_OFFSET: usize = QUEEN_PST_OFFSET + 32;
 const PASSED_PAWN_PST_OFFSET: usize = KING_PST_OFFSET + 64;
-const FEATURES: usize = PASSED_PAWN_PST_OFFSET + 64;
+const BISHOP_PAIR_OFFSET: usize = PASSED_PAWN_PST_OFFSET + 64;
+const FEATURES: usize = BISHOP_PAIR_OFFSET + 1;
 
 const PIECE_PST_OFFSETS: [usize; 6] = [
     PAWN_PST_OFFSET,
@@ -83,6 +84,13 @@ impl InputFeatureSet for Ice4InputFeatures {
                 };
                 features[PASSED_PAWN_PST_OFFSET + sq] += inc;
             }
+        }
+
+        if board.colored_pieces(Color::White, Piece::Bishop).len() >= 2 {
+            features[BISHOP_PAIR_OFFSET] += 1;
+        }
+        if board.colored_pieces(Color::Black, Piece::Bishop).len() >= 2 {
+            features[BISHOP_PAIR_OFFSET] -= 1;
         }
 
         for (i, &v) in features.iter().enumerate().filter(|&(_, &v)| v != 0) {

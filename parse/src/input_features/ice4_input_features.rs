@@ -25,8 +25,6 @@ const PIECE_PST_OFFSETS: [usize; 6] = [
     KING_PST_OFFSET,
 ];
 
-const HORIZONTALLY_MIRRORED: [bool; 6] = [false, true, true, true, true, false];
-
 impl InputFeatureSet for Ice4InputFeatures {
     const MAX_FEATURES: usize = 48;
     const INDICES_PER_FEATURE: usize = 2;
@@ -42,19 +40,23 @@ impl InputFeatureSet for Ice4InputFeatures {
         let mut features = [0i8; FEATURES];
 
         for &piece in &Piece::ALL {
-            for square in board.pieces(piece) & board.colors(Color::White) {
-                let square = match HORIZONTALLY_MIRRORED[piece as usize] {
-                    true => hm_feature(square),
-                    false => square as usize,
+            for square in board.pieces(piece) {
+                let color = board.color_on(square).unwrap();
+                let (square, inc) = match color {
+                    Color::White => (square, 1),
+                    Color::Black => (square.flip_rank(), -1),
                 };
-                features[PIECE_PST_OFFSETS[piece as usize] + square] += 1;
-            }
-            for square in board.pieces(piece) & board.colors(Color::Black) {
-                let square = match HORIZONTALLY_MIRRORED[piece as usize] {
-                    true => hm_feature(square.flip_rank()),
-                    false => square.flip_rank() as usize,
+                let square = match piece {
+                    Piece::Knight | Piece::Bishop | Piece::Rook | Piece::Queen => {
+                        hm_feature(square)
+                    }
+                    Piece::King => square as usize,
+                    Piece::Pawn => match board.king(color).file() > File::D {
+                        true => square.flip_file() as usize,
+                        false => square as usize,
+                    },
                 };
-                features[PIECE_PST_OFFSETS[piece as usize] + square] -= 1;
+                features[PIECE_PST_OFFSETS[piece as usize] + square] += inc;
             }
         }
 
@@ -77,6 +79,11 @@ impl InputFeatureSet for Ice4InputFeatures {
                 if !passer_mask.is_disjoint(board.colored_pieces(!color, Piece::Pawn)) {
                     continue;
                 }
+
+                // let square = match board.king(color).file() > File::D {
+                //     true => square.flip_file(),
+                //     false => square,
+                // };
 
                 let (sq, inc) = match color {
                     Color::White => (square as usize, 1),

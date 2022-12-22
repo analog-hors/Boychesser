@@ -1,4 +1,4 @@
-use cozy_chess::{get_bishop_moves, get_rook_moves, Board, Color, File, Piece, Rank, Square};
+use cozy_chess::{BitBoard, Board, Color, File, Piece, Rank, Square};
 
 use crate::batch::EntryFeatureWriter;
 
@@ -14,7 +14,8 @@ const QUEEN_PST_OFFSET: usize = ROOK_PST_OFFSET + 32;
 const KING_PST_OFFSET: usize = QUEEN_PST_OFFSET + 32;
 const PASSED_PAWN_PST_OFFSET: usize = KING_PST_OFFSET + 64;
 const BISHOP_PAIR_OFFSET: usize = PASSED_PAWN_PST_OFFSET + 64;
-const FEATURES: usize = BISHOP_PAIR_OFFSET + 1;
+const DOUBLED_PAWN_OFFSET: usize = BISHOP_PAIR_OFFSET + 1;
+const FEATURES: usize = DOUBLED_PAWN_OFFSET + 8;
 
 const PIECE_PST_OFFSETS: [usize; 6] = [
     PAWN_PST_OFFSET,
@@ -80,10 +81,10 @@ impl InputFeatureSet for Ice4InputFeatures {
                     continue;
                 }
 
-                // let square = match board.king(color).file() > File::D {
-                //     true => square.flip_file(),
-                //     false => square,
-                // };
+                let square = match board.king(color).file() > File::D {
+                    true => square.flip_file(),
+                    false => square,
+                };
 
                 let (sq, inc) = match color {
                     Color::White => (square as usize, 1),
@@ -91,6 +92,19 @@ impl InputFeatureSet for Ice4InputFeatures {
                 };
                 features[PASSED_PAWN_PST_OFFSET + sq] += inc;
             }
+        }
+
+        let mut white_doubled_mask = board.colored_pieces(Color::White, Piece::Pawn).0 >> 8;
+        let mut black_doubled_mask = board.colored_pieces(Color::Black, Piece::Pawn).0 << 8;
+        for _ in 0..6 {
+            white_doubled_mask |= white_doubled_mask >> 8;
+            black_doubled_mask |= black_doubled_mask << 8;
+        }
+        for sq in board.colored_pieces(Color::White, Piece::Pawn) & BitBoard(white_doubled_mask) {
+            features[DOUBLED_PAWN_OFFSET + sq.file() as usize] += 1;
+        }
+        for sq in board.colored_pieces(Color::Black, Piece::Pawn) & BitBoard(black_doubled_mask) {
+            features[DOUBLED_PAWN_OFFSET + sq.file() as usize] -= 1;
         }
 
         if board.colored_pieces(Color::White, Piece::Bishop).len() >= 2 {

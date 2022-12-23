@@ -6,24 +6,35 @@ use super::InputFeatureSet;
 
 pub struct Ice4InputFeatures;
 
-const PAWN_PST_OFFSET: usize = 0;
-const KNIGHT_PST_OFFSET: usize = PAWN_PST_OFFSET + 64;
-const BISHOP_PST_OFFSET: usize = KNIGHT_PST_OFFSET + 32;
-const ROOK_PST_OFFSET: usize = BISHOP_PST_OFFSET + 32;
-const QUEEN_PST_OFFSET: usize = ROOK_PST_OFFSET + 32;
-const KING_PST_OFFSET: usize = QUEEN_PST_OFFSET + 32;
-const PASSED_PAWN_PST_OFFSET: usize = KING_PST_OFFSET + 64;
-const BISHOP_PAIR_OFFSET: usize = PASSED_PAWN_PST_OFFSET + 64;
-const DOUBLED_PAWN_OFFSET: usize = BISHOP_PAIR_OFFSET + 1;
-const FEATURES: usize = DOUBLED_PAWN_OFFSET + 8;
+macro_rules! offsets {
+    ($name:ident: $($rest:tt)*) => {
+        const $name: usize = 0;
+        offsets!([] $($rest)*);
+    };
+    ([$($val:literal)*] $size:literal; $next:ident : $($rest:tt)*) => {
+        const $next: usize = $($val +)* $size;
+        offsets!([$($val)* $size] $($rest)*);
+    };
+    ([$($val:literal)*] $size:literal;) => {
+        const TOTAL_FEATURES: usize = $($val +)* $size;
+    };
+}
+
+offsets! {
+    PAWN_PST: 64;
+    KNIGHT_PST: 32;
+    BISHOP_PST: 32;
+    ROOK_PST: 32;
+    QUEEN_PST: 32;
+    KING_PST: 64;
+    PASSED_PAWN_PST: 64;
+    BISHOP_PAIR: 1;
+    DOUBLED_PAWN: 8;
+    TEMPO: 1;
+}
 
 const PIECE_PST_OFFSETS: [usize; 6] = [
-    PAWN_PST_OFFSET,
-    KNIGHT_PST_OFFSET,
-    BISHOP_PST_OFFSET,
-    ROOK_PST_OFFSET,
-    QUEEN_PST_OFFSET,
-    KING_PST_OFFSET,
+    PAWN_PST, KNIGHT_PST, BISHOP_PST, ROOK_PST, QUEEN_PST, KING_PST,
 ];
 
 impl InputFeatureSet for Ice4InputFeatures {
@@ -38,7 +49,7 @@ impl InputFeatureSet for Ice4InputFeatures {
             + 4 * board.pieces(Piece::Queen).len()) as f32
             / 24.0;
 
-        let mut features = [0i8; FEATURES];
+        let mut features = [0i8; TOTAL_FEATURES];
 
         for &piece in &Piece::ALL {
             for square in board.pieces(piece) {
@@ -90,7 +101,7 @@ impl InputFeatureSet for Ice4InputFeatures {
                     Color::White => (square as usize, 1),
                     Color::Black => (square.flip_rank() as usize, -1),
                 };
-                features[PASSED_PAWN_PST_OFFSET + sq] += inc;
+                features[PASSED_PAWN_PST + sq] += inc;
             }
         }
 
@@ -101,22 +112,28 @@ impl InputFeatureSet for Ice4InputFeatures {
             black_doubled_mask |= black_doubled_mask << 8;
         }
         for sq in board.colored_pieces(Color::White, Piece::Pawn) & BitBoard(white_doubled_mask) {
-            features[DOUBLED_PAWN_OFFSET + sq.file() as usize] += 1;
+            features[DOUBLED_PAWN + sq.file() as usize] += 1;
         }
         for sq in board.colored_pieces(Color::Black, Piece::Pawn) & BitBoard(black_doubled_mask) {
-            features[DOUBLED_PAWN_OFFSET + sq.file() as usize] -= 1;
+            features[DOUBLED_PAWN + sq.file() as usize] -= 1;
         }
 
-        if board.colored_pieces(Color::White, Piece::Bishop).len() >= 2 {
-            features[BISHOP_PAIR_OFFSET] += 1;
-        }
-        if board.colored_pieces(Color::Black, Piece::Bishop).len() >= 2 {
-            features[BISHOP_PAIR_OFFSET] -= 1;
+        for color in Color::ALL {
+            let inc = match color {
+                Color::White => 1,
+                Color::Black => -1,
+            };
+            if board.colored_pieces(color, Piece::Bishop).len() >= 2 {
+                features[BISHOP_PAIR] += inc;
+            }
+            if color == board.side_to_move() {
+                features[TEMPO] += inc;
+            }
         }
 
         for (i, &v) in features.iter().enumerate().filter(|&(_, &v)| v != 0) {
             entry.add_feature(0, i as i64, v as f32 * phase);
-            entry.add_feature(0, (i + FEATURES) as i64, v as f32 * (1.0 - phase));
+            entry.add_feature(0, (i + TOTAL_FEATURES) as i64, v as f32 * (1.0 - phase));
         }
     }
 }

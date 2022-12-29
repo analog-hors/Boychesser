@@ -31,6 +31,7 @@ offsets! {
     BISHOP_PAIR: 1;
     DOUBLED_PAWN: 8;
     TEMPO: 1;
+    ISOLATED_PAWN: 1;
 }
 
 const PIECE_PST_OFFSETS: [usize; 6] = [
@@ -128,6 +129,12 @@ impl InputFeatureSet for Ice4InputFeatures {
             }
             if color == board.side_to_move() {
                 features[TEMPO] += inc;
+            }
+
+            for sq in board.colored_pieces(color, Piece::Pawn) {
+                if sq.file().adjacent().is_disjoint(board.colored_pieces(color, Piece::Pawn)) {
+                    features[ISOLATED_PAWN] += inc;
+                }
             }
         }
 

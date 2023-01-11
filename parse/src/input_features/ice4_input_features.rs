@@ -32,6 +32,7 @@ offsets! {
     DOUBLED_PAWN: 8;
     TEMPO: 1;
     ISOLATED_PAWN: 1;
+    PROTECTED_PAWN: 1;
 }
 
 const PIECE_PST_OFFSETS: [usize; 6] = [
@@ -119,6 +120,16 @@ impl InputFeatureSet for Ice4InputFeatures {
             features[DOUBLED_PAWN + sq.file() as usize] -= 1;
         }
 
+        let pawns = board.colored_pieces(Color::White, Piece::Pawn);
+        let pawn_attacks =
+            (pawns & !File::A.bitboard()).0 << 7 | (pawns & !File::H.bitboard()).0 << 9;
+        features[PROTECTED_PAWN] += (BitBoard(pawn_attacks) & pawns).len() as i8;
+
+        let pawns = board.colored_pieces(Color::Black, Piece::Pawn);
+        let pawn_attacks =
+            (pawns & !File::A.bitboard()).0 >> 9 | (pawns & !File::H.bitboard()).0 >> 7;
+        features[PROTECTED_PAWN] -= (BitBoard(pawn_attacks) & pawns).len() as i8;
+
         for color in Color::ALL {
             let inc = match color {
                 Color::White => 1,
@@ -132,7 +143,11 @@ impl InputFeatureSet for Ice4InputFeatures {
             }
 
             for sq in board.colored_pieces(color, Piece::Pawn) {
-                if sq.file().adjacent().is_disjoint(board.colored_pieces(color, Piece::Pawn)) {
+                if sq
+                    .file()
+                    .adjacent()
+                    .is_disjoint(board.colored_pieces(color, Piece::Pawn))
+                {
                     features[ISOLATED_PAWN] += inc;
                 }
             }

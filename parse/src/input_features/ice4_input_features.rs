@@ -32,7 +32,8 @@ offsets! {
     DOUBLED_PAWN: 8;
     TEMPO: 1;
     ISOLATED_PAWN: 1;
-    PROTECTED_PAWN: 1;
+    SINGLE_PROTECTED_PAWN: 1;
+    DOUBLE_PROTECTED_PAWN: 1;
     ROOK_ON_OPEN_FILE: 1;
     ROOK_ON_SEMIOPEN_FILE: 1;
 }
@@ -133,14 +134,20 @@ impl InputFeatureSet for Ice4InputFeatures {
         }
 
         let pawns = board.colored_pieces(Color::White, Piece::Pawn);
-        let pawn_attacks =
-            (pawns & !File::A.bitboard()).0 << 7 | (pawns & !File::H.bitboard()).0 << 9;
-        features[PROTECTED_PAWN] += (BitBoard(pawn_attacks) & pawns).len() as i8;
+        let pawn_attacks_right = BitBoard((pawns & !File::A.bitboard()).0 << 7);
+        let pawn_attacks_left = BitBoard((pawns & !File::H.bitboard()).0 << 9);
+        features[SINGLE_PROTECTED_PAWN] +=
+            ((pawn_attacks_left ^ pawn_attacks_right) & pawns).len() as i8;
+        features[DOUBLE_PROTECTED_PAWN] +=
+            ((pawn_attacks_left & pawn_attacks_right) & pawns).len() as i8;
 
         let pawns = board.colored_pieces(Color::Black, Piece::Pawn);
-        let pawn_attacks =
-            (pawns & !File::A.bitboard()).0 >> 9 | (pawns & !File::H.bitboard()).0 >> 7;
-        features[PROTECTED_PAWN] -= (BitBoard(pawn_attacks) & pawns).len() as i8;
+        let pawn_attacks_right = BitBoard((pawns & !File::A.bitboard()).0 >> 9);
+        let pawn_attacks_left = BitBoard((pawns & !File::H.bitboard()).0 >> 7);
+        features[SINGLE_PROTECTED_PAWN] -=
+            ((pawn_attacks_left ^ pawn_attacks_right) & pawns).len() as i8;
+        features[DOUBLE_PROTECTED_PAWN] -=
+            ((pawn_attacks_left & pawn_attacks_right) & pawns).len() as i8;
 
         for color in Color::ALL {
             let inc = match color {

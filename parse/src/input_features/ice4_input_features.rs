@@ -22,10 +22,14 @@ macro_rules! offsets {
 
 offsets! {
     PAWN_PST: 64;
-    KNIGHT_PST: 32;
-    BISHOP_PST: 32;
-    ROOK_PST: 32;
-    QUEEN_PST: 32;
+    KNIGHT_PST: 16;
+    KNIGHT_QUADRANT: 3;
+    BISHOP_PST: 16;
+    BISHOP_QUADRANT: 3;
+    ROOK_PST: 16;
+    ROOK_QUADRANT: 3;
+    QUEEN_PST: 16;
+    QUEEN_QUADRANT: 3;
     KING_PST: 64;
     PASSED_PAWN_PST: 64;
     BISHOP_PAIR: 1;
@@ -40,6 +44,9 @@ offsets! {
 
 const PIECE_PST_OFFSETS: [usize; 6] = [
     PAWN_PST, KNIGHT_PST, BISHOP_PST, ROOK_PST, QUEEN_PST, KING_PST,
+];
+const PIECE_QUAD_OFFSETS: [usize; 6] = [
+    0, KNIGHT_QUADRANT, BISHOP_QUADRANT, ROOK_QUADRANT, QUEEN_QUADRANT, 0,
 ];
 
 impl InputFeatureSet for Ice4InputFeatures {
@@ -75,6 +82,10 @@ impl InputFeatureSet for Ice4InputFeatures {
 
                 let square = match piece {
                     Piece::Knight | Piece::Bishop | Piece::Rook | Piece::Queen => {
+                        let quad = (square.file() > File::D) as usize * 2 + (square.rank() > Rank::Fourth) as usize;
+                        if quad != 0 {
+                            features[PIECE_QUAD_OFFSETS[piece as usize] + quad - 1] += inc;
+                        }
                         hm_feature(square)
                     }
                     Piece::King => square as usize,
@@ -182,6 +193,10 @@ impl InputFeatureSet for Ice4InputFeatures {
 fn hm_feature(square: Square) -> usize {
     let square = match square.file() > File::D {
         true => square.flip_file(),
+        false => square,
+    };
+    let square = match square.rank() > Rank::Fourth {
+        true => square.flip_rank(),
         false => square,
     };
     square.rank() as usize * 4 + square.file() as usize

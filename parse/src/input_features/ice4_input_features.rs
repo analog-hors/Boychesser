@@ -30,7 +30,7 @@ offsets! {
     ROOK_QUADRANT: 3;
     QUEEN_PST: 16;
     QUEEN_QUADRANT: 3;
-    KING_PST: 64;
+    KING_PST: 16;
     PASSED_PAWN_PST: 64;
     BISHOP_PAIR: 1;
     DOUBLED_PAWN: 8;
@@ -88,7 +88,7 @@ impl InputFeatureSet for Ice4InputFeatures {
                         }
                         hm_feature(square)
                     }
-                    Piece::King => square as usize,
+                    Piece::King => square.rank() as usize / 2 * 4 + square.file() as usize / 2,
                     Piece::Pawn => match board.king(color).file() > File::D {
                         true => square.flip_file() as usize,
                         false => square as usize,

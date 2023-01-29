@@ -13,7 +13,7 @@ def get_tensors(batch: Batch, feature_count: int) -> list[torch.Tensor]:
     return tensors
 
 
-FEATURES = (64+16+3+16+3+16+3+16+3+64+64+1+8+1+1+1+1+1+1)*2
+FEATURES = (64+16+3+16+3+16+3+16+3+16+64+1+8+1+1+1+1+1+1)*2
 class Ice4Model(torch.nn.Module):
     def __init__(self):
         super().__init__()

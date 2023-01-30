@@ -21,7 +21,7 @@ macro_rules! offsets {
 }
 
 offsets! {
-    PAWN_PST: 64;
+    PAWN_PST: 48;
     KNIGHT_PST: 16;
     KNIGHT_QUADRANT: 3;
     BISHOP_PST: 16;
@@ -31,7 +31,7 @@ offsets! {
     QUEEN_PST: 16;
     QUEEN_QUADRANT: 3;
     KING_PST: 16;
-    PASSED_PAWN_PST: 64;
+    PASSED_PAWN_PST: 48;
     BISHOP_PAIR: 1;
     DOUBLED_PAWN: 8;
     TEMPO: 1;
@@ -40,13 +40,19 @@ offsets! {
     DOUBLE_PROTECTED_PAWN: 1;
     ROOK_ON_OPEN_FILE: 1;
     ROOK_ON_SEMIOPEN_FILE: 1;
+    SHIELD_PAWNS: 4;
 }
 
 const PIECE_PST_OFFSETS: [usize; 6] = [
     PAWN_PST, KNIGHT_PST, BISHOP_PST, ROOK_PST, QUEEN_PST, KING_PST,
 ];
 const PIECE_QUAD_OFFSETS: [usize; 6] = [
-    0, KNIGHT_QUADRANT, BISHOP_QUADRANT, ROOK_QUADRANT, QUEEN_QUADRANT, 0,
+    0,
+    KNIGHT_QUADRANT,
+    BISHOP_QUADRANT,
+    ROOK_QUADRANT,
+    QUEEN_QUADRANT,
+    0,
 ];
 
 impl InputFeatureSet for Ice4InputFeatures {
@@ -82,7 +88,8 @@ impl InputFeatureSet for Ice4InputFeatures {
 
                 let square = match piece {
                     Piece::Knight | Piece::Bishop | Piece::Rook | Piece::Queen => {
-                        let quad = (square.file() > File::D) as usize * 2 + (square.rank() > Rank::Fourth) as usize;
+                        let quad = (square.file() > File::D) as usize * 2
+                            + (square.rank() > Rank::Fourth) as usize;
                         if quad != 0 {
                             features[PIECE_QUAD_OFFSETS[piece as usize] + quad - 1] += inc;
                         }
@@ -90,8 +97,8 @@ impl InputFeatureSet for Ice4InputFeatures {
                     }
                     Piece::King => square.rank() as usize / 2 * 4 + square.file() as usize / 2,
                     Piece::Pawn => match board.king(color).file() > File::D {
-                        true => square.flip_file() as usize,
-                        false => square as usize,
+                        true => square.flip_file() as usize - 8,
+                        false => square as usize - 8,
                     },
                 };
                 features[PIECE_PST_OFFSETS[piece as usize] + square] += inc;
@@ -127,7 +134,7 @@ impl InputFeatureSet for Ice4InputFeatures {
                     Color::White => (square as usize, 1),
                     Color::Black => (square.flip_rank() as usize, -1),
                 };
-                features[PASSED_PAWN_PST + sq] += inc;
+                features[PASSED_PAWN_PST + sq - 8] += inc;
             }
         }
 
@@ -180,6 +187,23 @@ impl InputFeatureSet for Ice4InputFeatures {
                 {
                     features[ISOLATED_PAWN] += inc;
                 }
+            }
+
+            let king = board.king(color);
+            if king.rank() == Rank::First.relative_to(color) {
+                let pawns = board.colored_pieces(color, Piece::Pawn);
+                let mut shield_pawns = 0;
+                for dx in -1..=1 {
+                    for dy in 1..3 {
+                        if let Some(sq) = king.try_offset(dx, dy * inc) {
+                            if pawns.has(sq) {
+                                shield_pawns += 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+                features[SHIELD_PAWNS + shield_pawns] += inc;
             }
         }
 

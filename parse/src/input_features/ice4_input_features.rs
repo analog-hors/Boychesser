@@ -41,6 +41,8 @@ offsets! {
     ROOK_ON_OPEN_FILE: 1;
     ROOK_ON_SEMIOPEN_FILE: 1;
     SHIELD_PAWNS: 4;
+    KING_ON_OPEN_FILE: 1;
+    KING_ON_SEMIOPEN_FILE: 1;
 }
 
 const PIECE_PST_OFFSETS: [usize; 6] = [
@@ -83,6 +85,15 @@ impl InputFeatureSet for Ice4InputFeatures {
                         features[ROOK_ON_OPEN_FILE] += inc;
                     } else if board.colored_pieces(color, Piece::Pawn).is_disjoint(file) {
                         features[ROOK_ON_SEMIOPEN_FILE] += inc;
+                    }
+                }
+
+                if piece == Piece::King {
+                    let file = square.file().bitboard();
+                    if board.pieces(Piece::Pawn).is_disjoint(file) {
+                        features[KING_ON_OPEN_FILE] += inc;
+                    } else if board.colored_pieces(color, Piece::Pawn).is_disjoint(file) {
+                        features[KING_ON_SEMIOPEN_FILE] += inc;
                     }
                 }
 

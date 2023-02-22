@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 
+RUSTFLAGS='-C target-cpu=native' cargo build --release -p parse
+
 TRAIN_ID="$(date -u '+%F-%H%M%S')-$1"
 
 NETS=`mktemp -d`

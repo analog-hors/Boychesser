@@ -1,6 +1,6 @@
 import torch
 
-from dataloader import Batch, InputFeatureSet, BucketingScheme
+from dataloader import Batch, InputFeatureSet, BucketingScheme, ICE4_FEATURE_COUNT
 
 
 def get_tensors(batch: Batch, feature_count: int) -> list[torch.Tensor]:
@@ -13,15 +13,14 @@ def get_tensors(batch: Batch, feature_count: int) -> list[torch.Tensor]:
     return tensors
 
 
-FEATURES = (48+16+3+16+3+16+3+16+3+16+48+1+8+1+1+1+1+1+1+4+2)*2
 class Ice4Model(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.params = torch.nn.Linear(FEATURES, 1, bias=False)
+        self.params = torch.nn.Linear(ICE4_FEATURE_COUNT, 1, bias=False)
         self.bucketing_scheme = BucketingScheme.NO_BUCKETING
 
     def forward(self, batch: Batch):
-        features, = get_tensors(batch, FEATURES)
+        features, = get_tensors(batch, ICE4_FEATURE_COUNT)
 
         result = self.params(features)
 

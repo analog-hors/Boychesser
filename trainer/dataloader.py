@@ -36,11 +36,13 @@ def _load_parse_lib():
 
     lib.read_batch.restype = ctypes.c_void_p
 
+    lib.ice4_feature_count.restype = ctypes.c_uint32
+
     return lib
 
 
 PARSE_LIB = _load_parse_lib()
-
+ICE4_FEATURE_COUNT = PARSE_LIB.ice4_feature_count()
 
 class InputFeatureSet(IntEnum):
     BOARD_768 = 0

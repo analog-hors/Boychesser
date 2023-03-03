@@ -6,6 +6,8 @@ use super::InputFeatureSet;
 
 pub struct Ice4InputFeatures;
 
+pub const ICE4_FEATURE_COUNT: usize = TOTAL_FEATURES * 2;
+
 macro_rules! offsets {
     ($name:ident: $($rest:tt)*) => {
         const $name: usize = 0;

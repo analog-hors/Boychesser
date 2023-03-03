@@ -116,3 +116,8 @@ pub unsafe extern "C" fn read_batch(reader: *mut BatchReader) -> *mut Batch {
         None => std::ptr::null_mut(),
     }
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn ice4_feature_count() -> u32 {
+    input_features::ICE4_FEATURE_COUNT as u32
+}

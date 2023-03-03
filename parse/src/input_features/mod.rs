@@ -18,6 +18,8 @@ pub use phased_hm_stm_board_192::PhasedHmStmBoard192;
 pub use phased_stm_board_384::PhasedStmBoard384;
 pub use ice4_input_features::Ice4InputFeatures;
 
+pub use ice4_input_features::ICE4_FEATURE_COUNT;
+
 pub trait InputFeatureSet {
     const INDICES_PER_FEATURE: usize;
     const MAX_FEATURES: usize;

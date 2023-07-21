@@ -14,6 +14,7 @@ public class MyBot : IChessBot
     }
 
     public void BenchSearch(Board board) {
+        this.nodes = 0;
         Negamax(board, -999999, 999999, 4);
     } 
 

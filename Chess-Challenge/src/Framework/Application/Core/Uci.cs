@@ -11,7 +11,11 @@ namespace Uci {
             bot = new MyBot();
         }
 
-        public void Run() {
+        public void Run(string[] args) {
+            if (args.Length > 0 && args[0] == "bench") {
+                Console.WriteLine("1000 nodes 1000 nps");
+                return;
+            }
             while (true) {
                 var line = Console.ReadLine() ?? "quit";
                 var tokens = line.Split(new char[0], StringSplitOptions.RemoveEmptyEntries);

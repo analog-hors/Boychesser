@@ -10,9 +10,9 @@ namespace ChessChallenge.Application
         const bool hideRaylibLogs = true;
         static Camera2D cam;
 
-        public static void Main()
+        public static void Main(string[] args)
         {
-            new Uci.Uci().Run();
+            new Uci.Uci().Run(args);
             return;
 
             Vector2 loadedWindowSize = GetSavedWindowSize();

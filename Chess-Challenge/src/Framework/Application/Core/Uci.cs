@@ -1,6 +1,7 @@
 using ChessChallenge.API;
 using ChessChallenge.Chess;
 using System;
+using System.Diagnostics;
 
 namespace Uci {
     internal class Uci {

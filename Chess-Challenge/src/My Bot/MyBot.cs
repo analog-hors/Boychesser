@@ -4,6 +4,7 @@ using System;
 public class MyBot : IChessBot
 {
 
+
     public Move Think(Board board, Timer timer)
     {
         (int score, Move bestMove) = Negamax(board, -999999, 999999, 4);
@@ -31,6 +32,7 @@ public class MyBot : IChessBot
                 + 3 * (pieceLists[1].Count + pieceLists[2].Count - pieceLists[7].Count - pieceLists[8].Count)
                 + 5 * (pieceLists[3].Count - pieceLists[9].Count)
                 + 9 * (pieceLists[4].Count - pieceLists[10].Count);
+            staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
             if (staticEval >= beta)
             {
                 return (staticEval, Move.NullMove);

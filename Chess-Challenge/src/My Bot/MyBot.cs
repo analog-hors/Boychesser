@@ -4,15 +4,28 @@ using System;
 public class MyBot : IChessBot
 {
 
+    int nodes = 0;
 
     public Move Think(Board board, Timer timer)
     {
+        this.nodes = 0;
         (int score, Move bestMove) = Negamax(board, -999999, 999999, 4);
         return bestMove;
     }
 
+    public void BenchSearch(Board board) {
+        Negamax(board, -999999, 999999, 4);
+    } 
+
+    public int GetNodeCount() {
+        return this.nodes;
+    }
+
     (int, Move) Negamax(Board board, int alpha, int beta, int depth)
     {
+        //node count
+        this.nodes++;
+
         // check for game end
         if (board.IsDraw())
         {

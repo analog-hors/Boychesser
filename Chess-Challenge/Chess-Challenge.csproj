@@ -5,6 +5,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>Chess_Challenge</RuntimeIdentifier>
     <RootNamespace>Chess_Challenge</RootNamespace>
     <ImplicitUsings>disable</ImplicitUsings>
     <Nullable>enable</Nullable>

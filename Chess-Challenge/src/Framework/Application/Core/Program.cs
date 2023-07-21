@@ -12,6 +12,9 @@ namespace ChessChallenge.Application
 
         public static void Main()
         {
+            new Uci.Uci().Run();
+            return;
+
             Vector2 loadedWindowSize = GetSavedWindowSize();
             int screenWidth = (int)loadedWindowSize.X;
             int screenHeight = (int)loadedWindowSize.Y;

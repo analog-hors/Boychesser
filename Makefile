@@ -8,5 +8,5 @@ else
 endif
 
 all:
-	dotnet publish --output Chess-Challenge/bin/ob_out
+	dotnet publish -c Release --output Chess-Challenge/bin/ob_out
 	mv Chess-Challenge/bin/ob_out/$(SRC) ./$(DEST)

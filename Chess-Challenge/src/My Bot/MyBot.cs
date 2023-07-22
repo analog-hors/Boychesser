@@ -101,7 +101,7 @@ public class MyBot : IChessBot {
                 }
             }
             // staticEval = (int)(short)staticEval;
-            staticEval = ((short)staticEval * mgPhase + (staticEval >> 16) * (24 - mgPhase)) / 24;
+            staticEval = ((short)staticEval * mgPhase + (staticEval + 0x8000 >> 16) * (24 - mgPhase)) / 24;
             if (staticEval >= beta) {
                 return (staticEval, Move.NullMove);
             }

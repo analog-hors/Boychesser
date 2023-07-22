@@ -18,10 +18,6 @@ public class MyBot : IChessBot
         nodes++;
 
         // check for game end
-        if (board.IsDraw())
-        {
-            return (0, Move.NullMove);
-        }
         if (board.IsInCheckmate())
         {
             return (-100000, Move.NullMove);
@@ -55,16 +51,16 @@ public class MyBot : IChessBot
         foreach (Move move in moves)
         {
             board.MakeMove(move);
-            (int score, Move nextMove) = Negamax(board, -beta, -alpha, depth - 1);
+            int score = board.IsDraw() ? 0 : -Negamax(board, -beta, -alpha, depth - 1).Item1;
             board.UndoMove(move);
 
-            if (-score >= beta)
+            if (score >= beta)
             {
-                return (-score, move);
+                return (score, move);
             }
-            if (-score > alpha)
+            if (score > alpha)
             {
-                alpha = -score;
+                alpha = score;
                 bestMove = move;
             }
         }

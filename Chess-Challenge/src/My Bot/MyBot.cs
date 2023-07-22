@@ -14,7 +14,7 @@ public class MyBot : IChessBot
 
         Move best = Move.NullMove;
 
-        for (int depth = 1; true; depth++) {
+        for (int depth = 1; depth <= 200; depth++) {
             //If score is of this value search has been aborted, DO NOT use result
             try {
                 (int score, Move bestMove) = Negamax(board, -999999, 999999, depth, timer, depth);

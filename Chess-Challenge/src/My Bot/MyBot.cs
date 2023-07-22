@@ -17,6 +17,18 @@ public class MyBot : IChessBot {
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transposition_table = new TtEntry[0x1000000];
 
+
+
+    // WARNING: Every 5th element is negated to save size
+    int[] constants = {
+        150, -18, 1, 16, 8,
+        377, 3, 8, -25, 17,
+        388, 2, 2, -13, 4,
+        520, -10, 3, 5, 10,
+        1025, -5, 6, 3, 2,
+        0, 0, 4, -12, 8
+    };
+
     public Move Think(Board board, Timer timer) {
         nodes = 0;
         maxSearchTime = timer.MillisecondsRemaining / 80;
@@ -68,13 +80,23 @@ public class MyBot : IChessBot {
         bool raisedAlpha = false;
 
         // static eval for qsearch
-        int staticEval;
+        int staticEval = 0;
         if (depth <= 0) {
-            PieceList[] pieceLists = board.GetAllPieceLists();
-            staticEval = (pieceLists[0].Count - pieceLists[6].Count)
-                + 3 * (pieceLists[1].Count + pieceLists[2].Count - pieceLists[7].Count - pieceLists[8].Count)
-                + 5 * (pieceLists[3].Count - pieceLists[9].Count)
-                + 9 * (pieceLists[4].Count - pieceLists[10].Count);
+            int i = 0;
+            foreach (PieceList pieceList in board.GetAllPieceLists()) {
+                bool reverse = i >= 6;
+                foreach (Piece piece in pieceList) {
+                    int x = reverse ? piece.Square.File : 7 - piece.Square.File;
+                    int y = reverse ? piece.Square.Rank : 7 - piece.Square.Rank;
+                    int offset = (i % 6) * 5;
+                    staticEval += (constants[offset]
+                    + y * constants[offset + 1]
+                    + x * constants[offset + 2]
+                    + Math.Abs(y - 3) * constants[offset + 3]
+                    - Math.Abs(x - 3) * constants[offset + 4]) * (reverse ? -1 : 1);
+                }
+                i++;
+            }
             staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
             if (staticEval >= beta) {
                 return (staticEval, Move.NullMove);

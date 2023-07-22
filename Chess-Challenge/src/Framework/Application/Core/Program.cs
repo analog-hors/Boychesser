@@ -18,7 +18,7 @@ namespace ChessChallenge.Application
                 new Uci.Uci().Run();
                 return;
             } else if (args[0] == "bench") {
-                string[] benches = new string[]{    
+                     string[] benches = new string[]{    
                     "Q7/5Q2/8/8/3k4/6P1/6BP/7K b - - 0 67",
                     "r4rk1/p4ppp/1q2p3/2n1P3/2p5/3bRNP1/1P3PBP/R2Q2K1 b - - 0 24",
                     "r1bq1rk1/pp3ppp/2nbpn2/3p4/3P4/1PN1PN2/1BP1BPPP/R2Q1RK1 b - - 2 10",
@@ -62,7 +62,12 @@ namespace ChessChallenge.Application
                 timer.Stop();
 
                 long nps = bot.nodes * 1000 / timer.ElapsedMilliseconds;
-                int tokens = ChallengeController.GetTokenCount();
+                int? tokens = null;
+                try {
+                    tokens = ChallengeController.GetTokenCount();
+                } catch (System.Exception) {
+                    // whatever
+                }
                 System.Console.WriteLine($"{bot.nodes} nodes {nps} nps {tokens} tokens");
                 return;
             } else if (args[0] != "gui") {

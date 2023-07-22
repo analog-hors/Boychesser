@@ -66,15 +66,16 @@ public class MyBot : IChessBot {
         int bestScore = -999999;
         bool raisedAlpha = false;
 
-        // static eval for qsearch
-        int staticEval;
+        //Static Eval
+        PieceList[] pieceLists = board.GetAllPieceLists();
+        int staticEval = (pieceLists[0].Count - pieceLists[6].Count)
+            + 3 * (pieceLists[1].Count + pieceLists[2].Count - pieceLists[7].Count - pieceLists[8].Count)
+            + 5 * (pieceLists[3].Count - pieceLists[9].Count)
+            + 9 * (pieceLists[4].Count - pieceLists[10].Count);
+        staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
+
+        //Makeshift QSearch
         if (depth <= 0) {
-            PieceList[] pieceLists = board.GetAllPieceLists();
-            staticEval = (pieceLists[0].Count - pieceLists[6].Count)
-                + 3 * (pieceLists[1].Count + pieceLists[2].Count - pieceLists[7].Count - pieceLists[8].Count)
-                + 5 * (pieceLists[3].Count - pieceLists[9].Count)
-                + 9 * (pieceLists[4].Count - pieceLists[10].Count);
-            staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
             if (staticEval >= beta) {
                 return (staticEval, Move.NullMove);
             }
@@ -83,6 +84,13 @@ public class MyBot : IChessBot {
                 alpha = staticEval;
             }
             bestScore = staticEval;
+        }
+
+        //RFP
+        if (depth <= 5 && !board.IsInCheck()) {
+            if (staticEval - 80 * depth >= beta) {
+                return (staticEval, Move.NullMove);
+            }
         }
 
         var moves = board.GetLegalMoves(depth <= 0);

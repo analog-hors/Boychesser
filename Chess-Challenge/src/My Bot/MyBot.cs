@@ -68,7 +68,7 @@ public class MyBot : IChessBot
         Move[] moves = board.GetLegalMoves(depth <= 0);
 
         // sort moves MVV-LVA
-        Array.Sort(moves, (m1, m2) => ((m2.CapturePieceType - m2.MovePieceType).CompareTo(m1.CapturePieceType - m1.MovePieceType)));
+        Array.Sort(moves, (m1, m2) => (m2.CapturePieceType - m1.CapturePieceType) * 8 + m1.MovePieceType - m2.MovePieceType);
         Move bestMove = Move.NullMove;
         foreach (Move move in moves)
         {

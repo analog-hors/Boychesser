@@ -49,7 +49,7 @@ public class MyBot : IChessBot {
 
         // check for game end
         if (board.IsInCheckmate()) {
-            return (-30000, Move.NullMove);
+            return (ply-30000, Move.NullMove);
         }
 
         ref var tt = ref transposition_table[board.ZobristKey % 0x1000000];

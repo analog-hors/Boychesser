@@ -17,6 +17,18 @@ public class MyBot : IChessBot {
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transposition_table = new TtEntry[0x1000000];
 
+
+
+    // WARNING: Every 5th element is negated to save size
+    int[] constants = {
+        150, -18, 1, 16, 8,
+        377, 3, 8, -25, 17,
+        388, 2, 2, -13, 4,
+        520, -10, 3, 5, 10,
+        1025, -5, 6, 3, 2,
+        0, 0, 4, -12, 8
+    };
+
     public Move Think(Board board, Timer timer) {
         nodes = 0;
         maxSearchTime = timer.MillisecondsRemaining / 80;
@@ -69,27 +81,20 @@ public class MyBot : IChessBot {
         // static eval for qsearch
         int staticEval = 0;
         if (depth <= 0) {
-            PieceList[] pieceLists = board.GetAllPieceLists();
-            int[][] constants = new int[6][] {
-                new int[] {150, -18, 1, 16, -8},
-                new int[] {377, 3, 8, -25, -17},
-                new int[] {388, 2, 2, -13, -4},
-                new int[] {520, -10, 3, 5, -10},
-                new int[] {1025, -5, 6, 3, -2},
-                new int[] {0, 0, 4, -12, -8}
-            };
-            for (int i = 0; i < 12; i++) {
-                bool reverse = i < 6;
-                foreach (Piece piece in pieceLists[i]) {
+            int i = 0;
+            foreach (PieceList pieceList in board.GetAllPieceLists()) {
+                bool reverse = i >= 6;
+                foreach (Piece piece in pieceList) {
                     int x = reverse ? piece.Square.File : 7 - piece.Square.File;
                     int y = reverse ? piece.Square.Rank : 7 - piece.Square.Rank;
-                    int[] currentConstants = constants[i % 6];
-                    staticEval += (currentConstants[0]
-                    + y * currentConstants[1]
-                    + x * currentConstants[2]
-                    + Math.Abs(y - 3) * currentConstants[3]
-                    + Math.Abs(x - 3) * currentConstants[4]) * (reverse ? -1 : 1);
+                    int offset = (i % 6) * 5;
+                    staticEval += (constants[offset]
+                    + y * constants[offset + 1]
+                    + x * constants[offset + 2]
+                    + Math.Abs(y - 3) * constants[offset + 3]
+                    - Math.Abs(x - 3) * constants[offset + 4]) * (reverse ? -1 : 1);
                 }
+                i++;
             }
             staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
             if (staticEval >= beta) {

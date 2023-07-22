@@ -61,7 +61,12 @@ namespace ChessChallenge.Application
                 timer.Stop();
 
                 long nps = bot.nodes * 1000 / timer.ElapsedMilliseconds;
-                int tokens = ChallengeController.GetTokenCount();
+                int? tokens = null;
+                try {
+                    tokens = ChallengeController.GetTokenCount();
+                } catch (System.Exception) {
+                    // whatever
+                }
                 System.Console.WriteLine($"{bot.nodes} nodes {nps} nps {tokens} tokens");
                 return;
             } else if (args[0] != "gui") {

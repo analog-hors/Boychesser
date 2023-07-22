@@ -12,8 +12,17 @@ namespace ChessChallenge.Application
 
         public static void Main(string[] args)
         {
-            new Uci.Uci().Run(args);
-            return;
+            if (args.Length == 0) {
+                new Uci.Uci().Run();
+                return;
+            } else if (args[0] == "bench") {
+                int tokens = ChallengeController.GetTokenCount();
+                System.Console.WriteLine($"1000 nodes 1000 nps {tokens} tokens");
+                return;
+            } else if (args[0] != "gui") {
+                System.Console.WriteLine($"unrecognized argument: {args[0]}");
+                return;
+            }
 
             Vector2 loadedWindowSize = GetSavedWindowSize();
             int screenWidth = (int)loadedWindowSize.X;

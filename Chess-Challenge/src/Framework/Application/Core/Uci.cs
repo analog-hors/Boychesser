@@ -28,6 +28,7 @@ namespace Uci {
                         break;
                     }
                     case "isready": {
+                        GC.Collect();
                         Console.WriteLine("readyok");
                         break;
                     }

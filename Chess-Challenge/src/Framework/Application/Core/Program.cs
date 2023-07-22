@@ -56,7 +56,7 @@ namespace ChessChallenge.Application
                     board.LoadPosition(benches[i]);
                     for (int d = 1; d <= 4; d++) {
                         bot.maxSearchTime = 100000;
-                        bot.Negamax(new ChessChallenge.API.Board(board), -999999, 999999, d, new Timer(-5), d);
+                        bot.Negamax(new ChessChallenge.API.Board(board), -999999, 999999, d, new Timer(-5), d, 0);
                     }
                 }
 

@@ -88,7 +88,7 @@ public class MyBot : IChessBot {
 
         //RFP
         if (depth <= 3 && !board.IsInCheck()) {
-            if (staticEval - 12 * depth >= beta) {
+            if (staticEval - 1 * depth >= beta) {
                 return (staticEval, Move.NullMove);
             }
         }

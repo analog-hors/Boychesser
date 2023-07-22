@@ -76,6 +76,17 @@ public class MyBot : IChessBot {
             }
         }
 
+        // Null Move Pruning (NMP)
+        if (!pv && depth >= 1) {
+            if (board.TrySkipTurn()) {
+                var result = Negamax(board, -beta, 1 - beta, depth - 3, timer, searchingDepth, ply + 1);
+                board.UndoSkipTurn();
+                if (-result.Item1 >= beta) {
+                    return (-result.Item1, Move.NullMove);
+                }
+            }
+        }
+
         int bestScore = -999999;
         bool raisedAlpha = false;
 
@@ -160,4 +171,3 @@ public class MyBot : IChessBot {
         return (bestScore, bestMove);
     }
 }
-

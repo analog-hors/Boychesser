@@ -5,7 +5,7 @@ public class MyBot : IChessBot
 {
 
     public long nodes = 0;
-    int maxSearchTime = -1;
+    public int maxSearchTime;
 
     public Move Think(Board board, Timer timer)
     {
@@ -32,7 +32,7 @@ public class MyBot : IChessBot
     public (int, Move) Negamax(Board board, int alpha, int beta, int depth, Timer timer, int searchingDepth)
     {
         //abort search
-        if (timer.MillisecondsElapsedThisTurn >= this.maxSearchTime && searchingDepth > 1 && this.maxSearchTime > 0) {
+        if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1) {
             throw new Exception();
         }
 

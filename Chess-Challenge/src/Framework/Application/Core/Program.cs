@@ -55,7 +55,9 @@ namespace ChessChallenge.Application
                 for (int i = 0; i < benches.Length; i++) {
                     board.LoadPosition(benches[i]);
                     for (int d = 1; d <= 4; d++) {
-                        bot.Negamax(new ChessChallenge.API.Board(board), -999999, 999999, d, new Timer(1), d);
+                        //create dummy timer to just make it search without worrying about abort
+                        bot.maxSearchTime = 100000;
+                        bot.Negamax(new ChessChallenge.API.Board(board), -999999, 999999, d, new Timer(-5), d);
                     }
                 }
 

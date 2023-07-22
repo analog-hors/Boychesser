@@ -5,15 +5,37 @@ public class MyBot : IChessBot
 {
 
     public long nodes = 0;
+    public int maxSearchTime;
 
     public Move Think(Board board, Timer timer)
     {
-        (int score, Move bestMove) = Negamax(board, -999999, 999999, 4);
-        return bestMove;
+        nodes = 0;
+        maxSearchTime = timer.MillisecondsRemaining / 80;
+
+        Move best = Move.NullMove;
+
+        for (int depth = 1; true; depth++) {
+            //If score is of this value search has been aborted, DO NOT use result
+            try {
+                (int score, Move bestMove) = Negamax(board, -999999, 999999, depth, timer, depth);
+                best = bestMove;
+                //Use for debugging, commented out because it saves a LOT of tokens!!
+                //Console.WriteLine("info depth " + depth + " score cp " + score);
+            } catch (Exception) {
+                break;
+            }
+        }
+
+        return best;
     }
 
-    public (int, Move) Negamax(Board board, int alpha, int beta, int depth)
+    public (int, Move) Negamax(Board board, int alpha, int beta, int depth, Timer timer, int searchingDepth)
     {
+        //abort search
+        if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1) {
+            throw new Exception();
+        }
+
         //node count
         nodes++;
 
@@ -51,7 +73,7 @@ public class MyBot : IChessBot
         foreach (Move move in moves)
         {
             board.MakeMove(move);
-            int score = board.IsDraw() ? 0 : -Negamax(board, -beta, -alpha, depth - 1).Item1;
+            int score = board.IsDraw() ? 0 : -Negamax(board, -beta, -alpha, depth - 1, timer, searchingDepth).Item1;
             board.UndoMove(move);
 
             if (score >= beta)

@@ -1,8 +1,9 @@
-﻿using Raylib_cs;
+﻿﻿using Raylib_cs;
 using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
+﻿using ChessChallenge.API;
 
 namespace ChessChallenge.Application
 {
@@ -54,7 +55,8 @@ namespace ChessChallenge.Application
                 for (int i = 0; i < benches.Length; i++) {
                     board.LoadPosition(benches[i]);
                     for (int d = 1; d <= 4; d++) {
-                        bot.Negamax(new ChessChallenge.API.Board(board), -999999, 999999, d);
+                        bot.maxSearchTime = 100000;
+                        bot.Negamax(new ChessChallenge.API.Board(board), -999999, 999999, d, new Timer(-5), d);
                     }
                 }
 

@@ -47,21 +47,22 @@ namespace ChessChallenge.Application
 
                 var timer = new Stopwatch();
                 var bot = new MyBot();
+                bot.nodes = 0;
                 timer.Start();
 
-                int nodeCount = 0;
                 var board = new ChessChallenge.Chess.Board();
                 for (int i = 0; i < benches.Length; i++) {
                     board.LoadPosition(benches[i]);
-                    bot.BenchSearch(new ChessChallenge.API.Board(board));
-                    nodeCount += bot.GetNodeCount();
+                    for (int d = 1; d <= 4; d++) {
+                        bot.Negamax(new ChessChallenge.API.Board(board), -999999, 999999, d);
+                    }
                 }
 
                 timer.Stop();
 
-                long nps = nodeCount * 1000 / timer.ElapsedMilliseconds;
+                long nps = bot.nodes * 1000 / timer.ElapsedMilliseconds;
                 int tokens = ChallengeController.GetTokenCount();
-                System.Console.WriteLine($"{nodeCount} nodes {nps} nps {tokens} tokens");
+                System.Console.WriteLine($"{bot.nodes} nodes {nps} nps {tokens} tokens");
                 return;
             } else if (args[0] != "gui") {
                 System.Console.WriteLine($"unrecognized argument: {args[0]}");

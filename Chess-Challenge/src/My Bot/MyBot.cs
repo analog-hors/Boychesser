@@ -110,11 +110,12 @@ public class MyBot : IChessBot {
 
         var moves = board.GetLegalMoves(depth <= 0);
         var scores = new int[moves.Length];
-        for (int i = 0; i < moves.Length; i++) {
+        int scoreIndex = 0;
+        foreach (Move move in moves) {
             // sort moves MVV-LVA
-            scores[i] = tt_good && moves[i].RawValue == tt.moveRaw ? 10000 :
-                (int)moves[i].CapturePieceType * 8 - (int)moves[i].MovePieceType;
-            scores[i] *= -1;
+            scores[scoreIndex] = tt_good && move.RawValue == tt.moveRaw ? 10000 :
+                (int)move.CapturePieceType * 8 - (int)move.MovePieceType;
+            scores[scoreIndex++] *= -1;
         }
 
         Array.Sort(scores, moves);

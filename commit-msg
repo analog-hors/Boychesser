@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# To install, copy into .git/hooks/
+
+set -e
+
+pushd Chess-Challenge
+BENCH_RAW="$(dotnet run -c Release bench)"
+popd
+NODES=$(echo "$BENCH_RAW" | awk '{print $1}')
+TOKENS=$(echo "$BENCH_RAW" | awk '{print $5}')
+echo >>"$1"
+echo "bench: $NODES" >>"$1"
+echo "tokens: $TOKENS" >>"$1"

@@ -5,6 +5,7 @@
 set -e
 
 pushd Chess-Challenge
+dotnet build -c Release
 BENCH_RAW="$(dotnet run -c Release bench)"
 popd
 NODES=$(echo "$BENCH_RAW" | awk '{print $1}')

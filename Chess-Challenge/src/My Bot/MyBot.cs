@@ -10,7 +10,7 @@ public class MyBot : IChessBot
     public Move Think(Board board, Timer timer)
     {
         nodes = 0;
-        this.maxSearchTime = timer.MillisecondsRemaining / 80;
+        maxSearchTime = timer.MillisecondsRemaining / 80;
 
         Move best = Move.NullMove;
 

@@ -4,28 +4,40 @@ using System;
 public class MyBot : IChessBot
 {
 
-    int nodes = 0;
+    public long nodes = 0;
+    int maxSearchTime = -1;
 
     public Move Think(Board board, Timer timer)
     {
-        this.nodes = 0;
-        (int score, Move bestMove) = Negamax(board, -999999, 999999, 4);
-        return bestMove;
+        nodes = 0;
+        this.maxSearchTime = timer.MillisecondsRemaining / 80;
+
+        Move best = Move.NullMove;
+
+        for (int depth = 1; true; depth++) {
+            //If score is of this value search has been aborted, DO NOT use result
+            try {
+                (int score, Move bestMove) = Negamax(board, -999999, 999999, depth, timer, depth);
+                best = bestMove;
+                //Use for debugging, commented out because it saevs a LOT of tokens!!
+                //Console.WriteLine("info depth " + depth + " score cp " + score);
+            } catch (Exception) {
+                break;
+            }
+        }
+
+        return best;
     }
 
-    public void BenchSearch(Board board) {
-        this.nodes = 0;
-        Negamax(board, -999999, 999999, 4);
-    } 
-
-    public int GetNodeCount() {
-        return this.nodes;
-    }
-
-    (int, Move) Negamax(Board board, int alpha, int beta, int depth)
+    public (int, Move) Negamax(Board board, int alpha, int beta, int depth, Timer timer, int searchingDepth)
     {
+        //abort search
+        if (timer.MillisecondsElapsedThisTurn >= this.maxSearchTime && searchingDepth > 1 && this.maxSearchTime > 0) {
+            throw new Exception();
+        }
+
         //node count
-        this.nodes++;
+        nodes++;
 
         // check for game end
         if (board.IsDraw())
@@ -65,7 +77,7 @@ public class MyBot : IChessBot
         foreach (Move move in moves)
         {
             board.MakeMove(move);
-            (int score, Move nextMove) = Negamax(board, -beta, -alpha, depth - 1);
+            (int score, Move nextMove) = Negamax(board, -beta, -alpha, depth - 1, timer, searchingDepth);
             board.UndoMove(move);
 
             if (-score >= beta)

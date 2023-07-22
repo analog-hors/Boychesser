@@ -54,6 +54,7 @@ public class MyBot : IChessBot {
 
         ref var tt = ref transposition_table[board.ZobristKey % 0x1000000];
         bool tt_good = tt.hash == board.ZobristKey;
+        bool pv = alpha > beta + 1;
 
         if (tt_good && tt.depth >= depth && ply > 0) {
             if (tt.bound == 1 /* BOUND_EXACT */ ||
@@ -96,9 +97,21 @@ public class MyBot : IChessBot {
 
         Array.Sort(scores, moves);
         Move bestMove = Move.NullMove;
-        foreach (Move move in moves) {
+        for (int i = 0; i < moves.Length; i++) {
+            Move move = moves[i];
             board.MakeMove(move);
-            var score = board.IsDraw() ? 0 : -Negamax(board, -beta, -alpha, depth - 1, timer, searchingDepth, ply + 1).Item1;
+            int score;
+            if (board.IsDraw()) {
+                score = 0;
+            } else if (i == 0) {
+                score = -Negamax(board, -beta, -alpha, depth - 1, timer, searchingDepth, ply + 1).Item1;
+            } else {
+                score = -Negamax(board, -alpha - 1, -alpha, depth - 1, timer, searchingDepth, ply + 1).Item1;
+                if (score > alpha && score < beta) {
+                    score = -Negamax(board, -beta, -alpha, depth - 1, timer, searchingDepth, ply + 1).Item1;
+                }
+            }
+
             board.UndoMove(move);
 
             if (score > bestScore) {

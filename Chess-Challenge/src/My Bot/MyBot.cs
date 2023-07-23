@@ -26,14 +26,11 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    // Every 2nd 4th and 5th element is negated to save tokens
+    // 2nd and 3rd rows are negated to reduce tokens
     int[] constants = {
-        10944634,   720902,     -65535, -1,     -196602,
-        19792248,   -196611,    9,      917528, 786449,
-        20185476,   -3,         2,      393228, 262149,
-        34472455,   131082,     -65533, -5,     65546,
-        64750593,   327685,     262149, 720893, 524290,
-        63308774,   1,          262142, 786427, 589819
+        5701691, 17891581, 19333388, 29819195, 57017042, -327670,
+        -65533, 393220, 196609, 7, -0, 393206,
+        -786428, 720904, 393225, -0, 327684, 1048551
     };
 
 
@@ -113,14 +110,10 @@ public class MyBot : IChessBot {
                 bool reverse = pieceIndex >= 6;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
-                    int x = square.File,
-                    y = reverse ? square.Rank : 7 - square.Rank,
-                    offset = pieceType * 5;
-                    staticEval += (constants[offset++]
-                    - y * constants[offset++]
-                    + x * constants[offset++]
-                    - Math.Abs(y - 3) * constants[offset++]
-                    - Math.Abs(x - 3) * constants[offset]) * (reverse ? -1 : 1);
+                    int y = reverse ? square.Rank : 7 - square.Rank;
+                    staticEval += (constants[pieceType]
+                    - Math.Abs(y - 3) * constants[6 + pieceType]
+                    - Math.Abs(square.File - 3) * constants[12 + pieceType]) * (reverse ? -1 : 1);
                 }
                 pieceIndex++;
             }

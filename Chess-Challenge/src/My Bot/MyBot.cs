@@ -28,12 +28,12 @@ public class MyBot : IChessBot {
 
     // WARNING: Every 5th element is negated to save size
     int[] constants = {
-        150, -18, 1, 16, 8,
-        377, 3, 8, -25, 17,
-        388, 2, 2, -13, 4,
-        520, -10, 3, 5, 10,
-        1025, -5, 6, 3, 2,
-        0, 0, 4, -12, 8
+        150, 18, 1, 16, 8,
+        377, -3, 8, -25, 17,
+        388, -2, 2, -13, 4,
+        520, 10, 3, 5, 10,
+        1025, 5, 6, 3, 2,
+        0, 1, -2, 5, -5
     };
 
     public Move Think(Board boardOrig, Timer timerOrig) {
@@ -113,7 +113,7 @@ public class MyBot : IChessBot {
                     int y = reverse ? square.Rank : 7 - square.Rank;
                     int offset = (i % 6) * 5;
                     staticEval += (constants[offset]
-                    + y * constants[offset + 1]
+                    - y * constants[offset + 1]
                     + x * constants[offset + 2]
                     + Math.Abs(y - 3) * constants[offset + 3]
                     - Math.Abs(x - 3) * constants[offset + 4]) * (reverse ? -1 : 1);

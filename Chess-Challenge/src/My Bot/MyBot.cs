@@ -162,7 +162,7 @@ public class MyBot : IChessBot {
             board.UndoMove(move);
 
             //LMP
-            if (nonPv && depth <= 4 && alpha > -20000 && moveCount > 15 * depth) {
+            if (nonPv && depth <= 4 && alpha > -20000 && moveCount > 15 * depth && !move.IsCapture) {
                 break;
             }
 

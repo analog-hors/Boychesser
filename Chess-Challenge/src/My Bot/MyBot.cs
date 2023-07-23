@@ -72,15 +72,15 @@ public class MyBot : IChessBot {
 
         // check for game end
         if (board.IsInCheckmate()) {
-            return -30000;
+            return ply - 30000;
         }
 
         ref var tt = ref transposition_table[board.ZobristKey % 0x1000000];
         bool tt_good = tt.hash == board.ZobristKey;
         bool nonPv = alpha + 1 == beta;
 
-        if (tt_good && tt.depth >= depth && ply > 0) {
-            if (tt.bound == 1 /* BOUND_EXACT */ ||
+        if (tt_good && tt.depth >= depth) {
+            if (tt.bound == 1 /* BOUND_EXACT */ && (nonPv || depth <= 1) ||
                     tt.bound == 2 /* BOUND_LOWER */ && tt.score >= beta ||
                     tt.bound == 3 /* BOUND_UPPER */ && tt.score <= alpha) {
                 return tt.score;

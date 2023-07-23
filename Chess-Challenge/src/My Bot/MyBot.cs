@@ -26,14 +26,14 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    // 2nd, 4th and 5th columns are negated to save size
+    // 2nd, 4th and 5th columns are negated to save tokens
     int[] constants = {
-        4784168,    786437,    -131072,    0,      -262138,
-        1376295,    -196611,    9,          851993, 786449,
-        720919,     -2,         2,          393228, 262149,
-        917546,     131082,     -65533,     -5,     65546,
-        3342336,    327685,     262149,     720894, 524290,
-        0,          1,          262142,     786428, 524283
+        10944634,   720902,     -65535, -1,     -196602,
+        19792248,   -196611,    9,      917528, 786449,
+        20185476,   -3,         2,      393228, 262149,
+        34472455,   131082,     -65533, -5,     65546,
+        64750593,   327685,     262149, 720893, 524290,
+        63308774,   1,          262142, 786427, 589819
     };
 
     public Move Think(Board boardOrig, Timer timerOrig) {
@@ -113,7 +113,6 @@ public class MyBot : IChessBot {
                     int x = reverse ? square.File : 7 - square.File,
                     y = reverse ? square.Rank : 7 - square.Rank,
                     offset = pieceType * 5;
-
                     staticEval += (constants[offset++]
                     - y * constants[offset++]
                     + x * constants[offset++]

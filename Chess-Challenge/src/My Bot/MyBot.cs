@@ -28,10 +28,11 @@ public class MyBot : IChessBot {
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        3276843, 17367270, 18743556, 30343460, 57475764, 589823,
-        589829, 262153, 196612, 262153, 917506, 655357,
-        -131069, 393220, 196610, 8, 262144, 393205,
-        -1048577, 786431, 327684, 196598, 458752, 393192
+        3932217, 23527664, 22020325, 38600959, 81003066, 786452,
+        917507, 524296, 262146, 393223, 1245184, 1114111,
+        -196604, 458758, 0, 8, 196606, 458740,
+        -1376258, 851968, 65536, 327668, 786426, 327652,
+        -65549, 1114126, 327685, 196612, 65539, -65541,
     };
 
 
@@ -112,10 +113,13 @@ public class MyBot : IChessBot {
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
                     int y = reverse ? 7 - square.Rank : square.Rank;
-                    staticEval += (constants[pieceType]
-                    + y * constants[6 + pieceType]
-                    - Math.Abs(square.File - 3) * constants[12 + pieceType]
-                    - Math.Abs(y - 3) * constants[18 + pieceType]) * (reverse ? -1 : 1);
+                    staticEval += (
+                        constants[pieceType]
+                        + y * constants[6 + pieceType]
+                        - Math.Abs(square.File - 3) * constants[12 + pieceType]
+                        - Math.Abs(y - 3) * constants[18 + pieceType]
+                        + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetSliderAttacks(piece.PieceType, square, board))
+                    ) * (reverse ? -1 : 1);
                 }
                 pieceIndex++;
             }

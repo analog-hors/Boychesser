@@ -131,8 +131,8 @@ public class MyBot : IChessBot {
         }
 
         //Reverse Futility Pruning (RFP)
-        if (nonPv && depth <= 5 && !board.IsInCheck() && depth >= 1) {
-            if (staticEval - 40 * depth >= beta) {
+        if (nonPv && depth <= 3 && !board.IsInCheck() && depth >= 1) {
+            if (staticEval - 100 * depth >= beta) {
                 return staticEval;
             }
         }

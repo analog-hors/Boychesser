@@ -112,7 +112,7 @@ public class MyBot : IChessBot {
                 bool reverse = pieceIndex >= 6;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
-                    int x = reverse ? square.File : 7 - square.File,
+                    int x = square.File,
                     y = reverse ? square.Rank : 7 - square.Rank,
                     offset = pieceType * 5;
                     staticEval += (constants[offset++]

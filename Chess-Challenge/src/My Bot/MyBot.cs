@@ -40,8 +40,7 @@ public class MyBot : IChessBot {
         nodes = 0;
         maxSearchTime = timerOrig.MillisecondsRemaining / 80;
 
-        Move best = nullMove;
-        Move searchMove = nullMove;
+        Move best = nullMove, searchMove = nullMove;
 
 
         board = boardOrig;
@@ -136,7 +135,7 @@ public class MyBot : IChessBot {
         foreach (Move move in moves) {
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
             scores[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 10000
-                : move.CapturePieceType == 0 ? HistoryValue(board.IsWhiteToMove, move)
+                : move.CapturePieceType == 0 ? HistoryValue(move)
                 : (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000);
         }
 
@@ -164,9 +163,9 @@ public class MyBot : IChessBot {
             if (score >= beta) {
                 int change = depth * depth;
                 for (int j = 0; j < moveCount; j++) {
-                    HistoryValue(board.IsWhiteToMove, moves[j]) -= (short)(change + change * HistoryValue(board.IsWhiteToMove, moves[j]) / 4096);
+                    HistoryValue(moves[j]) -= (short)(change + change * HistoryValue(moves[j]) / 4096);
                 }
-                HistoryValue(board.IsWhiteToMove, move) += (short)(change - change * HistoryValue(board.IsWhiteToMove, move) / 4096);
+                HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
                 break;
             }
             if (score > alpha) {
@@ -188,7 +187,7 @@ public class MyBot : IChessBot {
         return bestScore;
     }
 
-    ref short HistoryValue(bool white, Move move) {
-        return ref history[white ? 1 : 0, (int)move.MovePieceType, (int)move.TargetSquare.Index];
+    ref short HistoryValue(Move move) {
+        return ref history[board.IsWhiteToMove ? 1 : 0, (int)move.MovePieceType, (int)move.TargetSquare.Index];
     }
 }

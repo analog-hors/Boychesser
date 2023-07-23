@@ -51,7 +51,7 @@ namespace ChessChallenge.Application {
                 var board = new ChessChallenge.Chess.Board();
                 for (int i = 0; i < benches.Length; i++) {
                     board.LoadPosition(benches[i]);
-                    for (int d = 1; d <= 4; d++) {
+                    for (int d = 1; d <= 8; d++) {
                         bot.maxSearchTime = 100000;
                         bot.board = new ChessChallenge.API.Board(board);
                         bot.timer = new Timer(-5);

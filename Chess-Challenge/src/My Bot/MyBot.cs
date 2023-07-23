@@ -30,7 +30,7 @@ public class MyBot : IChessBot {
     int[] constants = {
         5701691, 17891581, 19333388, 29819195, 57017042, -327670,
         -65533, 393220, 196609, 7, -0, 393206,
-        -786428, 720904, 393225, -0, 327684, 1048551
+        0, 720904, 393225, -0, 327684, 1048551
     };
 
 
@@ -110,9 +110,8 @@ public class MyBot : IChessBot {
                 bool reverse = pieceIndex >= 6;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
-                    int y = reverse ? square.Rank : 7 - square.Rank;
                     staticEval += (constants[pieceType]
-                    - Math.Abs(y - 3) * constants[6 + pieceType]
+                    - Math.Abs(reverse ? 4 - square.Rank : square.Rank - 3) * constants[6 + pieceType]
                     - Math.Abs(square.File - 3) * constants[12 + pieceType]) * (reverse ? -1 : 1);
                 }
                 pieceIndex++;

@@ -109,14 +109,14 @@ public class MyBot : IChessBot {
                 bool reverse = i >= 6;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
-                    int x = reverse ? square.File : 7 - square.File;
-                    int y = reverse ? square.Rank : 7 - square.Rank;
-                    int offset = (i % 6) * 5;
-                    staticEval += (constants[offset]
-                    + y * constants[offset + 1]
-                    + x * constants[offset + 2]
-                    + Math.Abs(y - 3) * constants[offset + 3]
-                    - Math.Abs(x - 3) * constants[offset + 4]) * (reverse ? -1 : 1);
+                    int x = reverse ? 7 - square.File : square.File,
+                    y = reverse ? 7 - square.Rank : square.Rank,
+                    offset = (i % 6) * 5;
+                    staticEval += (constants[offset++]
+                    + y * constants[offset++]
+                    + x * constants[offset++]
+                    + Math.Abs(y - 3) * constants[offset++]
+                    - Math.Abs(x - 3) * constants[offset++]) * (reverse ? -1 : 1);
                 }
                 i++;
             }

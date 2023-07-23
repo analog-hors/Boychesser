@@ -77,6 +77,7 @@ public class MyBot : IChessBot {
 
         ref var tt = ref transposition_table[board.ZobristKey % 0x1000000];
         bool tt_good = tt.hash == board.ZobristKey;
+        bool isCheck = board.IsInCheck();
         bool nonPv = alpha + 1 == beta;
 
         if (tt_good && tt.depth >= depth && ply > 0) {
@@ -147,7 +148,7 @@ public class MyBot : IChessBot {
             if (board.IsDraw()) {
                 score = 0;
             } else if (moveCount == 0) {
-                score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
+                score = -Negamax(-beta, -alpha, depth - 1 + (isCheck ? 1 : 0), ply + 1, ref outMove);
             } else {
                 int reduction = move.CapturePieceType != 0 ? 0 : (moveCount * 3 + depth * 4) / 40;
                 score = -Negamax(-alpha - 1, -alpha, depth - reduction - 1, ply + 1, ref outMove);

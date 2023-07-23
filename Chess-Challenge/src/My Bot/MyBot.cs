@@ -77,7 +77,7 @@ public class MyBot : IChessBot {
 
         ref var tt = ref transposition_table[board.ZobristKey % 0x1000000];
         bool tt_good = tt.hash == board.ZobristKey;
-        bool nonPv = alpha <= beta + 1;
+        bool nonPv = alpha + 1 == beta;
 
         if (tt_good && tt.depth >= depth && ply > 0) {
             if (tt.bound == 1 /* BOUND_EXACT */ ||

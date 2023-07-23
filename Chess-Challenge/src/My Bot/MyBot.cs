@@ -72,11 +72,6 @@ public class MyBot : IChessBot {
         //node count
         nodes++;
 
-        // check for game end
-        if (board.IsInCheckmate()) {
-            return -30000;
-        }
-
         ref var tt = ref transposition_table[board.ZobristKey % 0x1000000];
         bool tt_good = tt.hash == board.ZobristKey;
         bool nonPv = alpha + 1 == beta;
@@ -149,9 +144,7 @@ public class MyBot : IChessBot {
         int moveCount = 0, score;
         foreach (Move move in moves) {
             board.MakeMove(move);
-            if (board.IsDraw()) {
-                score = 0;
-            } else if (moveCount == 0) {
+            if (moveCount == 0) {
                 score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
             } else {
                 int reduction = move.CapturePieceType != 0 ? 0 : (moveCount * 3 + depth * 4) / 40;
@@ -179,6 +172,7 @@ public class MyBot : IChessBot {
                     }
                     HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
                 }
+                moveCount++;
                 break;
             }
             if (score > alpha) {
@@ -186,6 +180,10 @@ public class MyBot : IChessBot {
                 alpha = score;
             }
             moveCount++;
+        }
+
+        if (moveCount == 0) {
+            return board.IsInCheck() ? -30000 : 0;
         }
 
         tt.bound = (byte)(bestScore >= beta ? 2 /* BOUND_LOWER */

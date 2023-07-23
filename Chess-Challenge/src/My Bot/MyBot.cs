@@ -161,11 +161,13 @@ public class MyBot : IChessBot {
                 bestMove = move;
             }
             if (score >= beta) {
-                int change = depth * depth;
-                for (int j = 0; j < moveCount; j++) {
-                    HistoryValue(moves[j]) -= (short)(change + change * HistoryValue(moves[j]) / 4096);
+                if (move.CapturePieceType == 0) {
+                    int change = depth * depth;
+                    for (int j = 0; j < moveCount; j++) {
+                        HistoryValue(moves[j]) -= (short)(change + change * HistoryValue(moves[j]) / 4096);
+                    }
+                    HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
                 }
-                HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
                 break;
             }
             if (score > alpha) {

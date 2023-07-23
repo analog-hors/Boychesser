@@ -90,9 +90,9 @@ public class MyBot : IChessBot {
         // Null Move Pruning (NMP)
         if (nonPv 
             && depth >= 1 
-            && board.GetPieceBitboard(PieceType.Bishop, board.IsWhiteToMove) > 0 
-            && board.GetPieceBitboard(PieceType.Rook, board.IsWhiteToMove) > 0 
-            && board.GetPieceBitboard(PieceType.Queen, board.IsWhiteToMove) > 0) {
+            && (board.GetPieceBitboard(PieceType.Bishop, board.IsWhiteToMove) 
+                | board.GetPieceBitboard(PieceType.Rook, board.IsWhiteToMove)  
+                | board.GetPieceBitboard(PieceType.Queen, board.IsWhiteToMove)) > 0) {
             if (board.TrySkipTurn()) {
                 var result = Negamax(-beta, 1 - beta, depth - 3, ply + 1, ref outMove);
                 board.UndoSkipTurn();

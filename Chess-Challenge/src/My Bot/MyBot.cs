@@ -193,7 +193,8 @@ public class MyBot : IChessBot {
         tt.depth = (byte)Math.Max(depth, 0);
         tt.hash = board.ZobristKey;
         tt.score = (short)bestScore;
-        tt.moveRaw = bestMove.RawValue;
+        if (!tt_good || tt.bound != 3 /* BOUND_UPPER */)
+            tt.moveRaw = bestMove.RawValue;
 
         outMove = bestMove;
         return bestScore;

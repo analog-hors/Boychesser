@@ -39,7 +39,8 @@ public class MyBot : IChessBot {
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0;
-        maxSearchTime = timerOrig.MillisecondsRemaining / 80;
+        maxSearchTime = timerOrig.MillisecondsRemaining / 4;
+        int targetSearchTime = maxSearchTime / 10;
 
         Move best = nullMove, searchMove = nullMove;
 
@@ -48,7 +49,7 @@ public class MyBot : IChessBot {
         timer = timerOrig;
         searchingDepth = 0;
 
-        while (++searchingDepth <= 200)
+        while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn < targetSearchTime)
             //If score is of this value search has been aborted, DO NOT use result
             try {
                 Negamax(-999999, 999999, searchingDepth, 0, ref searchMove);

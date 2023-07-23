@@ -14,6 +14,13 @@ public class MyBot : IChessBot {
     public long nodes = 0;
     public int maxSearchTime;
 
+    public int searchingDepth;
+
+    public Timer timer;
+    public Board board;
+
+    Move nullMove = Move.NullMove;
+
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transposition_table = new TtEntry[0x1000000];
 
@@ -29,17 +36,21 @@ public class MyBot : IChessBot {
         0, 0, 4, -12, 8
     };
 
-    public Move Think(Board board, Timer timer) {
+    public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0;
-        maxSearchTime = timer.MillisecondsRemaining / 80;
+        maxSearchTime = timerOrig.MillisecondsRemaining / 80;
 
-        Move best = Move.NullMove;
+        Move best = nullMove;
 
-        for (int depth = 1; depth <= 200; depth++) {
+
+        board = boardOrig;
+        timer = timerOrig;
+        searchingDepth = 0;
+
+        while (++searchingDepth <= 200) {
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                (int score, Move bestMove) = Negamax(board, -999999, 999999, depth, timer, depth, 0);
-                best = bestMove;
+                Negamax(-999999, 999999, searchingDepth, 0, ref best);
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
             } catch (Exception) {
@@ -50,7 +61,7 @@ public class MyBot : IChessBot {
         return best;
     }
 
-    public (int, Move) Negamax(Board board, int alpha, int beta, int depth, Timer timer, int searchingDepth, int ply) {
+    public int Negamax(int alpha, int beta, int depth, int ply, ref Move outMove) {
         //abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1) {
             throw new Exception();
@@ -61,7 +72,7 @@ public class MyBot : IChessBot {
 
         // check for game end
         if (board.IsInCheckmate()) {
-            return (-30000, Move.NullMove);
+            return -30000;
         }
 
         ref var tt = ref transposition_table[board.ZobristKey % 0x1000000];
@@ -72,17 +83,17 @@ public class MyBot : IChessBot {
             if (tt.bound == 1 /* BOUND_EXACT */ ||
                     tt.bound == 2 /* BOUND_LOWER */ && tt.score >= beta ||
                     tt.bound == 3 /* BOUND_UPPER */ && tt.score <= alpha) {
-                return (tt.score, Move.NullMove);
+                return tt.score;
             }
         }
 
         // Null Move Pruning (NMP)
         if (!pv && depth >= 1) {
             if (board.TrySkipTurn()) {
-                var result = Negamax(board, -beta, 1 - beta, depth - 3, timer, searchingDepth, ply + 1);
+                var result = Negamax(-beta, 1 - beta, depth - 3, ply + 1, ref outMove);
                 board.UndoSkipTurn();
-                if (-result.Item1 >= beta) {
-                    return (-result.Item1, Move.NullMove);
+                if (-result >= beta) {
+                    return -result;
                 }
             }
         }
@@ -97,8 +108,9 @@ public class MyBot : IChessBot {
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
                 bool reverse = i >= 6;
                 foreach (Piece piece in pieceList) {
-                    int x = reverse ? piece.Square.File : 7 - piece.Square.File;
-                    int y = reverse ? piece.Square.Rank : 7 - piece.Square.Rank;
+                    Square square = piece.Square;
+                    int x = reverse ? square.File : 7 - square.File;
+                    int y = reverse ? square.Rank : 7 - square.Rank;
                     int offset = (i % 6) * 5;
                     staticEval += (constants[offset]
                     + y * constants[offset + 1]
@@ -109,52 +121,48 @@ public class MyBot : IChessBot {
                 i++;
             }
             staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
-            if (staticEval >= beta) {
-                return (staticEval, Move.NullMove);
-            }
-            if (staticEval > alpha) {
-                raisedAlpha = true;
+            if (staticEval >= beta)
+                return staticEval;
+
+            if (raisedAlpha = staticEval > alpha)
                 alpha = staticEval;
-            }
             bestScore = staticEval;
         }
 
         var moves = board.GetLegalMoves(depth <= 0);
         var scores = new int[moves.Length];
-        for (int i = 0; i < moves.Length; i++) {
+        int scoreIndex = 0;
+        foreach (Move move in moves) {
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[i] = tt_good && moves[i].RawValue == tt.moveRaw ? 10000
-                : moves[i].CapturePieceType == 0 ? HistoryValue(board.IsWhiteToMove, moves[i])
-                : (int)moves[i].CapturePieceType * 8 - (int)moves[i].MovePieceType + 5000;
-            scores[i] *= -1;
+            scores[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 10000
+                : move.CapturePieceType == 0 ? HistoryValue(board.IsWhiteToMove, move)
+                : (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000);
         }
 
         Array.Sort(scores, moves);
-        Move bestMove = Move.NullMove;
-        for (int i = 0; i < moves.Length; i++) {
-            Move move = moves[i];
+        Move bestMove = nullMove;
+        int moveCount = 0, score;
+        foreach (Move move in moves) {
             board.MakeMove(move);
-            int score;
             if (board.IsDraw()) {
                 score = 0;
-            } else if (i == 0) {
-                score = -Negamax(board, -beta, -alpha, depth - 1, timer, searchingDepth, ply + 1).Item1;
+            } else if (moveCount == 0) {
+                score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
             } else {
-                score = -Negamax(board, -alpha - 1, -alpha, depth - 1, timer, searchingDepth, ply + 1).Item1;
+                score = -Negamax(-alpha - 1, -alpha, depth - 1, ply + 1, ref outMove);
                 if (score > alpha && score < beta) {
-                    score = -Negamax(board, -beta, -alpha, depth - 1, timer, searchingDepth, ply + 1).Item1;
+                    score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
                 }
             }
 
             board.UndoMove(move);
-
             if (score > bestScore) {
                 bestScore = score;
                 bestMove = move;
             }
             if (score >= beta) {
                 int change = depth * depth;
-                for (int j = 0; j < i; j++) {
+                for (int j = 0; j < moveCount; j++) {
                     HistoryValue(board.IsWhiteToMove, moves[j]) -= (short)(change + change * HistoryValue(board.IsWhiteToMove, moves[j]) / 4096);
                 }
                 HistoryValue(board.IsWhiteToMove, move) += (short)(change - change * HistoryValue(board.IsWhiteToMove, move) / 4096);
@@ -164,6 +172,7 @@ public class MyBot : IChessBot {
                 raisedAlpha = true;
                 alpha = score;
             }
+            moveCount++;
         }
 
         tt.bound = (byte)(bestScore >= beta ? 2 /* BOUND_LOWER */
@@ -174,7 +183,8 @@ public class MyBot : IChessBot {
         tt.score = (short)bestScore;
         tt.moveRaw = bestMove.RawValue;
 
-        return (bestScore, bestMove);
+        outMove = bestMove;
+        return bestScore;
     }
 
     ref short HistoryValue(bool white, Move move) {

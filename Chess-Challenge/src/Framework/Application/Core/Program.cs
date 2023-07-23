@@ -3,22 +3,19 @@ using System.Diagnostics;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
-﻿using ChessChallenge.API;
+using ChessChallenge.API;
 
-namespace ChessChallenge.Application
-{
-    static class Program
-    {
+namespace ChessChallenge.Application {
+    static class Program {
         const bool hideRaylibLogs = true;
         static Camera2D cam;
 
-        public static void Main(string[] args)
-        {
+        public static void Main(string[] args) {
             if (args.Length == 0) {
                 new Uci.Uci().Run();
                 return;
             } else if (args[0] == "bench") {
-                string[] benches = new string[]{    
+                string[] benches = new string[]{
                     "Q7/5Q2/8/8/3k4/6P1/6BP/7K b - - 0 67",
                     "r4rk1/p4ppp/1q2p3/2n1P3/2p5/3bRNP1/1P3PBP/R2Q2K1 b - - 0 24",
                     "r1bq1rk1/pp3ppp/2nbpn2/3p4/3P4/1PN1PN2/1BP1BPPP/R2Q1RK1 b - - 2 10",
@@ -56,7 +53,11 @@ namespace ChessChallenge.Application
                     board.LoadPosition(benches[i]);
                     for (int d = 1; d <= 4; d++) {
                         bot.maxSearchTime = 100000;
-                        bot.Negamax(new ChessChallenge.API.Board(board), -999999, 999999, d, new Timer(-5), d, 0);
+                        bot.board = new ChessChallenge.API.Board(board);
+                        bot.timer = new Timer(-5);
+                        bot.searchingDepth = d;
+                        Move move = Move.NullMove;
+                        bot.Negamax(-999999, 999999, d, 0, ref move);
                     }
                 }
 
@@ -80,10 +81,8 @@ namespace ChessChallenge.Application
             int screenWidth = (int)loadedWindowSize.X;
             int screenHeight = (int)loadedWindowSize.Y;
 
-            if (hideRaylibLogs)
-            {
-                unsafe
-                {
+            if (hideRaylibLogs) {
+                unsafe {
                     Raylib.SetTraceLogCallback(&LogCustom);
                 }
             }
@@ -95,8 +94,7 @@ namespace ChessChallenge.Application
 
             ChallengeController controller = new();
 
-            while (!Raylib.WindowShouldClose())
-            {
+            while (!Raylib.WindowShouldClose()) {
                 Raylib.BeginDrawing();
                 Raylib.ClearBackground(new Color(22, 22, 22, 255));
                 Raylib.BeginMode2D(cam);
@@ -117,8 +115,7 @@ namespace ChessChallenge.Application
             UIHelper.Release();
         }
 
-        public static void SetWindowSize(Vector2 size)
-        {
+        public static void SetWindowSize(Vector2 size) {
             Raylib.SetWindowSize((int)size.X, (int)size.Y);
             UpdateCamera();
             SaveWindowSize();
@@ -126,8 +123,7 @@ namespace ChessChallenge.Application
 
         public static Vector2 ScreenToWorldPos(Vector2 screenPos) => Raylib.GetScreenToWorld2D(screenPos, cam);
 
-        static void UpdateCamera()
-        {
+        static void UpdateCamera() {
             cam = new Camera2D();
             int screenWidth = Raylib.GetScreenWidth();
             int screenHeight = Raylib.GetScreenHeight();
@@ -138,23 +134,16 @@ namespace ChessChallenge.Application
 
 
         [UnmanagedCallersOnly(CallConvs = new[] { typeof(System.Runtime.CompilerServices.CallConvCdecl) })]
-        private static unsafe void LogCustom(int logLevel, sbyte* text, sbyte* args)
-        {
+        private static unsafe void LogCustom(int logLevel, sbyte* text, sbyte* args) {
         }
 
-        static Vector2 GetSavedWindowSize()
-        {
-            if (File.Exists(FileHelper.PrefsFilePath))
-            {
+        static Vector2 GetSavedWindowSize() {
+            if (File.Exists(FileHelper.PrefsFilePath)) {
                 string prefs = File.ReadAllText(FileHelper.PrefsFilePath);
-                if (!string.IsNullOrEmpty(prefs))
-                {
-                    if (prefs[0] == '0')
-                    {
+                if (!string.IsNullOrEmpty(prefs)) {
+                    if (prefs[0] == '0') {
                         return Settings.ScreenSizeSmall;
-                    }
-                    else if (prefs[0] == '1')
-                    {
+                    } else if (prefs[0] == '1') {
                         return Settings.ScreenSizeBig;
                     }
                 }
@@ -162,14 +151,13 @@ namespace ChessChallenge.Application
             return Settings.ScreenSizeSmall;
         }
 
-        static void SaveWindowSize()
-        {
+        static void SaveWindowSize() {
             Directory.CreateDirectory(FileHelper.AppDataPath);
             bool isBigWindow = Raylib.GetScreenWidth() > Settings.ScreenSizeSmall.X;
             File.WriteAllText(FileHelper.PrefsFilePath, isBigWindow ? "1" : "0");
         }
 
-      
+
 
     }
 

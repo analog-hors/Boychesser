@@ -26,14 +26,14 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    // Every 2nd 4th and 5th element is negated to save tokens
+    // Every 2nd 3rd and 4th element is negated to save tokens
     int[] constants = {
-        10944634,   720902,     -65535, -1,     -196602,
-        19792248,   -196611,    9,      917528, 786449,
-        20185476,   -3,         2,      393228, 262149,
-        34472455,   131082,     -65533, -5,     65546,
-        64750593,   327685,     262149, 720893, 524290,
-        63308774,   1,          262142, 786427, 589819
+        13631640, 2490386, -2359311, -196601,
+        19857805, -196611, 851993, 720907,
+        20251017, -3, 393229, 196612,
+        34341391, 131082, -5, 131080,
+        65340429, 327685, 720893, 327679,
+        0, 1, 786427, 327677,
     };
 
 
@@ -114,10 +114,9 @@ public class MyBot : IChessBot {
                     Square square = piece.Square;
                     int x = square.File,
                     y = reverse ? square.Rank : 7 - square.Rank,
-                    offset = pieceType * 5;
+                    offset = pieceType * 4;
                     staticEval += (constants[offset++]
                     - y * constants[offset++]
-                    + x * constants[offset++]
                     - Math.Abs(y - 3) * constants[offset++]
                     - Math.Abs(x - 3) * constants[offset]) * (reverse ? -1 : 1);
                 }

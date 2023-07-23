@@ -41,22 +41,23 @@ public class MyBot : IChessBot {
         maxSearchTime = timerOrig.MillisecondsRemaining / 80;
 
         Move best = nullMove;
+        Move searchMove = nullMove;
 
 
         board = boardOrig;
         timer = timerOrig;
         searchingDepth = 0;
 
-        while (++searchingDepth <= 200) {
+        while (++searchingDepth <= 200)
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                Negamax(-999999, 999999, searchingDepth, 0, ref best);
+                Negamax(-999999, 999999, searchingDepth, 0, ref searchMove);
+                best = searchMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
             } catch (Exception) {
                 break;
             }
-        }
 
         return best;
     }
@@ -77,7 +78,7 @@ public class MyBot : IChessBot {
 
         ref var tt = ref transposition_table[board.ZobristKey % 0x1000000];
         bool tt_good = tt.hash == board.ZobristKey;
-        bool pv = alpha > beta + 1;
+        bool nonPv = alpha <= beta + 1;
 
         if (tt_good && tt.depth >= depth && ply > 0) {
             if (tt.bound == 1 /* BOUND_EXACT */ ||
@@ -88,7 +89,7 @@ public class MyBot : IChessBot {
         }
 
         // Null Move Pruning (NMP)
-        if (!pv && depth >= 1) {
+        if (nonPv && depth >= 1) {
             if (board.TrySkipTurn()) {
                 var result = Negamax(-beta, 1 - beta, depth - 3, ply + 1, ref outMove);
                 board.UndoSkipTurn();
@@ -178,7 +179,7 @@ public class MyBot : IChessBot {
         tt.bound = (byte)(bestScore >= beta ? 2 /* BOUND_LOWER */
             : raisedAlpha ? 1 /* BOUND_EXACT */
             : 3 /* BOUND_UPPER */);
-        tt.depth = (byte)(depth < 0 ? 0 : depth);
+        tt.depth = (byte)Math.Max(depth, 0);
         tt.hash = board.ZobristKey;
         tt.score = (short)bestScore;
         tt.moveRaw = bestMove.RawValue;

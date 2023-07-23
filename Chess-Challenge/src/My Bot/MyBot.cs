@@ -114,8 +114,8 @@ public class MyBot : IChessBot {
                     int y = reverse ? 7 - square.Rank : square.Rank;
                     staticEval += (constants[pieceType]
                     + y * constants[6 + pieceType]
-                    - Math.Abs(y - 3) * constants[12 + pieceType]
-                    - Math.Abs(square.File - 3) * constants[18 + pieceType]) * (reverse ? -1 : 1);
+                    - Math.Abs(square.File - 3) * constants[12 + pieceType]
+                    - Math.Abs(y - 3) * constants[18 + pieceType]) * (reverse ? -1 : 1);
                 }
                 pieceIndex++;
             }

@@ -26,15 +26,16 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    // WARNING: Every 5th element is negated to save size
+    // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        150, 18, 1, 16, 8,
-        377, -3, 8, -25, 17,
-        388, -2, 2, -13, 4,
-        520, 10, 3, 5, 10,
-        1025, 5, 6, 3, 2,
-        0, 1, -2, 5, -5
+        10944634,   720902,     -65535, -1,     -196602,
+        19792248,   -196611,    9,      917528, 786449,
+        20185476,   -3,         2,      393228, 262149,
+        34472455,   131082,     -65533, -5,     65546,
+        64750593,   327685,     262149, 720893, 524290,
+        63308774,   1,          262142, 786427, 589819
     };
+
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0;
@@ -102,25 +103,28 @@ public class MyBot : IChessBot {
         bool raisedAlpha = false;
 
         // static eval for qsearch
-        int staticEval = 0;
+        int staticEval = 0, phase = 0, pieceIndex = 0;
         if (depth <= 0) {
-            int i = 0;
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
-                bool reverse = i >= 6;
+                int pieceType = pieceIndex % 6;
+                // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
+                phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
+                bool reverse = pieceIndex >= 6;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
-                    int x = reverse ? square.File : 7 - square.File;
-                    int y = reverse ? square.Rank : 7 - square.Rank;
-                    int offset = (i % 6) * 5;
-                    staticEval += (constants[offset]
-                    - y * constants[offset + 1]
-                    + x * constants[offset + 2]
-                    + Math.Abs(y - 3) * constants[offset + 3]
-                    - Math.Abs(x - 3) * constants[offset + 4]) * (reverse ? -1 : 1);
+                    int x = reverse ? square.File : 7 - square.File,
+                    y = reverse ? square.Rank : 7 - square.Rank,
+                    offset = pieceType * 5;
+                    staticEval += (constants[offset++]
+                    - y * constants[offset++]
+                    + x * constants[offset++]
+                    - Math.Abs(y - 3) * constants[offset++]
+                    - Math.Abs(x - 3) * constants[offset]) * (reverse ? -1 : 1);
                 }
-                i++;
+                pieceIndex++;
             }
             staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
+            staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
             if (staticEval >= beta)
                 return staticEval;
 

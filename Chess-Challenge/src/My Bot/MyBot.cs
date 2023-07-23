@@ -34,6 +34,9 @@ public class MyBot : IChessBot {
         34472455,   131082,     -65533, -5,     65546,
         64750593,   327685,     262149, 720893, 524290,
         63308774,   1,          262142, 786427, 589819
+    },
+    lmpTable = {
+        0, 7, 8, 17, 49
     };
 
 
@@ -145,8 +148,13 @@ public class MyBot : IChessBot {
 
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
-        int moveCount = 0, score;
+        int moveCount = 0, score,
+            quietsToCheck = depth > 0 && depth < 5 && nonPv ? lmpTable[depth] : 999;
         foreach (Move move in moves) {
+            if (move.CapturePieceType == 0 && quietsToCheck-- <= 0) {
+                moveCount++;
+                continue;
+            }
             board.MakeMove(move);
             if (board.IsDraw()) {
                 score = 0;

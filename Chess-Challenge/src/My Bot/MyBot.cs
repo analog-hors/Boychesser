@@ -149,7 +149,11 @@ public class MyBot : IChessBot {
             } else if (moveCount == 0) {
                 score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
             } else {
-                score = -Negamax(-alpha - 1, -alpha, depth - 1, ply + 1, ref outMove);
+                int reduction = move.CapturePieceType != 0 ? 0 : (moveCount * 3 + depth * 4) / 40;
+                score = -Negamax(-alpha - 1, -alpha, depth - reduction - 1, ply + 1, ref outMove);
+                if (score > alpha && reduction != 0) {
+                    score = -Negamax(-alpha - 1, -alpha, depth - 1, ply + 1, ref outMove);
+                }
                 if (score > alpha && score < beta) {
                     score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
                 }

@@ -105,13 +105,13 @@ public class MyBot : IChessBot {
         if (depth <= 0) {
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
                 // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0
-                phase += pieceList.Count * pieceList.Count * 21 % 26 % 5;
+                int pieceType = pieceIndex % 6;
+                phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
                 bool reverse = pieceIndex >= 6;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
                     int x = reverse ? square.File : 7 - square.File,
                     y = reverse ? square.Rank : 7 - square.Rank,
-                    pieceType = pieceIndex % 6,
                     offset = pieceType * 5;
 
                     staticEval += (constants[offset++]

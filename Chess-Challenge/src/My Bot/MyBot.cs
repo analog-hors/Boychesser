@@ -87,8 +87,28 @@ public class MyBot : IChessBot {
             }
         }
 
+        // static eval
+        int staticEval = 0;
+        int eval_i = 0;
+        foreach (PieceList pieceList in board.GetAllPieceLists()) {
+            bool reverse = eval_i >= 6;
+            foreach (Piece piece in pieceList) {
+                Square square = piece.Square;
+                int x = reverse ? square.File : 7 - square.File;
+                int y = reverse ? square.Rank : 7 - square.Rank;
+                int offset = (eval_i % 6) * 5;
+                staticEval += (constants[offset]
+                + y * constants[offset + 1]
+                + x * constants[offset + 2]
+                + Math.Abs(y - 3) * constants[offset + 3]
+                - Math.Abs(x - 3) * constants[offset + 4]) * (reverse ? -1 : 1);
+            }
+            eval_i++;
+        }
+        staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
+
         // Null Move Pruning (NMP)
-        if (nonPv && depth >= 1) {
+        if (nonPv && depth >= 1 && staticEval >= beta) {
             if (board.TrySkipTurn()) {
                 var result = Negamax(-beta, 1 - beta, depth - 3, ply + 1, ref outMove);
                 board.UndoSkipTurn();
@@ -101,26 +121,8 @@ public class MyBot : IChessBot {
         int bestScore = -999999;
         bool raisedAlpha = false;
 
-        // static eval for qsearch
-        int staticEval = 0;
+        // QSearch
         if (depth <= 0) {
-            int i = 0;
-            foreach (PieceList pieceList in board.GetAllPieceLists()) {
-                bool reverse = i >= 6;
-                foreach (Piece piece in pieceList) {
-                    Square square = piece.Square;
-                    int x = reverse ? square.File : 7 - square.File;
-                    int y = reverse ? square.Rank : 7 - square.Rank;
-                    int offset = (i % 6) * 5;
-                    staticEval += (constants[offset]
-                    + y * constants[offset + 1]
-                    + x * constants[offset + 2]
-                    + Math.Abs(y - 3) * constants[offset + 3]
-                    - Math.Abs(x - 3) * constants[offset + 4]) * (reverse ? -1 : 1);
-                }
-                i++;
-            }
-            staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
             if (staticEval >= beta)
                 return staticEval;
 

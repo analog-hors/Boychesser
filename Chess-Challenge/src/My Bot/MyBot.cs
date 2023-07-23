@@ -164,7 +164,9 @@ public class MyBot : IChessBot {
                 if (move.CapturePieceType == 0) {
                     int change = depth * depth;
                     for (int j = 0; j < moveCount; j++) {
-                        HistoryValue(moves[j]) -= (short)(change + change * HistoryValue(moves[j]) / 4096);
+                        if (moves[j].CapturePieceType == 0) {
+                            HistoryValue(moves[j]) -= (short)(change + change * HistoryValue(moves[j]) / 4096);
+                        }
                     }
                     HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
                 }

@@ -87,20 +87,6 @@ public class MyBot : IChessBot {
             }
         }
 
-        // Null Move Pruning (NMP)
-        if (nonPv && depth >= 1) {
-            if (board.TrySkipTurn()) {
-                var result = Negamax(-beta, 1 - beta, depth - 3, ply + 1, ref outMove);
-                board.UndoSkipTurn();
-                if (-result >= beta) {
-                    return -result;
-                }
-            }
-        }
-
-        int bestScore = -999999;
-        bool raisedAlpha = false;
-
         // static eval for qsearch
         int staticEval = 0;
         int eval_i = 0;
@@ -121,6 +107,27 @@ public class MyBot : IChessBot {
         }
         staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
 
+        //Reverse Futility Pruning (RFP)
+        if (nonPv && depth <= 5 && !board.IsInCheck() && depth >= 1) {
+            if (staticEval - 80 * depth >= beta) {
+                return staticEval;
+            }
+        }
+
+        // Null Move Pruning (NMP)
+        if (nonPv && depth >= 1) {
+            if (board.TrySkipTurn()) {
+                var result = Negamax(-beta, 1 - beta, depth - 3, ply + 1, ref outMove);
+                board.UndoSkipTurn();
+                if (-result >= beta) {
+                    return -result;
+                }
+            }
+        }
+
+        int bestScore = -999999;
+        bool raisedAlpha = false;
+
         if (depth <= 0) {
             if (staticEval >= beta)
                 return staticEval;
@@ -128,13 +135,6 @@ public class MyBot : IChessBot {
             if (raisedAlpha = staticEval > alpha)
                 alpha = staticEval;
             bestScore = staticEval;
-        }
-
-        //Reverse Futility Pruning (RFP)
-        if (nonPv && depth <= 5 && !board.IsInCheck() && depth >= 1) {
-            if (staticEval - 60 * depth >= beta) {
-                return staticEval;
-            }
         }
 
         var moves = board.GetLegalMoves(depth <= 0);

@@ -147,7 +147,7 @@ public class MyBot : IChessBot {
             if (board.IsDraw()) {
                 score = 0;
             } else if (moveCount == 0) {
-                score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
+                score = -Negamax(-beta, -alpha, depth - 1 + (board.IsInCheck() ? 1 : 0), ply + 1, ref outMove);
             } else {
                 score = -Negamax(-alpha - 1, -alpha, depth - 1, ply + 1, ref outMove);
                 if (score > alpha && score < beta) {

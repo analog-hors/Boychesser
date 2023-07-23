@@ -28,12 +28,12 @@ public class MyBot : IChessBot {
 
     // 2nd, 4th and 5th columns are negated to save size
     int[] constants = {
-        7864387,    2490386,   -196607,    -2359312,    -327672,
-        1376295,    -196611,     9,          851993,    786449,
-        720919,     -2,          2,          393228,    196613,
-        917546,     131082,    -65533,     -5,          65546,
-        3342336,    327685,    262149,     720894,      524290,
-        1966055,    1,         262142,     786428,      524283
+        4784168,    786437,    -131072,    0,      -262138,
+        1376295,    -196611,    9,          851993, 786449,
+        720919,     -2,         2,          393228, 262149,
+        917546,     131082,     -65533,     -5,     65546,
+        3342336,    327685,     262149,     720894, 524290,
+        0,          1,          262142,     786428, 524283
     };
 
     public Move Think(Board boardOrig, Timer timerOrig) {
@@ -104,8 +104,8 @@ public class MyBot : IChessBot {
         int staticEval = 0, pieceIndex = 0, phase = 0, bestScore = -999999;
         if (depth <= 0) {
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
-                // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0
                 int pieceType = pieceIndex % 6;
+                // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
                 phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
                 bool reverse = pieceIndex >= 6;
                 foreach (Piece piece in pieceList) {

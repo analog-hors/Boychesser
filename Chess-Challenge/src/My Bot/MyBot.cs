@@ -26,12 +26,12 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    // Every 2nd 4th and 5th element is negated to save tokens
+    // 3rd and 4th rows are negated to save size
     int[] constants = {
-        3276843, 17367270, 18743556, 30343460, 57475764, 589823,
-        589829, 262153, 196612, 262153, 917506, 655357,
-        -131069, 393220, 196610, 8, 262144, 393205,
-        -1048577, 786431, 327684, 196598, 458752, 393192
+        3276842, 17367271, 18809092, 30343460, 30081460, -655378,
+        589830, 262153, 196613, 196617, 917507, 655358,
+        -131069, 393220, 196609, 8, 262144, 393205,
+        -1048577, 786431, 327684, 196598, 524288, 393193
     };
 
 
@@ -105,19 +105,21 @@ public class MyBot : IChessBot {
         int staticEval = 0, phase = 0, pieceIndex = 0;
         if (depth <= 0) {
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
-                int pieceType = pieceIndex % 6;
+                bool reverse = pieceIndex >= 6;
+                int pieceType = pieceIndex % 6, sign = reverse ? -1 : 1;
                 // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
                 phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
-                bool reverse = pieceIndex >= 6;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
                     int y = reverse ? 7 - square.Rank : square.Rank;
                     staticEval += (constants[pieceType]
                     + y * constants[6 + pieceType]
                     - Math.Abs(square.File - 3) * constants[12 + pieceType]
-                    - Math.Abs(y - 3) * constants[18 + pieceType]) * (reverse ? -1 : 1);
+                    - Math.Abs(y - 3) * constants[18 + pieceType]) * sign;
                 }
                 pieceIndex++;
+                // Queen bonus 
+                staticEval += pieceType == 4 && pieceList.Count > 0 ? 26673421 * sign : 0;
             }
             staticEval = board.IsWhiteToMove ? staticEval : -staticEval;
             staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;

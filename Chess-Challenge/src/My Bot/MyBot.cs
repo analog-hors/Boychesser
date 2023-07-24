@@ -26,11 +26,11 @@ public class MyBot : IChessBot {
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        3670072, 23265519, 21954788, 38535421, 81003064, 0,
-        983043, 589832, 262146, 458760, 1245185, 1179648,
-        -196604, 524294, 0, 7, 262142, 786423,
-        -1376257, 917504, 131072, 327668, 786426, 458730,
-        0, 0, 327685, 196612, 65539, -196611,
+        3670072, 25624815, 22151395, 38600957, 80937530, 0,
+        983043, 589832, 262147, 458760, 1245185, 1114112,
+        -196604, 655366, 0, 7, 262142, 786423,
+        -1376258, 1048576, 131072, 327667, 786426, 458730,
+        0, -131072, 327685, 196612, 65539, -131075,
     };
 
 
@@ -96,9 +96,10 @@ public class MyBot : IChessBot {
         if (depth <= 0) {
             int staticEval = 0, phase = 0, pieceIndex = 0;
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
-                int pieceType = pieceIndex % 6;
+                int pieceType = pieceIndex % 6,
                 // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
-                phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
+                common = pieceType * pieceType * 21;
+                phase += common % 26 % 5 * pieceList.Count;
                 bool reverse = pieceIndex >= 6;
                 int negate = reverse == board.IsWhiteToMove ? -1 : 1;
                 foreach (Piece piece in pieceList) {
@@ -111,7 +112,7 @@ public class MyBot : IChessBot {
                         - Math.Abs(y - 3) * constants[18 + pieceType]
                         + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
                             BitboardHelper.GetSliderAttacks(
-                                (PieceType)Math.Min(5, pieceType + 1), square, board)
+                                (PieceType)(common % 13 % 3 + 3), square, board)
                             )
                         );
                 }

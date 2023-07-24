@@ -117,7 +117,7 @@ public class MyBot : IChessBot {
                 }
                 pieceIndex++;
             }
-            staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / (24 - phase / 6);
+            staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / (27 - phase / 4);
             if (staticEval >= beta)
                 return staticEval;
 

@@ -19,6 +19,9 @@ public class MyBot : IChessBot {
 
     Move nullMove, searchBestMove, rootBestMove;
 
+    Move[] moveBuffer = new Move[55808];
+    int[] scoreBuffer = new int[218];
+
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transpositionTable = new TtEntry[0x1000000];
 
@@ -125,16 +128,17 @@ public class MyBot : IChessBot {
             bestScore = staticEval;
         }
 
-        var moves = board.GetLegalMoves(depth <= 0);
-        var scores = new int[moves.Length];
+        var moves = moveBuffer.AsSpan(nextPly * 218 - 218, nextPly * 218);
+        board.GetLegalMovesNonAlloc(ref moves, depth <= 0);
+
         int scoreIndex = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 10000
+            scoreBuffer[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 10000
                 : move.CapturePieceType == 0 ? HistoryValue(move)
                 : (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000);
 
-        Array.Sort(scores, moves);
+        MemoryExtensions.Sort(scoreBuffer.AsSpan(0, scoreIndex), moves);
         Move bestMove = nullMove;
         int moveCount = 0, score;
         foreach (Move move in moves) {

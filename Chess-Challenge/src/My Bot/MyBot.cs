@@ -26,11 +26,11 @@ public class MyBot : IChessBot {
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        3670072, 23265519, 21954788, 38535421, 81003064, 0,
-        983043, 589832, 262146, 458760, 1245185, 1179648,
-        -196604, 524294, 0, 7, 262142, 786423,
-        -1376257, 917504, 131072, 327668, 786426, 458730,
-        0, 0, 327685, 196612, 65539, -196611,
+        8454188, 18546904, 21823717, 37683467, 78381646, 0,
+        1572869, 327688, 262146, 327690, 1048578, 983044,
+        -262138, 655368, 0, 7, 393214, 983028,
+        -1900548, 1048576, 131072, 393202, 983033, 720868,
+        0, 0, 327685, 196612, 65539, -196610,
     };
 
 
@@ -107,8 +107,8 @@ public class MyBot : IChessBot {
                     staticEval += negate * (
                         constants[pieceType]
                         + y * constants[6 + pieceType]
-                        - Math.Abs(square.File - 3) * constants[12 + pieceType]
-                        - Math.Abs(y - 3) * constants[18 + pieceType]
+                        + Math.Min(square.File, 7 - square.File) * constants[12 + pieceType]
+                        + Math.Min(y, 7 - y) * constants[18 + pieceType]
                         + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
                             BitboardHelper.GetSliderAttacks(
                                 (PieceType)Math.Min(5, pieceType + 1), square, board)

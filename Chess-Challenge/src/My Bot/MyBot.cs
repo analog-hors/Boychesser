@@ -145,8 +145,11 @@ public class MyBot : IChessBot {
             else if (moveCount == 0)
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
-                int reduction = move.IsCapture || board.IsInCheck() ? 0
-                    : (moveCount * 3 + depth * 4) / 40 + (moveCount > 4 ? 1 : 0);
+                int reduction = (moveCount * 3 + depth * 4) / 40
+                    + (moveCount > 4 ? 1 : 0)
+                    + scores[moveCount] / 400;
+                if (reduction < 0 || move.IsCapture || board.IsInCheck())
+                    reduction = 0;
                 score = -Negamax(-alpha - 1, -alpha, nextDepth - reduction, nextPly);
                 if (score > alpha && reduction != 0)
                     score = -Negamax(-alpha - 1, -alpha, nextDepth, nextPly);

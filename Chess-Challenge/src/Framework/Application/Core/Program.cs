@@ -56,8 +56,7 @@ namespace ChessChallenge.Application {
                         bot.board = new ChessChallenge.API.Board(board);
                         bot.timer = new Timer(-5);
                         bot.searchingDepth = d;
-                        Move move = Move.NullMove;
-                        bot.Negamax(-999999, 999999, d, 0, ref move);
+                        bot.Negamax(-999999, 999999, d, 0);
                     }
                 }
 

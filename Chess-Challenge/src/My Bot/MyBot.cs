@@ -26,11 +26,12 @@ public class MyBot : IChessBot {
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        8454188, 18546904, 21823717, 37683467, 78381646, 0,
-        1572869, 327688, 262146, 327690, 1048578, 983044,
-        -262138, 655368, 0, 7, 393214, 983028,
-        -1900548, 1048576, 131072, 393202, 983033, 720868,
-        0, 0, 327685, 196612, 65539, -196610,
+        7733288, 18350296, 21692634, 36700418, 79561279, 0,
+        1572868, 327688, 196610, 327690, 1114114, 983045,
+        -196602, 720902, 0, 262150, 196605, 589814,
+        -1900547, 1114111, 131072, 393202, 851961, 720866,
+        0, 0, 327685, 131076, 65539, -196610,
+        196609, -2, 1, 327679, -393218, 0,
     };
 
 
@@ -112,7 +113,7 @@ public class MyBot : IChessBot {
                             BitboardHelper.GetSliderAttacks(
                                 (PieceType)Math.Min(5, pieceType + 1), square, board)
                             )
-                        );
+                        + constants[30 + pieceType] * Math.Abs(square.File - board.GetKingSquare(reverse).File));
                 }
                 pieceIndex++;
             }

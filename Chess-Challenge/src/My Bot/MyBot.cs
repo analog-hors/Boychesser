@@ -81,7 +81,7 @@ public class MyBot : IChessBot {
             return tt.score;
 
         // Null Move Pruning (NMP)
-        if (nonPv && depth >= 1 && board.TrySkipTurn()) {
+        if (nonPv && depth >= 1 && beta > -20000 && board.TrySkipTurn()) {
             var result = -Negamax(-beta, 1 - beta, depth - 3, nextPly);
             board.UndoSkipTurn();
             if (result >= beta)
@@ -157,7 +157,7 @@ public class MyBot : IChessBot {
             board.UndoMove(move);
 
             //LMP
-            if (nonPv && depth <= 4 && moveCount > 15 * depth && !move.IsCapture)
+            if (nonPv && depth <= 4 && moveCount > 15 * depth && !move.IsCapture && alpha > -20000)
                 break;
 
             if (score > bestScore) {

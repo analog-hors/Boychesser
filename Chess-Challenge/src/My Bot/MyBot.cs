@@ -41,9 +41,9 @@ public class MyBot : IChessBot {
 
         board = boardOrig;
         timer = timerOrig;
-        searchingDepth = 0;
+        searchingDepth = 1;
 
-        while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10)
+        do
             //If score is of this value search has been aborted, DO NOT use result
             try {
                 Negamax(-999999, 999999, searchingDepth, 0);
@@ -53,6 +53,7 @@ public class MyBot : IChessBot {
             } catch (TimeoutException) {
                 break;
             }
+        while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10);
 
         return rootBestMove;
     }
@@ -75,7 +76,7 @@ public class MyBot : IChessBot {
         bool nonPv = alpha + 1 == beta;
 
         if (tt_good && tt.depth >= depth && (
-            tt.bound == 1 /* BOUND_EXACT */ && (nonPv || depth <= 1) ||
+            tt.bound == 1 /* BOUND_EXACT */ && (nonPv || depth <= 0) ||
             tt.bound == 2 /* BOUND_LOWER */ && tt.score >= beta ||
             tt.bound == 3 /* BOUND_UPPER */ && tt.score <= alpha
         ))

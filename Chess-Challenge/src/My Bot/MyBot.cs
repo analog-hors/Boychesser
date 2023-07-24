@@ -42,7 +42,7 @@ public class MyBot : IChessBot {
         timer = timerOrig;
         searchingDepth = 0;
 
-        while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10)
+        while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn <= maxSearchTime / 10)
             //If score is of this value search has been aborted, DO NOT use result
             try {
                 Negamax(-999999, 999999, searchingDepth, 0);

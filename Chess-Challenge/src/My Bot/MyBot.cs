@@ -26,12 +26,13 @@ public class MyBot : IChessBot {
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        8257607, 18809057, 22085864, 38142210, 77726293, 0,
-        1638405, 327688, 262146, 327690, 1048579, 983045,
-        -196606, 655367, -65536, -65526, 524287, 1179621,
-        -1900547, 1048576, 131072, 393203, 1048569, 655333,
+        8978502, 18481378, 21954793, 38207747, 77333083, 0,
+        262148, 1179656, 458758, 1179613, 1048579, 2555889,
+        196608, -131072, 0, -131066, 0, -196605,
+        -196606, 655367, -65536, -65527, 524287, 1179621,
+        -1376259, 589824, 0, -196593, 1048569, -196621,
         0, 0, 327685, 196612, 65539, -196610,
-        65529, -65538, -65536, -131068, 196608, 0,
+        65529, -65538, -65536, -65532, 196608, 0,
     };
 
 
@@ -106,14 +107,14 @@ public class MyBot : IChessBot {
                     int y = white ? square.Rank : 7 - square.Rank;
                     staticEval += negate * (
                         constants[pieceType]
-                        + y * constants[6 + pieceType]
-                        + Min(square.File, 7 - square.File) * constants[12 + pieceType]
-                        + Min(y, 7 - y) * constants[18 + pieceType]
-                        + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
+                        + y * (constants[6 + pieceType] + y * constants[12 + pieceType])
+                        + Min(square.File, 7 - square.File) * constants[18 + pieceType]
+                        + Min(y, 7 - y) * constants[24 + pieceType]
+                        + constants[30 + pieceType] * BitboardHelper.GetNumberOfSetBits(
                             BitboardHelper.GetSliderAttacks(
                                 (PieceType)Min(5, pieceType + 1), square, board)
                             )
-                        + constants[30 + pieceType] * Abs(square.File - board.GetKingSquare(white).File));
+                        + constants[36 + pieceType] * Abs(square.File - board.GetKingSquare(white).File));
                 }
                 pieceIndex++;
             }

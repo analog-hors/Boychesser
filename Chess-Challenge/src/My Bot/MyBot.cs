@@ -109,8 +109,11 @@ public class MyBot : IChessBot {
                         + y * constants[6 + pieceType]
                         - Math.Abs(square.File - 3) * constants[12 + pieceType]
                         - Math.Abs(y - 3) * constants[18 + pieceType]
-                        + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(BitboardHelper.GetSliderAttacks(piece.PieceType, square, board))
-                    );
+                        + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
+                            BitboardHelper.GetSliderAttacks(
+                                (PieceType)Math.Min(5, pieceType + 1), square, board)
+                            )
+                        );
                 }
                 pieceIndex++;
             }

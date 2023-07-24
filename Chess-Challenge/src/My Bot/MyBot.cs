@@ -1,12 +1,12 @@
 ﻿using ChessChallenge.API;
 using System;
+using static System.Math;
 
-// This struct should be 14 bytes large, which with padding means 16 bytes
+// This struct should be 16 bytes large
 struct TtEntry {
     public ulong hash;
-    public short score;
     public ushort moveRaw;
-    public byte depth, bound /* BOUND_EXACT=1, BOUND_LOWER=2, BOUND_UPPER=3 */;
+    public short score, depth, bound /* BOUND_EXACT=1, BOUND_LOWER=2, BOUND_UPPER=3 */;
 }
 
 public class MyBot : IChessBot {
@@ -26,11 +26,11 @@ public class MyBot : IChessBot {
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        8257607, 18809057, 22085864, 38142210, 77726293, 0, 
-        1638405, 327688, 262146, 327690, 1048579, 983045, 
-        -196606, 655367, -65536, -65526, 524287, 1179621, 
-        -1900547, 1048576, 131072, 393203, 1048569, 655333, 
-        0, 0, 327685, 196612, 65539, -196610, 
+        8257607, 18809057, 22085864, 38142210, 77726293, 0,
+        1638405, 327688, 262146, 327690, 1048579, 983045,
+        -196606, 655367, -65536, -65526, 524287, 1179621,
+        -1900547, 1048576, 131072, 393203, 1048569, 655333,
+        0, 0, 327685, 196612, 65539, -196610,
         65529, -65538, -65536, -131068, 196608, 0,
     };
 
@@ -103,17 +103,17 @@ public class MyBot : IChessBot {
                 int negate = white == board.IsWhiteToMove ? 1 : -1;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
-                    int y = white ? square.Rank : 7 - square.Rank ;
+                    int y = white ? square.Rank : 7 - square.Rank;
                     staticEval += negate * (
                         constants[pieceType]
                         + y * constants[6 + pieceType]
-                        + Math.Min(square.File, 7 - square.File) * constants[12 + pieceType]
-                        + Math.Min(y, 7 - y) * constants[18 + pieceType]
+                        + Min(square.File, 7 - square.File) * constants[12 + pieceType]
+                        + Min(y, 7 - y) * constants[18 + pieceType]
                         + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
                             BitboardHelper.GetSliderAttacks(
-                                (PieceType)Math.Min(5, pieceType + 1), square, board)
+                                (PieceType)Min(5, pieceType + 1), square, board)
                             )
-                        + constants[30 + pieceType] * Math.Abs(square.File - board.GetKingSquare(white).File));
+                        + constants[30 + pieceType] * Abs(square.File - board.GetKingSquare(white).File));
                 }
                 pieceIndex++;
             }
@@ -132,8 +132,8 @@ public class MyBot : IChessBot {
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
             scores[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 10000
-                : move.CapturePieceType == 0 ? HistoryValue(move)
-                : (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000);
+                : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
+                : HistoryValue(move));
 
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
@@ -147,7 +147,7 @@ public class MyBot : IChessBot {
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
                 int reduction = move.IsCapture || board.IsInCheck() ? 0
-                    : (moveCount * 3 + depth * 4) / 40 + (moveCount > 4 ? 1 : 0);
+                    : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4);
                 score = -Negamax(-alpha - 1, -alpha, nextDepth - reduction, nextPly);
                 if (score > alpha && reduction != 0)
                     score = -Negamax(-alpha - 1, -alpha, nextDepth, nextPly);
@@ -168,9 +168,9 @@ public class MyBot : IChessBot {
             if (score >= beta) {
                 if (!move.IsCapture) {
                     int change = depth * depth;
-                    for (int j = 0; j < moveCount; j++)
-                        if (moves[j].CapturePieceType == 0)
-                            HistoryValue(moves[j]) -= (short)(change + change * HistoryValue(moves[j]) / 4096);
+                    foreach (Move malusMove in moves.AsSpan(0, moveCount))
+                        if (!malusMove.IsCapture)
+                            HistoryValue(malusMove) -= (short)(change + change * HistoryValue(malusMove) / 4096);
                     HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
                 }
                 break;
@@ -182,10 +182,10 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
-        tt.bound = (byte)(bestScore >= beta ? 2 /* BOUND_LOWER */
+        tt.bound = (short)(bestScore >= beta ? 2 /* BOUND_LOWER */
             : raisedAlpha ? 1 /* BOUND_EXACT */
             : 3 /* BOUND_UPPER */);
-        tt.depth = (byte)Math.Max(depth, 0);
+        tt.depth = (short)Max(depth, 0);
         tt.hash = board.ZobristKey;
         tt.score = (short)bestScore;
         if (!tt_good || tt.bound != 3 /* BOUND_UPPER */)
@@ -195,7 +195,9 @@ public class MyBot : IChessBot {
         return bestScore;
     }
 
-    ref short HistoryValue(Move move) {
-        return ref history[board.IsWhiteToMove ? 1 : 0, (int)move.MovePieceType, (int)move.TargetSquare.Index];
-    }
+    ref short HistoryValue(Move move) => ref history[
+        board.IsWhiteToMove ? 1 : 0,
+        (int)move.MovePieceType,
+        (int)move.TargetSquare.Index
+    ];
 }

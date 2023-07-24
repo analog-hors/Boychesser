@@ -145,7 +145,7 @@ public class MyBot : IChessBot {
                 break;
 
             board.MakeMove(move);
-            int nextDepth = board.IsInCheck() ? depth : depth - 1;
+            int nextDepth = board.IsInCheck() ? Max(depth, 1) : depth - 1;
             if (board.IsDraw())
                 score = 0;
             else if (moveCount == 0)

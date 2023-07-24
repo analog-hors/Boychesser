@@ -137,18 +137,19 @@ public class MyBot : IChessBot {
         int moveCount = 0, score;
         foreach (Move move in moves) {
             board.MakeMove(move);
+            int nextDepth = depth - 1 + (board.IsInCheck() ? 1 : 0);
             if (board.IsDraw())
                 score = 0;
             else if (moveCount == 0)
-                score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
+                score = -Negamax(-beta, -alpha, nextDepth, ply + 1, ref outMove);
             else {
                 int reduction = move.IsCapture || board.IsInCheck() ? 0
                     : (moveCount * 3 + depth * 4) / 40 + (moveCount > 4 ? 1 : 0);
-                score = -Negamax(-alpha - 1, -alpha, depth - reduction - 1, ply + 1, ref outMove);
+                score = -Negamax(-alpha - 1, -alpha, nextDepth - reduction, ply + 1, ref outMove);
                 if (score > alpha && reduction != 0)
-                    score = -Negamax(-alpha - 1, -alpha, depth - 1, ply + 1, ref outMove);
+                    score = -Negamax(-alpha - 1, -alpha, nextDepth, ply + 1, ref outMove);
                 if (score > alpha && score < beta)
-                    score = -Negamax(-beta, -alpha, depth - 1, ply + 1, ref outMove);
+                    score = -Negamax(-beta, -alpha, nextDepth, ply + 1, ref outMove);
             }
 
             board.UndoMove(move);

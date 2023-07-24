@@ -17,7 +17,7 @@ public class MyBot : IChessBot {
     public Timer timer;
     public Board board;
 
-    Move nullMove = Move.NullMove;
+    Move nullMove, searchBestMove, rootBestMove;
 
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transpositionTable = new TtEntry[0x1000000];
@@ -38,8 +38,6 @@ public class MyBot : IChessBot {
         nodes = 0;
         maxSearchTime = timerOrig.MillisecondsRemaining / 4;
 
-        Move best = nullMove, searchMove = nullMove;
-
         board = boardOrig;
         timer = timerOrig;
         searchingDepth = 0;
@@ -47,18 +45,18 @@ public class MyBot : IChessBot {
         while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10)
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                Negamax(-999999, 999999, searchingDepth, 0, ref searchMove);
-                best = searchMove;
+                Negamax(-999999, 999999, searchingDepth, 0);
+                rootBestMove = searchBestMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
             } catch (Exception) {
                 break;
             }
 
-        return best;
+        return rootBestMove;
     }
 
-    public int Negamax(int alpha, int beta, int depth, int ply, ref Move outMove) {
+    public int Negamax(int alpha, int beta, int depth, int nextPly) {
         //abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw new Exception();
@@ -68,7 +66,8 @@ public class MyBot : IChessBot {
 
         // check for game end
         if (board.IsInCheckmate())
-            return ply - 30000;
+            return nextPly - 30000;
+        nextPly++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         bool tt_good = tt.hash == board.ZobristKey;
@@ -83,7 +82,7 @@ public class MyBot : IChessBot {
 
         // Null Move Pruning (NMP)
         if (nonPv && depth >= 1 && board.TrySkipTurn()) {
-            var result = -Negamax(-beta, 1 - beta, depth - 3, ply + 1, ref outMove);
+            var result = -Negamax(-beta, 1 - beta, depth - 3, nextPly);
             board.UndoSkipTurn();
             if (result >= beta)
                 return result;
@@ -140,19 +139,19 @@ public class MyBot : IChessBot {
         int moveCount = 0, score;
         foreach (Move move in moves) {
             board.MakeMove(move);
-            int nextDepth = depth - 1 + (board.IsInCheck() ? 1 : 0);
+            int nextDepth = board.IsInCheck() ? depth : depth - 1;
             if (board.IsDraw())
                 score = 0;
             else if (moveCount == 0)
-                score = -Negamax(-beta, -alpha, nextDepth, ply + 1, ref outMove);
+                score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
                 int reduction = move.IsCapture || board.IsInCheck() ? 0
                     : (moveCount * 3 + depth * 4) / 40 + (moveCount > 4 ? 1 : 0);
-                score = -Negamax(-alpha - 1, -alpha, nextDepth - reduction, ply + 1, ref outMove);
+                score = -Negamax(-alpha - 1, -alpha, nextDepth - reduction, nextPly);
                 if (score > alpha && reduction != 0)
-                    score = -Negamax(-alpha - 1, -alpha, nextDepth, ply + 1, ref outMove);
+                    score = -Negamax(-alpha - 1, -alpha, nextDepth, nextPly);
                 if (score > alpha && score < beta)
-                    score = -Negamax(-beta, -alpha, nextDepth, ply + 1, ref outMove);
+                    score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             }
 
             board.UndoMove(move);
@@ -191,7 +190,7 @@ public class MyBot : IChessBot {
         if (!tt_good || tt.bound != 3 /* BOUND_UPPER */)
             tt.moveRaw = bestMove.RawValue;
 
-        outMove = bestMove;
+        searchBestMove = bestMove;
         return bestScore;
     }
 

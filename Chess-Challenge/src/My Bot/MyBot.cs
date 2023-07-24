@@ -22,7 +22,7 @@ public class MyBot : IChessBot {
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transpositionTable = new TtEntry[0x1000000];
 
-    short[,,] history = new short[2, 7, 64];
+    short[,,,] history = new short[2, 2, 7, 64];
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
@@ -131,9 +131,8 @@ public class MyBot : IChessBot {
         int scoreIndex = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 10000
-                : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
-                : HistoryValue(move));
+            scores[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 100000 : HistoryValue(move))
+            - (move.IsCapture ? 5000 : 0);
 
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
@@ -170,8 +169,7 @@ public class MyBot : IChessBot {
                 if (!move.IsCapture) {
                     int change = depth * depth;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
-                        if (!malusMove.IsCapture)
-                            HistoryValue(malusMove) -= (short)(change + change * HistoryValue(malusMove) / 4096);
+                        HistoryValue(malusMove) -= (short)(change + change * HistoryValue(malusMove) / 4096);
                     HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
                 }
                 break;
@@ -198,6 +196,7 @@ public class MyBot : IChessBot {
 
     ref short HistoryValue(Move move) => ref history[
         board.IsWhiteToMove ? 1 : 0,
+        move.CapturePieceType > 0 ? 1 : 0,
         (int)move.MovePieceType,
         (int)move.TargetSquare.Index
     ];

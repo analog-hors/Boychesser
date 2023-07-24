@@ -137,10 +137,11 @@ public class MyBot : IChessBot {
 
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
-        int moveCount = 0, score;
+        // quietsToCheckTable = [0, 7, 8, 17, 49]
+        int moveCount = 0, quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111, score;
         foreach (Move move in moves) {
             //LMP
-            if (nonPv && depth <= 4 && moveCount > 15 * depth && !move.IsCapture)
+            if (nonPv && depth <= 4 && !move.IsCapture && quietsToCheck-- == 0)
                 break;
 
             board.MakeMove(move);

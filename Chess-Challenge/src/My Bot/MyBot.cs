@@ -26,11 +26,11 @@ public class MyBot : IChessBot {
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        8454188, 18546904, 21823717, 37683467, 78381646, 0,
-        1572869, 327688, 262146, 327690, 1048578, 983044,
+        9240622, 18743513, 21889253, 37749003, 78578257, 0,
+        196609, 65537, 0, 65538, 131072, 131073,
         -262138, 655368, 0, 7, 393214, 983028,
-        -1900548, 1048576, 131072, 393202, 983033, 720868,
-        0, 0, 327685, 196612, 65539, -196610,
+        -1245185, 1179654, 262145, 589816, 1572859, 1310697,
+        0, 0, 327685, 196612, 65539, -196610
     };
 
 
@@ -93,7 +93,7 @@ public class MyBot : IChessBot {
 
         // static eval for qsearch
         if (depth <= 0) {
-            int staticEval = 0, phase = 0, pieceIndex = 0;
+            int staticEval = 65541, phase = 0, pieceIndex = 0;
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
                 int pieceType = pieceIndex % 6;
                 // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType

@@ -24,14 +24,14 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    // Every 2nd 4th and 5th element is negated to save tokens
+    // 2nd and 5th rows negated
     int[] constants = {
-        8257607, 18809057, 22085864, 38142210, 77726293, 0,
-        1638405, 327688, 262146, 327690, 1048579, 983045,
-        -196606, 655367, -65536, -65526, 524287, 1179621,
-        -1900547, 1048576, 131072, 393203, 1048569, 655333,
-        0, 0, 327685, 196612, 65539, -196610,
-        65529, -65538, -65536, -131068, 196608, 0,
+        8716329, 13500671, 17105194, 33620269, 71697214, 0,
+        -3670026, 262135, 65535, 196590, 327666, -655358,
+        -524273, -131053, 327676, -65522, 2752506, 1441758,
+        -4063237, 983049, 327680, -262163, 4653023, 2293723,
+        0, 0, 196597, 196601, 1376248, 458755,
+        -65542, -7, 262141, 131076, 524288, 0
     };
 
 
@@ -106,10 +106,10 @@ public class MyBot : IChessBot {
                     int y = white ? square.Rank : 7 - square.Rank;
                     staticEval += negate * (
                         constants[pieceType]
-                        + y * constants[6 + pieceType]
+                        - y * constants[6 + pieceType]
                         + Min(square.File, 7 - square.File) * constants[12 + pieceType]
                         + Min(y, 7 - y) * constants[18 + pieceType]
-                        + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
+                        - constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
                             BitboardHelper.GetSliderAttacks(
                                 (PieceType)Min(5, pieceType + 1), square, board)
                             )

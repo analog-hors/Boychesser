@@ -125,7 +125,7 @@ public class MyBot : IChessBot {
             bestScore = staticEval;
         }
 
-        var moves = board.GetLegalMoves(depth <= 0);
+        var moves = board.GetLegalMoves(depth <= 0 && !board.IsInCheck());
         var scores = new int[moves.Length];
         int scoreIndex = 0;
         foreach (Move move in moves)

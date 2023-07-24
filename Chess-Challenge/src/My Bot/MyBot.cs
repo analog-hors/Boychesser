@@ -139,6 +139,10 @@ public class MyBot : IChessBot {
         Move bestMove = nullMove;
         int moveCount = 0, score;
         foreach (Move move in moves) {
+            //LMP
+            if (nonPv && depth <= 4 && moveCount > 15 * depth && !move.IsCapture)
+                break;
+
             board.MakeMove(move);
             int nextDepth = board.IsInCheck() ? depth : depth - 1;
             if (board.IsDraw())
@@ -156,10 +160,6 @@ public class MyBot : IChessBot {
             }
 
             board.UndoMove(move);
-
-            //LMP
-            if (nonPv && depth <= 4 && moveCount > 15 * depth && !move.IsCapture)
-                break;
 
             if (score > bestScore) {
                 bestScore = score;

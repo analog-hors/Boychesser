@@ -26,12 +26,12 @@ public class MyBot : IChessBot {
 
     // Every 2nd 4th and 5th element is negated to save tokens
     int[] constants = {
-        7733288, 18350296, 21692634, 36700418, 79561279, 0,
-        1572868, 327688, 196610, 327690, 1114114, 983045,
-        -196602, 720902, 0, 262150, 196605, 589814,
-        -1900547, 1114111, 131072, 393202, 851961, 720866,
-        0, 0, 327685, 131076, 65539, -196610,
-        196609, -2, 1, 327679, -393218, 0,
+        8257607, 18809057, 22085864, 38142210, 77726293, 0, 
+        1638405, 327688, 262146, 327690, 1048579, 983045, 
+        -196606, 655367, -65536, -65526, 524287, 1179621, 
+        -1900547, 1048576, 131072, 393203, 1048569, 655333, 
+        0, 0, 327685, 196612, 65539, -196610, 
+        65529, -65538, -65536, -131068, 196608, 0,
     };
 
 
@@ -99,11 +99,11 @@ public class MyBot : IChessBot {
                 int pieceType = pieceIndex % 6;
                 // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
                 phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
-                bool reverse = pieceIndex >= 6;
-                int negate = reverse == board.IsWhiteToMove ? -1 : 1;
+                bool white = pieceIndex < 6;
+                int negate = white == board.IsWhiteToMove ? 1 : -1;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
-                    int y = reverse ? 7 - square.Rank : square.Rank;
+                    int y = white ? square.Rank : 7 - square.Rank ;
                     staticEval += negate * (
                         constants[pieceType]
                         + y * constants[6 + pieceType]
@@ -113,7 +113,7 @@ public class MyBot : IChessBot {
                             BitboardHelper.GetSliderAttacks(
                                 (PieceType)Math.Min(5, pieceType + 1), square, board)
                             )
-                        + constants[30 + pieceType] * Math.Abs(square.File - board.GetKingSquare(reverse).File));
+                        + constants[30 + pieceType] * Math.Abs(square.File - board.GetKingSquare(white).File));
                 }
                 pieceIndex++;
             }

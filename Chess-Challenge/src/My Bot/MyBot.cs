@@ -74,12 +74,16 @@ public class MyBot : IChessBot {
         bool tt_good = tt.hash == board.ZobristKey;
         bool nonPv = alpha + 1 == beta;
 
-        if (tt_good && tt.depth >= depth && (
-            tt.bound == 1 /* BOUND_EXACT */ && (nonPv || depth <= 1) ||
-            tt.bound == 2 /* BOUND_LOWER */ && tt.score >= beta ||
-            tt.bound == 3 /* BOUND_UPPER */ && tt.score <= alpha
-        ))
-            return tt.score;
+        if (tt_good) {
+            if (tt.depth >= depth && (
+                tt.bound == 1 /* BOUND_EXACT */ && (nonPv || depth <= 1) ||
+                tt.bound == 2 /* BOUND_LOWER */ && tt.score >= beta ||
+                tt.bound == 3 /* BOUND_UPPER */ && tt.score <= alpha
+            ))
+                return tt.score;
+        } else if (depth > 5) {
+            depth--;
+        }
 
         // Null Move Pruning (NMP)
         if (nonPv && depth >= 1 && board.TrySkipTurn()) {

@@ -109,7 +109,7 @@ public class MyBot : IChessBot {
         staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
 
         // Reverse Futiliy Pruning (RFP)
-        if (depth <= 3 && !board.IsInCheck() && staticEval - 70 * depth >= beta)
+        if (nonPv && depth >= 1 && depth <= 3 && !board.IsInCheck() && staticEval - 300 * depth >= beta)
             return staticEval;
 
         // Null Move Pruning (NMP)
@@ -148,7 +148,7 @@ public class MyBot : IChessBot {
         int moveCount = 0, quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111, score;
         foreach (Move move in moves) {
             //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && quietsToCheck-- == 0 && !board.IsInCheck())
+            if (nonPv && depth <= 4 && !move.IsCapture && quietsToCheck-- == 0)
                 break;
 
             board.MakeMove(move);

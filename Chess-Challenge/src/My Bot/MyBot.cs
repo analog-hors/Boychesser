@@ -109,7 +109,7 @@ public class MyBot : IChessBot {
         staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
 
         // Reverse Futiliy Pruning (RFP)
-        if (nonPv && depth >= 1 && depth <= 3 && !board.IsInCheck() && staticEval - 300 * depth >= beta)
+        if (nonPv && depth >= 1 && depth <= 3 && !board.IsInCheck() && staticEval - 70 * depth >= beta)
             return staticEval;
 
         // Null Move Pruning (NMP)

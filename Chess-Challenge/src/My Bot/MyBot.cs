@@ -82,6 +82,36 @@ public class MyBot : IChessBot {
         ))
             return tt.score;
 
+        // Static Eval
+        int staticEval = 0, phase = 0, pieceIndex = 0;
+        foreach (PieceList pieceList in board.GetAllPieceLists()) {
+            int pieceType = pieceIndex % 6;
+            // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
+            phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
+            bool white = pieceIndex < 6;
+            int negate = white == board.IsWhiteToMove ? 1 : -1;
+            foreach (Piece piece in pieceList) {
+                Square square = piece.Square;
+                int y = white ? square.Rank : 7 - square.Rank;
+                staticEval += negate * (
+                    constants[pieceType]
+                    + y * constants[6 + pieceType]
+                    + Min(square.File, 7 - square.File) * constants[12 + pieceType]
+                    + Min(y, 7 - y) * constants[18 + pieceType]
+                    + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
+                        BitboardHelper.GetSliderAttacks(
+                            (PieceType)Min(5, pieceType + 1), square, board)
+                        )
+                    + constants[30 + pieceType] * Abs(square.File - board.GetKingSquare(white).File));
+            }
+            pieceIndex++;
+        }
+        staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
+
+        // Reverse Futiliy Pruning (RFP)
+        if (depth <= 3 && !board.IsInCheck() && staticEval - 70 * depth >= beta)
+            return staticEval;
+
         // Null Move Pruning (NMP)
         if (nonPv && depth >= 1 && board.TrySkipTurn()) {
             var result = -Negamax(-beta, 1 - beta, depth - 3, nextPly);
@@ -95,30 +125,6 @@ public class MyBot : IChessBot {
 
         // static eval for qsearch
         if (depth <= 0) {
-            int staticEval = 0, phase = 0, pieceIndex = 0;
-            foreach (PieceList pieceList in board.GetAllPieceLists()) {
-                int pieceType = pieceIndex % 6;
-                // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
-                phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
-                bool white = pieceIndex < 6;
-                int negate = white == board.IsWhiteToMove ? 1 : -1;
-                foreach (Piece piece in pieceList) {
-                    Square square = piece.Square;
-                    int y = white ? square.Rank : 7 - square.Rank;
-                    staticEval += negate * (
-                        constants[pieceType]
-                        + y * constants[6 + pieceType]
-                        + Min(square.File, 7 - square.File) * constants[12 + pieceType]
-                        + Min(y, 7 - y) * constants[18 + pieceType]
-                        + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
-                            BitboardHelper.GetSliderAttacks(
-                                (PieceType)Min(5, pieceType + 1), square, board)
-                            )
-                        + constants[30 + pieceType] * Abs(square.File - board.GetKingSquare(white).File));
-                }
-                pieceIndex++;
-            }
-            staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
             if (staticEval >= beta)
                 return staticEval;
 
@@ -142,7 +148,7 @@ public class MyBot : IChessBot {
         int moveCount = 0, quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111, score;
         foreach (Move move in moves) {
             //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && quietsToCheck-- == 0)
+            if (nonPv && depth <= 4 && !move.IsCapture && quietsToCheck-- == 0 && !board.IsInCheck())
                 break;
 
             board.MakeMove(move);

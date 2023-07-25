@@ -152,8 +152,8 @@ public class MyBot : IChessBot {
             else if (moveCount == 0)
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
-                int reduction = move.IsCapture || board.IsInCheck() ? 0
-                    : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4);
+                int reduction = (move.IsPromotion && move.PromotionPieceType != PieceType.Queen ? 1 : 0) + (move.IsCapture || board.IsInCheck() ? 0
+                    : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4));
                 score = -Negamax(-alpha - 1, -alpha, nextDepth - reduction, nextPly);
                 if (score > alpha && reduction != 0)
                     score = -Negamax(-alpha - 1, -alpha, nextDepth, nextPly);

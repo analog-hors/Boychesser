@@ -141,6 +141,7 @@ public class MyBot : IChessBot {
         // quietsToCheckTable = [0, 7, 8, 17, 49]
         int moveCount = 0, quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111, score;
         foreach (Move move in moves) {
+            if (move.IsPromotion && move.PromotionPieceType != PieceType.Queen) continue;
             //LMP
             if (nonPv && depth <= 4 && !move.IsCapture && quietsToCheck-- == 0)
                 break;
@@ -171,7 +172,7 @@ public class MyBot : IChessBot {
                 if (!move.IsCapture) {
                     int change = depth * depth;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
-                        if (!malusMove.IsCapture)
+                        if (!malusMove.IsCapture && (!move.IsPromotion || move.PromotionPieceType == PieceType.Queen))
                             HistoryValue(malusMove) -= (short)(change + change * HistoryValue(malusMove) / 4096);
                     HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
                 }

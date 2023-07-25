@@ -12,7 +12,7 @@ struct TtEntry {
 public class MyBot : IChessBot {
 
     public long nodes = 0;
-    public int maxSearchTime, searchingDepth;
+    public int maxSearchTime, searchingDepth, staticEval, negateFeature, featureOffset;
 
     public Timer timer;
     public Board board;
@@ -24,16 +24,19 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    // Every 2nd 4th and 5th element is negated to save tokens
-    int[] constants = {
-        8257607, 18809057, 22085864, 38142210, 77726293, 0,
-        1638405, 327688, 262146, 327690, 1048579, 983045,
-        -196606, 655367, -65536, -65526, 524287, 1179621,
-        -1900547, 1048576, 131072, 393203, 1048569, 655333,
-        0, 0, 327685, 196612, 65539, -196610,
-        65529, -65538, -65536, -131068, 196608, 0,
+    ulong[] packedEvalWeights = {
+        0x011F00E1_007E0047, 0x02460102_015100E8, 0x00000000_04A20255,
+        0x00050008_00190005, 0x0005000A_00040002, 0x000F0005_00100003,
+        0x000A0007_FFFD0002, 0xFFFF000A_FFFF0000, 0x0011FFE5_0007FFFF,
+        0x00100000_FFE2FFFD, 0x0005FFF3_00020000, 0x0009FFE5_000FFFF9,
+        0x00000000_00000000, 0x00030004_00050005, 0xFFFCFFFE_00010003,
+        0xFFFEFFFE_0000FFF9, 0xFFFE0004_FFFF0000, 0x00000000_00030000,
     };
 
+    void AddFeature(int feature) {
+        staticEval += (int)(packedEvalWeights[featureOffset / 2] >> featureOffset % 2 * 32) * feature * negateFeature;
+        featureOffset += 6;
+    }
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0;
@@ -95,26 +98,32 @@ public class MyBot : IChessBot {
 
         // static eval for qsearch
         if (depth <= 0) {
-            int staticEval = 0, phase = 0, pieceIndex = 0;
+            int phase = 0, pieceIndex = 0;
+            staticEval = 0;
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
                 int pieceType = pieceIndex % 6;
                 // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
                 phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
                 bool white = pieceIndex < 6;
-                int negate = white == board.IsWhiteToMove ? 1 : -1;
+                negateFeature = white == board.IsWhiteToMove ? 1 : -1;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
                     int y = white ? square.Rank : 7 - square.Rank;
-                    staticEval += negate * (
-                        constants[pieceType]
-                        + y * constants[6 + pieceType]
-                        + Min(square.File, 7 - square.File) * constants[12 + pieceType]
-                        + Min(y, 7 - y) * constants[18 + pieceType]
-                        + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
+                    featureOffset = pieceType;
+                    AddFeature(1);
+                    AddFeature(y);
+                    AddFeature(Min(square.File, 7 - square.File));
+                    AddFeature(Min(y, 7 - y));
+                    AddFeature(
+                        BitboardHelper.GetNumberOfSetBits(
                             BitboardHelper.GetSliderAttacks(
-                                (PieceType)Min(5, pieceType + 1), square, board)
+                                (PieceType)Min(5, pieceType + 1),
+                                square,
+                                board
                             )
-                        + constants[30 + pieceType] * Abs(square.File - board.GetKingSquare(white).File));
+                        )
+                    );
+                    AddFeature(Abs(square.File - board.GetKingSquare(white).File));
                 }
                 pieceIndex++;
             }
@@ -132,9 +141,9 @@ public class MyBot : IChessBot {
         int scoreIndex = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 10000
+            scores[scoreIndex++] -= tt_good && move.RawValue == tt.moveRaw ? 10000
                 : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
-                : HistoryValue(move));
+                : HistoryValue(move);
 
         Array.Sort(scores, moves);
         Move bestMove = nullMove;

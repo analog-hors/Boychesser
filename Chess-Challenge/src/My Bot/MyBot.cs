@@ -1,6 +1,7 @@
 ﻿using ChessChallenge.API;
 using System;
 using static System.Math;
+using System.Runtime.CompilerServices;
 
 // This struct should be 16 bytes large
 struct TtEntry {
@@ -33,6 +34,7 @@ public class MyBot : IChessBot {
         0xFFFEFFFE_0000FFF9, 0xFFFE0004_FFFF0000, 0x00000000_00030000,
     };
 
+    [MethodImpl(768)]
     void AddFeature(int feature) {
         staticEval += (int)(packedEvalWeights[featureOffset / 2] >> featureOffset % 2 * 32) * feature * negateFeature;
         featureOffset += 6;

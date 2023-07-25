@@ -32,6 +32,7 @@ public class MyBot : IChessBot {
         -1900547, 1048576, 131072, 393203, 1048569, 655333,
         0, 0, 327685, 196612, 65539, -196610,
         65529, -65538, -65536, -131068, 196608, 0,
+        -786438, 0, 0, 0, 0, 0
     };
 
 
@@ -114,7 +115,9 @@ public class MyBot : IChessBot {
                             BitboardHelper.GetSliderAttacks(
                                 (PieceType)Min(5, pieceType + 1), square, board)
                             )
-                        + constants[30 + pieceType] * Abs(square.File - board.GetKingSquare(white).File));
+                        + constants[30 + pieceType] * Abs(square.File - board.GetKingSquare(white).File)
+                        + constants[36 + pieceType] * (int)(0b_10000001_10000001_10000001_10000001_10000001_10000001_10000001_10000001 >> square.Index & 1));
+
                 }
                 pieceIndex++;
             }

@@ -13,7 +13,7 @@ struct TtEntry {
 public class MyBot : IChessBot {
 
     public long nodes = 0;
-    public int maxSearchTime, searchingDepth, staticEval, negateFeature, featureOffset;
+    public int maxSearchTime, searchingDepth;
 
     public Timer timer;
     public Board board;
@@ -26,20 +26,31 @@ public class MyBot : IChessBot {
     short[,,] history = new short[2, 7, 64];
 
     ulong[] packedEvalWeights = {
-        0x012600E9009C0062, 0x02530118015700F7, 0x0000000004B40264,
-        0x0004000800190007, 0x0005000900040001, 0x000E000700110002,
-        0x00090005FFF9FFFC, 0xFFFE0008FFFEFFFF, 0x000EFFE40006FFFE,
-        0x000EFFFFFFE2FFFC, 0x0005FFF300010000, 0x0005FFE7000EFFFA,
-        0x0000000000000000, 0x0002000200050005, 0xFFFCFFFE00000003,
-        0xFFFEFFFE0000FFF9, 0xFFFE0003FFFF0000, 0x0000000000020000,
-        0xFFF8FFFAFFF2FFEC, 0xFFFF0004FFFFFFFB, 0xFFED0008FFFE0001,
-        0x00020001FFECFFF7, 0xFFF5FFF4FFFA0002, 0xFFFCFFFFFFF30002,
+        0x0000000000000000, 0x0000000000000000, 0x007D003C0077001C, 0x007B0029007A0038, 
+        0x00750040006D0023, 0x006D0034006B0035, 0x007B003800730022, 0x00660040006D003B, 
+        0x0087004300850027, 0x00730049007B0042, 0x00BB004E00B00031, 0x009B006100A60058, 
+        0x010F004B00FF0065, 0x00DB008500F6006F, 0x0000000000000000, 0x0000000000000000, 
+        0x011100E000FE00D9, 0x012B00E8012700E3, 0x013700E4011F00E2, 0x014300ED013900EE, 
+        0x014200F5012C00E6, 0x015500FC014B00F6, 0x014D00FF013E00F6, 0x01600100015E0101, 
+        0x0159010201420105, 0x0167010F01600112, 0x01480129013D0102, 0x015501390156012D, 
+        0x014300F7012C00FA, 0x014F012601460122, 0x014800B800FA0099, 0x0144010C015B00AA, 
+        0x015D00F9014E00FB, 0x015C00F8015400F8, 0x0164010C015B0107, 0x0168010501680108, 
+        0x016E011001660106, 0x0178010C0175010E, 0x0171010E0162010F, 0x017C0119017B0110, 
+        0x017B011001650111, 0x017E012501770120, 0x0173012B01690115, 0x017101360177012D, 
+        0x0175010F01630108, 0x0176011201730116, 0x017800E3017700ED, 0x017C00E7017D00D8, 
+        0x024A0134023E012C, 0x024601440249013A, 0x024501290243011B, 0x024B01330248012F, 
+        0x024C013202480124, 0x0252012F0251012C, 0x025901340254012F, 0x0259013D025B0137, 
+        0x02630148025E0141, 0x025E015802620150, 0x025D016602620150, 0x02590179025F0168, 
+        0x0267015B0260015F, 0x0261018102600178, 0x025C017902590177, 0x025D017F025C017D, 
+        0x0484025B04A00251, 0x047D025D0479025B, 0x048A02640492025F, 0x0494026104830269, 
+        0x04A40267049B0264, 0x04AF026004B20262, 0x04C4026204B00265, 0x04DB025D04CC0261, 
+        0x04DF026204B30274, 0x04EF026604E50268, 0x04D4027E04C50270, 0x04EF027704F10270, 
+        0x04EE025C04C20272, 0x04F9026804E70274, 0x04CA027D04CD0269, 0x04BA029704BC0296, 
+        0xFFCC0020FFBA0021, 0xFFC00002FFCF0005, 0xFFE00003FFD40012, 0xFFF4FFDAFFECFFEE, 
+        0xFFF3FFE4FFE6FFE0, 0x0006FFC9FFFEFFCD, 0x0003FFDFFFF5FFD0, 0x0011FFD5000CFFD9, 
+        0x0019FFF00006FFDA, 0x001DFFE9001EFFE8, 0x0038FFE70018FFED, 0x002AFFF30037FFE5, 
+        0x0049FFE0000CFFFE, 0x0031FFF0003EFFEA, 0x00180038FFC7003D, 0x0011004000140042,
     };
-
-    void AddFeature(int feature) {
-        staticEval += (int)(packedEvalWeights[featureOffset / 2] >> featureOffset % 2 * 32) * feature * negateFeature;
-        featureOffset += 6;
-    }
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0;
@@ -100,40 +111,18 @@ public class MyBot : IChessBot {
 
         // static eval for qsearch
         if (depth <= 0) {
-            int phase = 0;
-            staticEval = 0;
-            ulong piecesLeft = board.AllPiecesBitboard;
-            while (piecesLeft != 0) {
-                Square square = new(ClearAndGetIndexOfLSB(ref piecesLeft));
+            int phase = 0, staticEval = 0;
+            ulong pieces = board.AllPiecesBitboard;
+            while (pieces != 0) {
+                int sq = BitboardHelper.ClearAndGetIndexOfLSB(ref pieces);
+                Square square = new(sq);
                 Piece piece = board.GetPiece(square);
+                sq = sq >> 1 & 0b11100 | (square.File >= 4 ? sq ^ 7 : sq) & 0b11;
                 int pieceType = (int)piece.PieceType - 1;
-                bool white = piece.IsWhite;
-                // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
+                staticEval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (int)(packedEvalWeights[
+                    (piece.IsWhite ? sq : sq ^ 0b11100) / 2 + pieceType * 16
+                ] >> sq % 2 * 32);
                 phase += (pieceType + 2 ^ 2) % 5;
-                negateFeature = white == board.IsWhiteToMove ? 1 : -1;
-                int y = white ? square.Rank : 7 - square.Rank;
-                featureOffset = pieceType;
-                AddFeature(1);
-                AddFeature(y);
-                AddFeature(Min(square.File, 7 - square.File));
-                AddFeature(Min(y, 7 - y));
-                AddFeature(
-                    GetNumberOfSetBits(
-                        GetSliderAttacks(
-                            (PieceType)Min(5, pieceType + 1),
-                            square,
-                            board
-                        )
-                    )
-                );
-                AddFeature(Abs(square.File - board.GetKingSquare(white).File));
-                AddFeature((int)(0b_11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111 >> square.Index & 1));
-                AddFeature(
-                    GetNumberOfSetBits(
-                        0x0101010101010101UL << square.File
-                            & board.GetPieceBitboard(PieceType.Pawn, white)
-                    )
-                );
             }
             staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
             if (staticEval >= beta)

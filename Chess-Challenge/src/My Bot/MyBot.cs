@@ -25,13 +25,13 @@ public class MyBot : IChessBot {
     short[,,] history = new short[2, 7, 64];
 
     ulong[] packedEvalWeights = {
-        0x012100E000930058, 0x0250011C015700EF, 0x0000000004AD0263,
-        0x0005000800190007, 0x0006000900040001, 0x000F000600110002,
+        0x012200E000930058, 0x0252011E015200DC, 0x0000000004A9026F,
+        0x0004000800190008, 0x0006000900040001, 0x000F000600110002,
         0x000A0007FFFE0000, 0xFFFE000800000000, 0x0010FFE30007FFFF,
-        0x00100001FFE2FFFB, 0x0005FFF300010001, 0x0009FFE6000EFFFB,
+        0x00100001FFE2FFFB, 0x0005FFF300010002, 0x0009FFE6000EFFFB,
         0x0000000000000000, 0x0002000200050005, 0xFFFCFFFE00010003,
         0xFFFEFFFEFFFFFFF9, 0xFFFE0004FFFF0000, 0x0000000000020000,
-        0x00010003FFEDFFF7, 0xFFF6FFF1FFFA0003, 0xFFFDFFFEFFF50000,
+        0x00020003FFEDFFF7, 0xFFF6FFF1FFFA0003, 0xFFFDFFFEFFF50000,
     };
 
     void AddFeature(int feature) {
@@ -132,6 +132,7 @@ public class MyBot : IChessBot {
                         )
                     );
                 }
+                staticEval += pieceType == 2 && pieceList.Count >= 2 ? negateFeature * 2883604 : 0;
                 pieceIndex++;
             }
             staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;

@@ -118,44 +118,43 @@ public class MyBot : IChessBot {
             return score;
         // end tmp use
 
+        // use tmp as phase
+        score = tmp = 0;
+        ulong pieces = board.AllPiecesBitboard;
+        while (pieces != 0) {
+            Square square = new(sq = BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
+            Piece piece = board.GetPiece(square);
+            sq = sq >> 1 & 0b11100 | sq & 0b11 ^ square.File / 4 * 0b11;
+            pieceType = (int)piece.PieceType - 1;
+            score += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
+                EvalWeight((piece.IsWhite ? sq : sq ^ 0b11100) + pieceType * 32) +
+                EvalWeight(26 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                    BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
+                )
+            );
+            // phase weight expression
+            // maps 0 1 2 3 4 5 to 0 1 1 2 4 0
+            tmp += (pieceType + 2 ^ 2) % 5;
+        }
+        score = ((short)score * tmp + (score + 0x8000) / 0x10000 * (24 - tmp)) / 24;
+        // end tmp use
+
+        // static eval for qsearch
+        if (depth <= 0) {
+            alpha = Max(alpha, bestScore = score);
+            
+            if (bestScore >= beta)
+                return bestScore;
+        }
+
+        if (ttHit) score = tt.score;
+
         // Null Move Pruning (NMP)
-        if (nonPv && depth >= 1 && board.TrySkipTurn()) {
+        if (nonPv && depth >= 1 && score >= beta && board.TrySkipTurn()) {
             score = -Negamax(-beta, -alpha, depth - 3, nextPly);
             board.UndoSkipTurn();
             if (score >= beta)
                 return score;
-        }
-
-
-        // static eval for qsearch
-        if (depth <= 0) {
-            // use tmp as phase
-            bestScore = tmp = 0;
-            ulong pieces = board.AllPiecesBitboard;
-            while (pieces != 0) {
-                Square square = new(sq = BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
-                Piece piece = board.GetPiece(square);
-                sq = sq >> 1 & 0b11100 | sq & 0b11 ^ square.File / 4 * 0b11;
-                pieceType = (int)piece.PieceType - 1;
-                bestScore += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
-                    EvalWeight((piece.IsWhite ? sq : sq ^ 0b11100) + pieceType * 32) +
-                    EvalWeight(26 + pieceType) * BitboardHelper.GetNumberOfSetBits(
-                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
-                    )
-                );
-                // phase weight expression
-                // maps 0 1 2 3 4 5 to 0 1 1 2 4 0
-                tmp += (pieceType + 2 ^ 2) % 5;
-            }
-
-            alpha = Max(
-                alpha,
-                bestScore = ((short)bestScore * tmp + (bestScore + 0x8000) / 0x10000 * (24 - tmp)) / 24
-            );
-            // end tmp use
-            
-            if (bestScore >= beta)
-                return bestScore;
         }
 
         var moves = board.GetLegalMoves(depth <= 0);

@@ -51,6 +51,8 @@ public class MyBot : IChessBot {
         0x0048FFECFFFDFFFB, 0x0033000900400000, 0x000C0041FFB8003B, 0x0007005F000B0059,
     };
 
+    int EvalWeight(int item) => (int)(packedEvalWeights[item / 2] >> item % 2 * 32);
+
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0;
         maxSearchTime = timerOrig.MillisecondsRemaining / 4;
@@ -88,68 +90,87 @@ public class MyBot : IChessBot {
         nextPly++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
-        bool tt_good = tt.hash == board.ZobristKey;
-        bool nonPv = alpha + 1 == beta;
+        bool
+            ttHit = tt.hash == board.ZobristKey,
+            nonPv = alpha + 1 == beta;
+        int
+            bestScore = -99999,
+            oldAlpha = alpha,
 
-        if (tt_good && tt.depth >= depth && (
-            tt.bound == 1 /* BOUND_EXACT */ && (nonPv || depth <= 0) ||
-            tt.bound == 2 /* BOUND_LOWER */ && tt.score >= beta ||
-            tt.bound == 3 /* BOUND_UPPER */ && tt.score <= alpha
+            // search loop vars
+            moveCount = 0, // quietsToCheckTable = [0, 7, 8, 17, 49]
+            quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111,
+
+            // static eval vars
+            sq,
+            pieceType,
+
+            // temp vars
+            score = tt.score,
+            tmp = tt.bound;
+
+        // use tmp as tt.bound
+        if (ttHit && tt.depth >= depth && (
+            tmp == 1 /* BOUND_EXACT */ && (nonPv || depth <= 0) ||
+            tmp == 2 /* BOUND_LOWER */ && score >= beta ||
+            tmp == 3 /* BOUND_UPPER */ && score <= alpha
         ))
-            return tt.score;
+            return score;
+        // end tmp use
 
         // Null Move Pruning (NMP)
         if (nonPv && depth >= 1 && board.TrySkipTurn()) {
-            var result = -Negamax(-beta, 1 - beta, depth - 3, nextPly);
+            score = -Negamax(-beta, -alpha, depth - 3, nextPly);
             board.UndoSkipTurn();
-            if (result >= beta)
-                return result;
+            if (score >= beta)
+                return score;
         }
 
-        int bestScore = -99999, oldAlpha = alpha;
 
         // static eval for qsearch
         if (depth <= 0) {
-            int phase = 0, staticEval = 0;
+            // use tmp as phase
+            bestScore = tmp = 0;
             ulong pieces = board.AllPiecesBitboard;
             while (pieces != 0) {
-                int sq = BitboardHelper.ClearAndGetIndexOfLSB(ref pieces);
-                Square square = new(sq);
+                Square square = new(sq = BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
                 Piece piece = board.GetPiece(square);
-                sq = sq >> 1 & 0b11100 | (square.File >= 4 ? sq ^ 7 : sq) & 0b11;
-                int pieceType = (int)piece.PieceType - 1;
-                staticEval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
-                    (int)(packedEvalWeights[
-                        (piece.IsWhite ? sq : sq ^ 0b11100) / 2 + pieceType * 16
-                    ] >> sq % 2 * 32) +
-                    (int)(packedEvalWeights[13 + pieceType / 2] >> pieceType % 2 * 32)
-                        * BitboardHelper.GetNumberOfSetBits(
-                            BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
-                        )
+                sq = sq >> 1 & 0b11100 | sq & 0b11 ^ square.File / 4 * 0b11;
+                pieceType = (int)piece.PieceType - 1;
+                bestScore += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
+                    EvalWeight((piece.IsWhite ? sq : sq ^ 0b11100) + pieceType * 32) +
+                    EvalWeight(26 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
+                    )
                 );
-                phase += (pieceType + 2 ^ 2) % 5;
+                // phase weight expression
+                // maps 0 1 2 3 4 5 to 0 1 1 2 4 0
+                tmp += (pieceType + 2 ^ 2) % 5;
             }
-            staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
-            if (staticEval >= beta)
-                return staticEval;
 
-            alpha = Max(alpha, staticEval);
-            bestScore = staticEval;
+            alpha = Max(
+                alpha,
+                bestScore = ((short)bestScore * tmp + (bestScore + 0x8000) / 0x10000 * (24 - tmp)) / 24
+            );
+            // end tmp use
+            
+            if (bestScore >= beta)
+                return bestScore;
         }
 
         var moves = board.GetLegalMoves(depth <= 0);
         var scores = new int[moves.Length];
-        int scoreIndex = 0;
+        // use tmp as scoreIndex
+        tmp = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[scoreIndex++] -= tt_good && move.RawValue == tt.moveRaw ? 10000
+            scores[tmp++] -= ttHit && move.RawValue == tt.moveRaw ? 10000
                 : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
                 : HistoryValue(move);
+        // end tmp use
 
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
-        // quietsToCheckTable = [0, 7, 8, 17, 49]
-        int moveCount = 0, quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111, score;
         foreach (Move move in moves) {
             //LMP
             if (nonPv && depth <= 4 && !move.IsCapture && quietsToCheck-- == 0)
@@ -162,32 +183,35 @@ public class MyBot : IChessBot {
             else if (moveCount == 0)
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
-                int reduction = move.IsCapture || board.IsInCheck() ? 0
+                // use tmp as reduction
+                tmp = move.IsCapture || board.IsInCheck() ? 0
                     : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4);
-                score = -Negamax(-alpha - 1, -alpha, nextDepth - reduction, nextPly);
-                if (score > alpha && reduction != 0)
-                    score = -Negamax(-alpha - 1, -alpha, nextDepth, nextPly);
+                score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
+                if (score > alpha && tmp != 0)
+                    score = -Negamax(~alpha, -alpha, nextDepth, nextPly);
                 if (score > alpha && score < beta)
                     score = -Negamax(-beta, -alpha, nextDepth, nextPly);
+                // end tmp use
             }
 
             board.UndoMove(move);
 
             if (score > bestScore) {
-                bestScore = score;
+                alpha = Max(alpha, bestScore = score);
                 bestMove = move;
             }
             if (score >= beta) {
                 if (!move.IsCapture) {
-                    int change = depth * depth;
+                    // use tmp as change
+                    tmp = depth * depth;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)
-                            HistoryValue(malusMove) -= (short)(change + change * HistoryValue(malusMove) / 4096);
-                    HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
+                            HistoryValue(malusMove) -= (short)(tmp + tmp * HistoryValue(malusMove) / 4096);
+                    HistoryValue(move) += (short)(tmp - tmp * HistoryValue(move) / 4096);
+                    // end tmp use
                 }
                 break;
             }
-            alpha = Max(alpha, score);
             moveCount++;
         }
 
@@ -197,7 +221,7 @@ public class MyBot : IChessBot {
         tt.depth = (short)Max(depth, 0);
         tt.hash = board.ZobristKey;
         tt.score = (short)bestScore;
-        if (!tt_good || tt.bound != 3 /* BOUND_UPPER */)
+        if (!ttHit || tt.bound != 3 /* BOUND_UPPER */)
             tt.moveRaw = bestMove.RawValue;
 
         searchBestMove = bestMove;

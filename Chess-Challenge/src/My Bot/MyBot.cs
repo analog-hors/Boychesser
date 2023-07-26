@@ -1,6 +1,7 @@
 ﻿using ChessChallenge.API;
 using System;
 using static System.Math;
+using static ChessChallenge.API.BitboardHelper;
 
 // This struct should be 16 bytes large
 struct TtEntry {
@@ -99,41 +100,40 @@ public class MyBot : IChessBot {
 
         // static eval for qsearch
         if (depth <= 0) {
-            int phase = 0, pieceIndex = 0;
+            int phase = 0;
             staticEval = 0;
-            foreach (PieceList pieceList in board.GetAllPieceLists()) {
-                int pieceType = pieceIndex % 6;
+            ulong piecesLeft = board.AllPiecesBitboard;
+            while (piecesLeft != 0) {
+                Square square = new(ClearAndGetIndexOfLSB(ref piecesLeft));
+                Piece piece = board.GetPiece(square);
+                int pieceType = (int)piece.PieceType - 1;
+                bool white = piece.IsWhite;
                 // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
-                phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
-                bool white = pieceIndex < 6;
+                phase += (pieceType + 2 ^ 2) % 5;
                 negateFeature = white == board.IsWhiteToMove ? 1 : -1;
-                foreach (Piece piece in pieceList) {
-                    Square square = piece.Square;
-                    int y = white ? square.Rank : 7 - square.Rank;
-                    featureOffset = pieceType;
-                    AddFeature(1);
-                    AddFeature(y);
-                    AddFeature(Min(square.File, 7 - square.File));
-                    AddFeature(Min(y, 7 - y));
-                    AddFeature(
-                        BitboardHelper.GetNumberOfSetBits(
-                            BitboardHelper.GetSliderAttacks(
-                                (PieceType)Min(5, pieceType + 1),
-                                square,
-                                board
-                            )
+                int y = white ? square.Rank : 7 - square.Rank;
+                featureOffset = pieceType;
+                AddFeature(1);
+                AddFeature(y);
+                AddFeature(Min(square.File, 7 - square.File));
+                AddFeature(Min(y, 7 - y));
+                AddFeature(
+                    GetNumberOfSetBits(
+                        GetSliderAttacks(
+                            (PieceType)Min(5, pieceType + 1),
+                            square,
+                            board
                         )
-                    );
-                    AddFeature(Abs(square.File - board.GetKingSquare(white).File));
-                    AddFeature((int)(0b_11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111 >> square.Index & 1));
-                    AddFeature(
-                        BitboardHelper.GetNumberOfSetBits(
-                            0x0101010101010101UL << square.File
-                                & board.GetPieceBitboard(PieceType.Pawn, white)
-                        )
-                    );
-                }
-                pieceIndex++;
+                    )
+                );
+                AddFeature(Abs(square.File - board.GetKingSquare(white).File));
+                AddFeature((int)(0b_11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111 >> square.Index & 1));
+                AddFeature(
+                    GetNumberOfSetBits(
+                        0x0101010101010101UL << square.File
+                            & board.GetPieceBitboard(PieceType.Pawn, white)
+                    )
+                );
             }
             staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
             if (staticEval >= beta)

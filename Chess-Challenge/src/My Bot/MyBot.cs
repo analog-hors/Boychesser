@@ -107,16 +107,14 @@ public class MyBot : IChessBot {
 
             // temp vars
             score = tt.score,
-            tmp = tt.bound;
+            tmp;
 
-        // use tmp as tt.bound
-        if (ttHit && tt.depth >= depth && (
-            tmp == 1 /* BOUND_EXACT */ && (nonPv || depth <= 0) ||
-            tmp == 2 /* BOUND_LOWER */ && score >= beta ||
-            tmp == 3 /* BOUND_UPPER */ && score <= alpha
-        ))
+        if (ttHit && tt.depth >= depth && tt.bound switch {
+            1 /* BOUND_EXACT */ => nonPv || depth <= 0,
+            2 /* BOUND_LOWER */ => score >= beta,
+            3 /* BOUND_UPPER */ => score <= alpha
+        })
             return score;
-        // end tmp use
 
         // Null Move Pruning (NMP)
         if (nonPv && depth >= 1 && board.TrySkipTurn()) {

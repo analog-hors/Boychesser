@@ -12,7 +12,10 @@ struct TtEntry {
 public class MyBot : IChessBot {
 
     public long nodes = 0;
-    public int maxSearchTime, searchingDepth, staticEval, negateFeature, featureOffset;
+    public int maxSearchTime, searchingDepth,
+        
+        // Temporary static eval variables
+        staticEval, negateFeature, featureOffset;
 
     public Timer timer;
     public Board board;
@@ -72,145 +75,149 @@ public class MyBot : IChessBot {
 
         // check for game end
         if (board.IsInCheckmate())
-            return nextPly - 30000;
+            return 30000 - nextPly;
         nextPly++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
-        bool tt_good = tt.hash == board.ZobristKey;
-        bool nonPv = alpha + 1 == beta;
+        bool
+            ttGood = tt.hash == board.ZobristKey,
+            nonPv = alpha + 1 == beta,
+            whiteAndIsCapture;
+        int oldAlpha = alpha,
+            moveCount = 0, // quietsToCheckTable = [0, 7, 8, 17, 49]
+            quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111,
+            bestScore = -999999,
+            scoreAndScoreIndex = 0,
+            nextDepthAndY,
+            reductionAndChangeAndPieceType,
+            fileAndNmpResult,
+            phaseAndTtScore = tt.score,
+            pieceIndex;
 
-        if (tt_good && tt.depth >= depth && (
-            tt.bound == 1 /* BOUND_EXACT */ && (nonPv || depth <= 0) ||
-            tt.bound == 2 /* BOUND_LOWER */ && tt.score >= beta ||
-            tt.bound == 3 /* BOUND_UPPER */ && tt.score <= alpha
-        ))
-            return tt.score;
+        if (ttGood && tt.depth >= depth && tt.bound switch {
+            1 => nonPv || depth <= 0,
+            2 => phaseAndTtScore >= beta,
+            3 => phaseAndTtScore <= alpha,
+        })
+            return -phaseAndTtScore;
 
         // Null Move Pruning (NMP)
         if (nonPv && depth >= 1 && board.TrySkipTurn()) {
-            var result = -Negamax(-beta, 1 - beta, depth - 3, nextPly);
+            fileAndNmpResult = Negamax(-beta, 1 - beta, depth - 3, nextPly);
             board.UndoSkipTurn();
-            if (result >= beta)
-                return result;
+            if (fileAndNmpResult >= beta)
+                return -fileAndNmpResult;
         }
 
-        int bestScore = -999999;
-        bool raisedAlpha = false;
-
+    
         // static eval for qsearch
         if (depth <= 0) {
-            int phase = 0, pieceIndex = 0;
-            staticEval = 0;
+            staticEval = phaseAndTtScore = pieceIndex = 0;
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
-                int pieceType = pieceIndex % 6;
-                // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
-                phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
-                bool white = pieceIndex < 6;
-                negateFeature = white == board.IsWhiteToMove ? 1 : -1;
+                reductionAndChangeAndPieceType = pieceIndex % 6;
+                whiteAndIsCapture = pieceIndex < 6;
+                negateFeature = whiteAndIsCapture == board.IsWhiteToMove ? 1 : -1;
                 foreach (Piece piece in pieceList) {
+                    // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
+                    phaseAndTtScore += (reductionAndChangeAndPieceType + 2 ^ 2) % 5;
                     Square square = piece.Square;
-                    int y = white ? square.Rank : 7 - square.Rank;
-                    featureOffset = pieceType;
+                    featureOffset = reductionAndChangeAndPieceType;
                     AddFeature(1);
-                    AddFeature(y);
-                    AddFeature(Min(square.File, 7 - square.File));
-                    AddFeature(Min(y, 7 - y));
+                    AddFeature(nextDepthAndY = whiteAndIsCapture ? square.Rank : 7 - square.Rank);
+                    AddFeature(Min(fileAndNmpResult = square.File, 7 - fileAndNmpResult));
+                    AddFeature(Min(nextDepthAndY, 7 - nextDepthAndY));
                     AddFeature(
                         BitboardHelper.GetNumberOfSetBits(
                             BitboardHelper.GetSliderAttacks(
-                                (PieceType)Min(5, pieceType + 1),
+                                (PieceType)Min(5, reductionAndChangeAndPieceType + 1),
                                 square,
                                 board
                             )
                         )
                     );
-                    AddFeature(Abs(square.File - board.GetKingSquare(white).File));
+                    AddFeature(Abs(fileAndNmpResult - board.GetKingSquare(whiteAndIsCapture).File));
                     AddFeature(
                         BitboardHelper.GetNumberOfSetBits(
-                            0x0101010101010101UL << square.File
-                                & board.GetPieceBitboard(PieceType.Pawn, white)
+                            0x0101010101010101UL << fileAndNmpResult
+                                & board.GetPieceBitboard(PieceType.Pawn, whiteAndIsCapture)
                         )
                     );
                 }
                 pieceIndex++;
             }
-            staticEval = ((short)staticEval * phase + (staticEval + 0x8000) / 0x10000 * (24 - phase)) / 24;
+            alpha = Max(
+                alpha,
+                bestScore
+                    = staticEval
+                    = ((short)staticEval * phaseAndTtScore + (staticEval + 0x8000) / 0x10000 * (24 - phaseAndTtScore)) / 24
+            );
             if (staticEval >= beta)
-                return staticEval;
-
-            if (raisedAlpha = staticEval > alpha)
-                alpha = staticEval;
-            bestScore = staticEval;
+                return -staticEval;
         }
 
         var moves = board.GetLegalMoves(depth <= 0);
         var scores = new int[moves.Length];
-        int scoreIndex = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[scoreIndex++] -= tt_good && move.RawValue == tt.moveRaw ? 10000
+            scores[scoreAndScoreIndex++] -= ttGood && move.RawValue == tt.moveRaw ? 10000
                 : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
                 : HistoryValue(move);
 
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
-        // quietsToCheckTable = [0, 7, 8, 17, 49]
-        int moveCount = 0, quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111, score;
         foreach (Move move in moves) {
+            whiteAndIsCapture = move.IsCapture;
             //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && quietsToCheck-- == 0)
+            if (nonPv && depth <= 4 && !whiteAndIsCapture && quietsToCheck-- == 0)
                 break;
 
             board.MakeMove(move);
-            int nextDepth = board.IsInCheck() ? depth : depth - 1;
+            nextDepthAndY = board.IsInCheck() ? depth : depth - 1;
             if (board.IsDraw())
-                score = 0;
+                scoreAndScoreIndex = 0;
             else if (moveCount == 0)
-                score = -Negamax(-beta, -alpha, nextDepth, nextPly);
+                scoreAndScoreIndex = Negamax(-beta, -alpha, nextDepthAndY, nextPly);
             else {
-                int reduction = move.IsCapture || board.IsInCheck() ? 0
+                reductionAndChangeAndPieceType = whiteAndIsCapture || board.IsInCheck() ? 0
                     : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4);
-                score = -Negamax(-alpha - 1, -alpha, nextDepth - reduction, nextPly);
-                if (score > alpha && reduction != 0)
-                    score = -Negamax(-alpha - 1, -alpha, nextDepth, nextPly);
-                if (score > alpha && score < beta)
-                    score = -Negamax(-beta, -alpha, nextDepth, nextPly);
+                scoreAndScoreIndex = Negamax(~alpha, -alpha, nextDepthAndY - reductionAndChangeAndPieceType, nextPly);
+                if (scoreAndScoreIndex > alpha && reductionAndChangeAndPieceType != 0)
+                    scoreAndScoreIndex = Negamax(~alpha, -alpha, nextDepthAndY, nextPly);
+                if (scoreAndScoreIndex > alpha && scoreAndScoreIndex < beta)
+                    scoreAndScoreIndex = Negamax(-beta, -alpha, nextDepthAndY, nextPly);
             }
 
             board.UndoMove(move);
 
-            if (score > bestScore) {
-                bestScore = score;
+            if (scoreAndScoreIndex > bestScore) {
+                alpha = Max(alpha, bestScore = scoreAndScoreIndex);
                 bestMove = move;
             }
-            if (score >= beta) {
-                if (!move.IsCapture) {
-                    int change = depth * depth;
+            if (scoreAndScoreIndex >= beta) {
+                if (!whiteAndIsCapture) {
+                    reductionAndChangeAndPieceType = depth * depth;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)
-                            HistoryValue(malusMove) -= (short)(change + change * HistoryValue(malusMove) / 4096);
-                    HistoryValue(move) += (short)(change - change * HistoryValue(move) / 4096);
+                            HistoryValue(malusMove) -= (short)(reductionAndChangeAndPieceType + reductionAndChangeAndPieceType * HistoryValue(malusMove) / 4096);
+                    HistoryValue(move) += (short)(reductionAndChangeAndPieceType - reductionAndChangeAndPieceType * HistoryValue(move) / 4096);
                 }
                 break;
             }
-            if (score > alpha) {
-                raisedAlpha = true;
-                alpha = score;
-            }
+
             moveCount++;
         }
 
         tt.bound = (short)(bestScore >= beta ? 2 /* BOUND_LOWER */
-            : raisedAlpha ? 1 /* BOUND_EXACT */
+            : alpha > oldAlpha ? 1 /* BOUND_EXACT */
             : 3 /* BOUND_UPPER */);
         tt.depth = (short)Max(depth, 0);
         tt.hash = board.ZobristKey;
         tt.score = (short)bestScore;
-        if (!tt_good || tt.bound != 3 /* BOUND_UPPER */)
+        if (!ttGood || tt.bound != 3 /* BOUND_UPPER */)
             tt.moveRaw = bestMove.RawValue;
 
         searchBestMove = bestMove;
-        return bestScore;
+        return -bestScore;
     }
 
     ref short HistoryValue(Move move) => ref history[

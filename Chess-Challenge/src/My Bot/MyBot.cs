@@ -12,7 +12,7 @@ struct TtEntry {
 public class MyBot : IChessBot {
 
     public long nodes = 0;
-    public int maxSearchTime, searchingDepth;
+    public int maxSearchTime, searchingDepth, staticEval, negateFeature, featureOffset;
 
     public Timer timer;
     public Board board;
@@ -24,16 +24,21 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    // Every 2nd 4th and 5th element is negated to save tokens
-    int[] constants = {
-        8257607, 18809057, 22085864, 38142210, 77726293, 0,
-        1638405, 327688, 262146, 327690, 1048579, 983045,
-        -196606, 655367, -65536, -65526, 524287, 1179621,
-        -1900547, 1048576, 131072, 393203, 1048569, 655333,
-        0, 0, 327685, 196612, 65539, -196610,
-        65529, -65538, -65536, -131068, 196608, 0,
+    ulong[] packedEvalWeights = {
+        0x012600E9009C0062, 0x02530118015700F7, 0x0000000004B40264,
+        0x0004000800190007, 0x0005000900040001, 0x000E000700110002,
+        0x00090005FFF9FFFC, 0xFFFE0008FFFEFFFF, 0x000EFFE40006FFFE,
+        0x000EFFFFFFE2FFFC, 0x0005FFF300010000, 0x0005FFE7000EFFFA,
+        0x0000000000000000, 0x0002000200050005, 0xFFFCFFFE00000003,
+        0xFFFEFFFE0000FFF9, 0xFFFE0003FFFF0000, 0x0000000000020000,
+        0xFFF8FFFAFFF2FFEC, 0xFFFF0004FFFFFFFB, 0xFFED0008FFFE0001,
+        0x00020001FFECFFF7, 0xFFF5FFF4FFFA0002, 0xFFFCFFFFFFF30002,
     };
 
+    void AddFeature(int feature) {
+        staticEval += (int)(packedEvalWeights[featureOffset / 2] >> featureOffset % 2 * 32) * feature * negateFeature;
+        featureOffset += 6;
+    }
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0;
@@ -90,31 +95,43 @@ public class MyBot : IChessBot {
                 return result;
         }
 
-        int bestScore = -999999;
-        bool raisedAlpha = false;
+        int bestScore = -999999, oldAlpha = alpha;
 
         // static eval for qsearch
         if (depth <= 0) {
-            int staticEval = 0, phase = 0, pieceIndex = 0;
+            int phase = 0, pieceIndex = 0;
+            staticEval = 0;
             foreach (PieceList pieceList in board.GetAllPieceLists()) {
                 int pieceType = pieceIndex % 6;
                 // Maps 0, 1, 2, 3, 4, 5 -> 0, 1, 1, 2, 4, 0 for pieceType
                 phase += pieceType * pieceType * 21 % 26 % 5 * pieceList.Count;
                 bool white = pieceIndex < 6;
-                int negate = white == board.IsWhiteToMove ? 1 : -1;
+                negateFeature = white == board.IsWhiteToMove ? 1 : -1;
                 foreach (Piece piece in pieceList) {
                     Square square = piece.Square;
                     int y = white ? square.Rank : 7 - square.Rank;
-                    staticEval += negate * (
-                        constants[pieceType]
-                        + y * constants[6 + pieceType]
-                        + Min(square.File, 7 - square.File) * constants[12 + pieceType]
-                        + Min(y, 7 - y) * constants[18 + pieceType]
-                        + constants[24 + pieceType] * BitboardHelper.GetNumberOfSetBits(
+                    featureOffset = pieceType;
+                    AddFeature(1);
+                    AddFeature(y);
+                    AddFeature(Min(square.File, 7 - square.File));
+                    AddFeature(Min(y, 7 - y));
+                    AddFeature(
+                        BitboardHelper.GetNumberOfSetBits(
                             BitboardHelper.GetSliderAttacks(
-                                (PieceType)Min(5, pieceType + 1), square, board)
+                                (PieceType)Min(5, pieceType + 1),
+                                square,
+                                board
                             )
-                        + constants[30 + pieceType] * Abs(square.File - board.GetKingSquare(white).File));
+                        )
+                    );
+                    AddFeature(Abs(square.File - board.GetKingSquare(white).File));
+                    AddFeature((int)(0b_11111111_10000001_10000001_10000001_10000001_10000001_10000001_11111111 >> square.Index & 1));
+                    AddFeature(
+                        BitboardHelper.GetNumberOfSetBits(
+                            0x0101010101010101UL << square.File
+                                & board.GetPieceBitboard(PieceType.Pawn, white)
+                        )
+                    );
                 }
                 pieceIndex++;
             }
@@ -122,8 +139,7 @@ public class MyBot : IChessBot {
             if (staticEval >= beta)
                 return staticEval;
 
-            if (raisedAlpha = staticEval > alpha)
-                alpha = staticEval;
+            alpha = Max(alpha, staticEval);
             bestScore = staticEval;
         }
 
@@ -132,9 +148,9 @@ public class MyBot : IChessBot {
         int scoreIndex = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[scoreIndex++] = -(tt_good && move.RawValue == tt.moveRaw ? 10000
+            scores[scoreIndex++] -= tt_good && move.RawValue == tt.moveRaw ? 10000
                 : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
-                : HistoryValue(move));
+                : HistoryValue(move);
 
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
@@ -177,15 +193,12 @@ public class MyBot : IChessBot {
                 }
                 break;
             }
-            if (score > alpha) {
-                raisedAlpha = true;
-                alpha = score;
-            }
+            alpha = Max(alpha, score);
             moveCount++;
         }
 
         tt.bound = (short)(bestScore >= beta ? 2 /* BOUND_LOWER */
-            : raisedAlpha ? 1 /* BOUND_EXACT */
+            : alpha > oldAlpha ? 1 /* BOUND_EXACT */
             : 3 /* BOUND_UPPER */);
         tt.depth = (short)Max(depth, 0);
         tt.hash = board.ZobristKey;

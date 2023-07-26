@@ -95,7 +95,7 @@ public class MyBot : IChessBot {
                 return result;
         }
 
-        int bestScore = -999999, oldAlpha = alpha;
+        int bestScore = -99999, oldAlpha = alpha;
 
         // static eval for qsearch
         if (depth <= 0) {

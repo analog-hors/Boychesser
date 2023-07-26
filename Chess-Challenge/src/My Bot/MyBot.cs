@@ -25,12 +25,13 @@ public class MyBot : IChessBot {
     short[,,] history = new short[2, 7, 64];
 
     ulong[] packedEvalWeights = {
-        0x011F00E1_007E0047, 0x02460102_015100E8, 0x00000000_04A20255,
-        0x00050008_00190005, 0x0005000A_00040002, 0x000F0005_00100003,
-        0x000A0007_FFFD0002, 0xFFFF000A_FFFF0000, 0x0011FFE5_0007FFFF,
-        0x00100000_FFE2FFFD, 0x0005FFF3_00020000, 0x0009FFE5_000FFFF9,
-        0x00000000_00000000, 0x00030004_00050005, 0xFFFCFFFE_00010003,
-        0xFFFEFFFE_0000FFF9, 0xFFFE0004_FFFF0000, 0x00000000_00030000,
+        0x012100E000930058, 0x0250011C015700EF, 0x0000000004AD0263,
+        0x0005000800190007, 0x0006000900040001, 0x000F000600110002,
+        0x000A0007FFFE0000, 0xFFFE000800000000, 0x0010FFE30007FFFF,
+        0x00100001FFE2FFFB, 0x0005FFF300010001, 0x0009FFE6000EFFFB,
+        0x0000000000000000, 0x0002000200050005, 0xFFFCFFFE00010003,
+        0xFFFEFFFEFFFFFFF9, 0xFFFE0004FFFF0000, 0x0000000000020000,
+        0x00010003FFEDFFF7, 0xFFF6FFF1FFFA0003, 0xFFFDFFFEFFF50000,
     };
 
     void AddFeature(int feature) {
@@ -124,6 +125,12 @@ public class MyBot : IChessBot {
                         )
                     );
                     AddFeature(Abs(square.File - board.GetKingSquare(white).File));
+                    AddFeature(
+                        BitboardHelper.GetNumberOfSetBits(
+                            0x0101010101010101UL << square.File
+                                & board.GetPieceBitboard(PieceType.Pawn, white)
+                        )
+                    );
                 }
                 pieceIndex++;
             }

@@ -95,8 +95,7 @@ public class MyBot : IChessBot {
                 return result;
         }
 
-        int bestScore = -999999;
-        bool raisedAlpha = false;
+        int bestScore = -999999, oldAlpha = alpha;
 
         // static eval for qsearch
         if (depth <= 0) {
@@ -140,8 +139,7 @@ public class MyBot : IChessBot {
             if (staticEval >= beta)
                 return staticEval;
 
-            if (raisedAlpha = staticEval > alpha)
-                alpha = staticEval;
+            alpha = Max(alpha, staticEval);
             bestScore = staticEval;
         }
 
@@ -195,15 +193,12 @@ public class MyBot : IChessBot {
                 }
                 break;
             }
-            if (score > alpha) {
-                raisedAlpha = true;
-                alpha = score;
-            }
+            alpha = Max(alpha, score);
             moveCount++;
         }
 
         tt.bound = (short)(bestScore >= beta ? 2 /* BOUND_LOWER */
-            : raisedAlpha ? 1 /* BOUND_EXACT */
+            : alpha > oldAlpha ? 1 /* BOUND_EXACT */
             : 3 /* BOUND_UPPER */);
         tt.depth = (short)Max(depth, 0);
         tt.hash = board.ZobristKey;

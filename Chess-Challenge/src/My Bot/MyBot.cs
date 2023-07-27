@@ -62,7 +62,7 @@ public class MyBot : IChessBot {
         searchingDepth = 1;
 
         do
-            //If score is of this value search has been aborted, DO NOT use result
+            //If search has been aborted, DO NOT use the result
             try {
                 Negamax(-999999, 999999, searchingDepth, 0);
                 rootBestMove = searchBestMove;
@@ -184,8 +184,10 @@ public class MyBot : IChessBot {
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
                 // use tmp as reduction
-                tmp = move.IsCapture || board.IsInCheck() ? 0
-                    : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4);
+
+                //If in check, DO NOT reduce
+                //If NOT in check, reduce by a certain amount for LMR IF move is loud, reduce EVEN MORE if move is quiet
+                tmp = board.IsInCheck() ? 0 : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4) * (move.IsCapture ? 1 : 2);
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);

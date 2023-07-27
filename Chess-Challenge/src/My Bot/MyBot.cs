@@ -162,7 +162,7 @@ public class MyBot : IChessBot {
                 pieceType = (int)piece.PieceType - 1;
                 bestScore += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
                     packedPstBases[pieceType] + (int)(
-                        packedPstDeltas[square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
+                        packedPstDeltas[pieceType * 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
                             >> (0x01455410 >> square.File * 4) * 8
                             & 0xFF00FF
                     )

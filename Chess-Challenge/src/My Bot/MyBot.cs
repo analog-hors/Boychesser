@@ -176,8 +176,12 @@ public class MyBot : IChessBot {
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
                 // use tmp as reduction
-                tmp = move.IsCapture || board.IsInCheck() ? 0
-                    : Max((moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4) - HistoryValue(move) / 450, 0);
+                tmp = move.IsCapture || board.IsInCheck() ? 0 : Max(
+                    (moveCount * 3 + depth * 4) / 40
+                        + Convert.ToInt32(moveCount > 4)
+                        - HistoryValue(move) / 200,
+                    0
+                );
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);

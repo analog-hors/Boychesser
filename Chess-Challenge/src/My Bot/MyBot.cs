@@ -22,7 +22,7 @@ public class MyBot : IChessBot {
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transpositionTable = new TtEntry[0x1000000];
 
-    short[,,] history = new short[2, 7, 64];
+    public short[,,] history;
 
     ulong[] packedEvalWeights = {
         0x0000000000000000, 0x0000000000000000, 0x0079004000740022, 0x0074002E00740039,
@@ -60,6 +60,7 @@ public class MyBot : IChessBot {
         board = boardOrig;
         timer = timerOrig;
         searchingDepth = 1;
+        history = new short[2, 7, 64];
 
         do
             //If score is of this value search has been aborted, DO NOT use result
@@ -176,8 +177,12 @@ public class MyBot : IChessBot {
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
                 // use tmp as reduction
-                tmp = move.IsCapture || board.IsInCheck() ? 0
-                    : Max((moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4) - HistoryValue(move) / 450, 0);
+                tmp = move.IsCapture || board.IsInCheck() ? 0 : Max(
+                    (moveCount * 3 + depth * 4) / 40
+                        + Convert.ToInt32(moveCount > 4)
+                        - HistoryValue(move) / 200,
+                    0
+                );
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);

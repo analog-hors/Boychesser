@@ -24,34 +24,59 @@ public class MyBot : IChessBot {
 
     short[,,] history = new short[2, 7, 64];
 
-    ulong[] packedEvalWeights = {
-        0x0000000000000000, 0x0000000000000000, 0x0079004000740022, 0x0074002E00740039, 
-        0x00730041006C0027, 0x006900390069003A, 0x0079003900720024, 0x00660043006C003F, 
-        0x0086004200850027, 0x00730048007C0040, 0x00BD004B00B2002D, 0x00A0005A00AB0051, 
-        0x0111004701020059, 0x00E2007900FB0069, 0x0003000300060004, 0xFFFCFFFD000A0001, 
-        0x011300E300FD00D8, 0x012E00E9012500E5, 0x013500E4011F00E3, 0x013E00F2013600EE, 
-        0x014300F4012A00E5, 0x01530100014900F8, 0x014F00FF013F00F4, 0x01600101015D0101, 
-        0x0159010001430103, 0x0168010A0162010E, 0x014B0123013E00FA, 0x015B0132015C0127, 
-        0x014700F1012E00F2, 0x0156011C01490119, 0x014A00B200FA009C, 0x014C0104016200A6, 
-        0x013800EB013100ED, 0x013400E9013100EA, 0x013500F5013900F5, 0x013500EB013700EE, 
-        0x013E00F5014000F4, 0x013E00ED013C00F1, 0x013E00EF013B00F9, 0x013900F6013F00ED, 
-        0x014600F4013F00F6, 0x013C00FF013F00FA, 0x0146010C014600F9, 0x013B010C01410106, 
-        0x014A00EC014600EB, 0x014900EC014600F4, 0x015600C9015100DB, 0x015A00CD015A00BE, 
-        0x0225011D021F0118, 0x021E012A02230121, 0x0224011102260106, 0x0227011B02260115, 
-        0x022E0114022C010A, 0x022E0116022F0112, 0x023A011402380113, 0x0238011E023C011B, 
-        0x0247012502410122, 0x024001330243012D, 0x023F01430246012F, 0x023C015002420141, 
-        0x024B013402450139, 0x0245015A02440151, 0x023F0154023B0152, 0x023F0153023F0155, 
-        0x03F2022E04150225, 0x03F4022F03E4022E, 0x03EE023304090233, 0x03F0022E03E10233, 
-        0x04070230040F0232, 0x03FC02290404022D, 0x0423022804240231, 0x041A022304180228, 
-        0x043D02290426023D, 0x042C02280433022B, 0x043902430443023A, 0x0440023604460231, 
-        0x045902240447023A, 0x045B0228044A0237, 0x0436024E043D0240, 0x0423025A042A025D, 
-        0xFFC70015FFAE000A, 0xFFCAFFFEFFD30000, 0xFFDE0002FFC70004, 0xFFF9FFE2FFF0FFF0, 
-        0xFFF3FFEAFFDCFFE0, 0x0010FFDA0007FFDA, 0x0004FFEBFFECFFD4, 0x0021FFEC0014FFEA, 
-        0x0019FFFCFFFEFFE2, 0x002E00010026FFFB, 0x0039FFF4000FFFF3, 0x00340008003FFFF9, 
-        0x0048FFECFFFDFFFB, 0x0033000900400000, 0x000C0041FFB8003B, 0x0007005F000B0059,
+    int[] packedPstBases = {
+        0x0052001B, 0x00FB00A5, 0x011700B4, 0x01A600CD, 0x0448019B, 0x00000000
     };
-
-    int EvalWeight(int item) => (int)(packedEvalWeights[item / 2] >> item % 2 * 32);
+    ulong[] packedPstDeltas = {    
+        0x0000000000000000,
+        0x2C2B0E1C30272101,
+        0x1F1D191B271E2508,
+        0x182025202C241E08,
+        0x242D2E273938270D,
+        0x4E5A453C70653215,
+        0x91AD6853C7B62F48,
+        0x0000000000000000,
+        0x473F413D29163933,
+        0x5C52474751373C3B,
+        0x6F65554F5E444E3E,
+        0x7B7859596858594F,
+        0x817A676B745C5B5F,
+        0x7072938763568359,
+        0x6A607F795E455154,
+        0x6178650661050E00,
+        0x5B5440425D4F4243,
+        0x69694E52645C5550,
+        0x7A7756566F675951,
+        0x7E7C625972625557,
+        0x7F79706A7B655A59,
+        0x727A8077756B765E,
+        0x77735B6077675851,
+        0x7F7F2E217A752C35,
+        0xC7C97068C9BD6159,
+        0xCAC8605BC4C15748,
+        0xD2D15C5ACDC75F51,
+        0xDADC6A66D9D5605D,
+        0xDFE2857CE5DF746E,
+        0xD9DFA594DDE3937D,
+        0xE2E0AFA5E7E0878C,
+        0xDEDEAEACDED9A7A5,
+        0x8986DAD790AED8CE,
+        0xA18DDDE598A1E1DD,
+        0xBBBEDCE0B0A8E3E2,
+        0xE8D7DADDD1BEDDE2,
+        0xF9F1E1E5ECBFDFF0,
+        0xFBFEF3EDE1D5FBEE,
+        0xFEF3E7EFFCD0D9EF,
+        0xD9DEFFFFDCDCF6E4,
+        0x08173A3D15015859,
+        0x3E351125281C3A49,
+        0x514801023C311B17,
+        0x5C560C0E4D3F1506,
+        0x68671E1D62502613,
+        0x7482281B83631F27,
+        0x7C8B272297521738,
+        0x575C81835E04728A,
+    };
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0;
@@ -102,7 +127,6 @@ public class MyBot : IChessBot {
             quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111,
 
             // static eval vars
-            sq,
             pieceType,
 
             // temp vars
@@ -133,14 +157,14 @@ public class MyBot : IChessBot {
             bestScore = tmp = 0;
             ulong pieces = board.AllPiecesBitboard;
             while (pieces != 0) {
-                Square square = new(sq = BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
+                Square square = new(BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
                 Piece piece = board.GetPiece(square);
-                sq = sq >> 1 & 0b11100 | sq & 0b11 ^ square.File / 4 * 0b11;
                 pieceType = (int)piece.PieceType - 1;
                 bestScore += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
-                    EvalWeight((piece.IsWhite ? sq : sq ^ 0b11100) + pieceType * 32) +
-                    EvalWeight(26 + pieceType) * BitboardHelper.GetNumberOfSetBits(
-                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
+                    packedPstBases[pieceType] + (int)(
+                        packedPstDeltas[square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
+                            >> (0x01455410 >> square.File * 4) * 8
+                            & 0xFF00FF
                     )
                 );
                 // phase weight expression

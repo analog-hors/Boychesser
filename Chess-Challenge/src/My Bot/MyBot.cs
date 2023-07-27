@@ -187,7 +187,7 @@ public class MyBot : IChessBot {
 
                 //If in check, DO NOT reduce
                 //If NOT in check, reduce by a certain amount for LMR IF move is loud, reduce EVEN MORE if move is quiet
-                tmp = board.IsInCheck() ? 0 : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4) * (move.IsCapture ? 1 : 2);
+                tmp = board.IsInCheck() ? 0 : ((moveCount * 3 + depth * 4) / 40) * (move.IsCapture ? 0 : 1) + Convert.ToInt32(moveCount > (move.IsCapture ? 8 : 4));
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);

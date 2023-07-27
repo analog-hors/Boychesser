@@ -107,20 +107,17 @@ public class MyBot : IChessBot {
 
             // temp vars
             score = tt.score,
-            tmp = tt.bound;
+            tmp = 0;
 
-        // use tmp as tt.bound
-        if (ttHit && tt.depth >= depth && (
-            tmp == 1 /* BOUND_EXACT */ && (nonPv || depth <= 0) ||
-            tmp == 2 /* BOUND_LOWER */ && score >= beta ||
-            tmp == 3 /* BOUND_UPPER */ && score <= alpha
-        ))
+        if (ttHit && tt.depth >= depth && tt.bound switch {
+            1 /* BOUND_EXACT */ => nonPv || depth <= 0,
+            2 /* BOUND_LOWER */ => score >= beta,
+            3 /* BOUND_UPPER */ => score <= alpha,
+        })
             return score;
-        // end tmp use
 
-        // use tmp as phase
+        // use tmp as phase (initialized above)
         score = 5;
-        tmp = 0;
         ulong pieces = board.AllPiecesBitboard;
         while (pieces != 0) {
             Square square = new(sq = BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
@@ -140,19 +137,17 @@ public class MyBot : IChessBot {
         score = ((short)score * tmp + (score + 0x8000) / 0x10000 * (24 - tmp)) / 24;
         // end tmp use
 
-        // Null Move Pruning (NMP)
-        if (nonPv && depth >= 1 && board.TrySkipTurn()) {
+        if (depth <= 0) {
+            // stand pat in quiescence search
+            alpha = Max(alpha, bestScore = score);
+            if (bestScore >= beta)
+                return bestScore;
+        } else if (nonPv && board.TrySkipTurn()) {
+            // Null Move Pruning (NMP)
             score = depth < 4 ? score - 75 * depth : -Negamax(-beta, -alpha, depth - 3, nextPly);
             board.UndoSkipTurn();
             if (score >= beta)
                 return score;
-        }
-
-        // stand pat in quiescence search
-        if (depth <= 0) {
-            alpha = Max(alpha, bestScore = score);
-            if (bestScore >= beta)
-                return bestScore;
         }
 
         var moves = board.GetLegalMoves(depth <= 0);

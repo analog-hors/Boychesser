@@ -37,8 +37,8 @@ public class MyBot : IChessBot {
         0xf5f08e93ecc392a7, 0xfbfe9f9ae3d9ada6, 0xfef697a0fed98fa6, 0xd2d7bdbedddab1a5,
         0x1e26272a1a013f34, 0x4e440b19321a2b2e, 0x665d020149311208, 0x776a1211593f1200,
         0x837c26216f53230a, 0x8a962e1e8f641b1c, 0x89962d23a0510f25, 0x5a5e86815f05656d,
-        0x00d80097004f0021, 0x01af00c4010a00ba, 0x00000000042701cd, 0x0000000000000000,
-        0x0002000300060004, 0xfffcfffd00020002,
+        0x00d80097004f0021, 0x01af00c4010a00ba, 0x00000000042701cd, 0x0002000300060004,
+        0xfffcfffd00020002,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -92,7 +92,6 @@ public class MyBot : IChessBot {
             quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111,
 
             // static eval vars
-            sq,
             pieceType,
 
             // temp vars
@@ -124,7 +123,7 @@ public class MyBot : IChessBot {
                             & 0xFF00FF
                     )
                 // mobility
-                    + EvalWeight(102 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                    + EvalWeight(100 + pieceType) * BitboardHelper.GetNumberOfSetBits(
                         BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
                     )
             );

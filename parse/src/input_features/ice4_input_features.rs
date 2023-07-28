@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use cozy_chess::*;
 
 use crate::batch::EntryFeatureWriter;
@@ -23,13 +25,15 @@ macro_rules! offsets {
 }
 
 offsets! {
+    PAWN_PST: 32;
+    KNIGHT_PST: 32;
+    BISHOP_PST: 32;
+    ROOK_PST: 32;
+    QUEEN_PST: 32;
+    KING_PST: 32;
     MATERIAL: 6;
-    RANK: 6;
-    // RANK_SQ: 6;
-    OUTSIDE_FILE: 6;
-    OUTSIDE_RANK: 6;
-    MOBILITY: 6;
-    KING_FILE: 6;
+    MOBILITY: 4;
+    TEMPO: 1;
 }
 
 impl InputFeatureSet for Ice4InputFeatures {
@@ -46,6 +50,11 @@ impl InputFeatureSet for Ice4InputFeatures {
 
         let mut features = [0i8; TOTAL_FEATURES];
 
+        features[TEMPO] += match board.side_to_move() {
+            Color::White => 1,
+            Color::Black => -1,
+        };
+
         let w_king = board.king(Color::White);
         let b_king = board.king(Color::Black);
 
@@ -53,40 +62,50 @@ impl InputFeatureSet for Ice4InputFeatures {
             for square in board.pieces(piece) {
                 let color = board.color_on(square).unwrap();
 
-                let (inc, king, _opp_king) = match color {
-                    Color::White => (1, w_king, b_king),
-                    Color::Black => (-1, b_king, w_king),
+                let (inc, king, opp_king, sq) = match color {
+                    Color::White => (1, w_king, b_king, square),
+                    Color::Black => (-1, b_king, w_king, square.flip_rank()),
                 };
+
+                features[PAWN_PST + piece as usize * 32 + hm_feature(sq)] += inc;
 
                 let cnt = match piece {
-                    Piece::Queen | Piece::King => (get_rook_moves(square, board.occupied())
-                        | get_bishop_moves(square, board.occupied()))
-                    .len(),
-                    Piece::Rook => get_rook_moves(square, board.occupied()).len(),
-                    Piece::Bishop => get_bishop_moves(square, board.occupied()).len(),
-                    _ => 0,
-                } as i8;
+                    Piece::Queen | Piece::King => {
+                        get_rook_moves(square, board.occupied())
+                            | get_bishop_moves(square, board.occupied())
+                    }
+                    Piece::Rook => get_rook_moves(square, board.occupied()),
+                    Piece::Bishop => get_bishop_moves(square, board.occupied()),
+                    _ => BitBoard::EMPTY,
+                }
+                .len() as i8;
 
-                features[MOBILITY + piece as usize] += inc * cnt;
-
-                let square = match color {
-                    Color::White => square,
-                    Color::Black => square.flip_rank(),
-                };
+                features[MOBILITY + piece as usize - 2] += inc * cnt;
 
                 features[MATERIAL + piece as usize] += inc;
 
-                features[RANK + piece as usize] += square.rank() as i8 * inc;
-                // features[RANK_SQ + piece as usize] += square.rank() as i8 * square.rank() as i8 * inc;
+                // features[OWN_PAWNS_FILE + piece as usize] +=
+                //     (board.colored_pieces(color, Piece::Pawn) & square.file().bitboard()).len()
+                //         as i8
+                //         * inc;
+    
+                // let square = match color {
+                //     Color::White => square,
+                //     Color::Black => square.flip_rank(),
+                // };
 
-                features[OUTSIDE_FILE + piece as usize] +=
-                    (square.file() as i8).min(7 - square.file() as i8) * inc;
-                features[OUTSIDE_RANK + piece as usize] +=
-                    (square.rank() as i8).min(7 - square.rank() as i8) * inc;
-                features[KING_FILE + piece as usize] +=
-                    (square.file() as i8).abs_diff(king.file() as i8) as i8 * inc;
-                //features[OPP_KING_FILE + piece as usize] +=
-                //    (square.file() as i8).abs_diff(opp_king.file() as i8) as i8 * inc;
+                // features[MATERIAL + piece as usize] += inc;
+
+                // features[RANK + piece as usize] += square.rank() as i8 * inc;
+
+                // features[OUTSIDE_FILE + piece as usize] +=
+                //     (square.file() as i8).min(7 - square.file() as i8) * inc;
+                // features[OUTSIDE_RANK + piece as usize] +=
+                //     (square.rank() as i8).min(7 - square.rank() as i8) * inc;
+                // features[KING_FILE + piece as usize] +=
+                //     (square.file() as i8).abs_diff(king.file() as i8) as i8 * inc;
+                // // features[EDGE + piece as usize] += BitBoard::EDGES.has(square) as i8 * inc;
+
             }
         }
 
@@ -97,14 +116,14 @@ impl InputFeatureSet for Ice4InputFeatures {
     }
 }
 
-// fn hm_feature(square: Square) -> usize {
-//     let square = match square.file() > File::D {
-//         true => square.flip_file(),
-//         false => square,
-//     };
-//     let square = match square.rank() > Rank::Fourth {
-//         true => square.flip_rank(),
-//         false => square,
-//     };
-//     square.rank() as usize * 4 + square.file() as usize
-// }
+fn hm_feature(square: Square) -> usize {
+    let square = match square.file() > File::D {
+        true => square.flip_file(),
+        false => square,
+    };
+    // let square = match square.rank() > Rank::Fourth {
+    //     true => square.flip_rank(),
+    //     false => square,
+    // };
+    square.rank() as usize * 4 + square.file() as usize
+}

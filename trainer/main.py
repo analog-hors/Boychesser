@@ -22,8 +22,22 @@ class WeightClipper:
     def __call__(self, module):
         if hasattr(module, "weight"):
             w = module.weight.data
-            w = w.clamp(-1.98, 1.98)
+            c = w.clamp(0, 255/160)
+            features = w.shape[1] // 2
+            pst_features = 32 * 6
+            w = torch.cat(
+                (
+                    c[:,:pst_features],
+                    w[:,pst_features:features],
+                    c[:,features:features+pst_features],
+                    w[:,features+pst_features:],
+                ),
+                dim=1
+            )
             module.weight.data = w
+            # w = module.weight.data
+            # w = w.clamp(-1.98, 1.98)
+            # module.weight.data = w
 
 
 def train(
@@ -84,8 +98,8 @@ def train(
             with torch.no_grad():
                 run_loss += loss
         optimizer.step()
-        # for model in models:
-        #     model.apply(clipper)
+        for model in models:
+            model.apply(clipper)
 
         iterations += 1
         fens += batch.size

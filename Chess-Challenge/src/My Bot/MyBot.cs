@@ -25,20 +25,20 @@ public class MyBot : IChessBot {
     short[,,] history = new short[2, 7, 64];
 
     ulong[] packedData = {
-        0x0000000000000000, 0x28290e182e272002, 0x1d1d191a271f2108, 0x1a21231f2e271904,
-        0x283129213b3a2307, 0x56613b3274682c0e, 0x9ab45a4acbbc2739, 0x0000000000000000,
-        0x696055504e384d43, 0x79705e5a7058504e, 0x8d846c647f666050, 0x9c996d6d8a7a6b5f,
-        0xa59e767b957e6c6f, 0x96979f9586799066, 0x91848a8682685d5e, 0x879e6f1085301b05,
-        0x423f3031463e3235, 0x4346333543463d3d, 0x4e4b35394e4f3c3c, 0x4a503e344e493640,
-        0x4d4f4741564d3b3e, 0x4b51554f56555441, 0x5956343c5a553532, 0x696a130464601122,
-        0x969b675e9d965a55, 0x9f9e58529c9d4e43, 0xa6a8524fa6a45147, 0xb0b45b58b2b05150,
-        0xb8bb716bbfb9635f, 0xb4ba9080b7be826d, 0xbdbc9990c3bd7278, 0xb7b79395b7b39493,
-        0x8a7f99998aa69a91, 0x9989979c92a09c9e, 0xb5b99095afaa999c, 0xe2d3898fd2c1919b,
-        0xf5f08d92ecc392a7, 0xfbfe9e9ae3d9ada6, 0xfef697a0fed98ea5, 0xd2d7bdbedddab0a5,
-        0x1e26272a1a013f34, 0x4e440b19321a2b2e, 0x665d020149311208, 0x776a1211593f1200,
-        0x837c26216f53230a, 0x8a962e1e8f641b1c, 0x89962d23a0510f25, 0x5a5e86815f05656d,
-        0x00d80097004f0021, 0x01af00c4010a00ba, 0x00000000042701cd, 0x0002000300060004,
-        0xfffcfffd00020002,
+        0x0000000000000000, 0x30310b16342c1c05, 0x252616182d241d0c, 0x2129201e352b1509,
+        0x313a2923443f220e, 0x5e693e387d6f2d15, 0xa1bc6452d5c52d41, 0x0000000000000000,
+        0x6b62524e4e394a42, 0x79725d5a705a504e, 0x8f856b628066604e, 0x9c996d6b8a79695e,
+        0xa59e757a957d6a6d, 0x96979e9486798e64, 0x9184888382685a58, 0x879f6d0b862e1802,
+        0x45432f3049403135, 0x4648343645483e3d, 0x504e35394f513d3b, 0x4a523f344f4b3640,
+        0x4e514640574f3b3d, 0x4c52554e5857523f, 0x5a58343a5c58332d, 0x6a6b120267630e1e,
+        0x959b6d669e9a615e, 0x9d9d5e599b9c554c, 0xa5a85a58a6a35b52, 0xafb4615fb3b15759,
+        0xb7bc7770c0ba6867, 0xb3bb9486b9bf8674, 0xbcbc9e95c5bf777b, 0xb8ba999abbb79895,
+        0x887d959588a1958e, 0x9786959a8f9c999a, 0xb5b98e93ada79699, 0xe4d3858dd1bf8e98,
+        0xf7f2898eecc08ea3, 0xfcfe9a97e4d7a8a2, 0xfff7929bfedb8a9d, 0xd1d8bab9e0e0aa9b,
+        0x1d24252719003d33, 0x4d440a18311b2b2e, 0x645b020147311209, 0x74681312573e1200,
+        0x7f7927226c50240b, 0x859132228c611c1c, 0x849231279c4d1026, 0x565a89835b01676e,
+        0x00d80099005f002e, 0x01bb00ce010e00bf, 0x00000000043b01dc, 0x0002000200060004,
+        0xfffcfffd00020002, 0x00030003ffecfff9, 0xfff3fff4fffa0004, 0xfffd000bfff30000,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -125,6 +125,11 @@ public class MyBot : IChessBot {
                 // mobility
                     + EvalWeight(100 + pieceType) * BitboardHelper.GetNumberOfSetBits(
                         BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
+                    )
+                // own pawn on file
+                    + EvalWeight(106 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                        0x0101010101010101UL << square.File
+                            & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
                     )
             );
             // phase weight expression

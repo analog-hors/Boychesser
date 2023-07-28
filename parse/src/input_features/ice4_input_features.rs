@@ -34,6 +34,7 @@ offsets! {
     MATERIAL: 6;
     MOBILITY: 4;
     TEMPO: 1;
+    OWN_PAWNS_FILE: 6;
 }
 
 impl InputFeatureSet for Ice4InputFeatures {
@@ -84,10 +85,22 @@ impl InputFeatureSet for Ice4InputFeatures {
 
                 features[MATERIAL + piece as usize] += inc;
 
-                // features[OWN_PAWNS_FILE + piece as usize] +=
-                //     (board.colored_pieces(color, Piece::Pawn) & square.file().bitboard()).len()
+                features[OWN_PAWNS_FILE + piece as usize] +=
+                    (board.colored_pieces(color, Piece::Pawn) & square.file().bitboard()).len()
+                        as i8
+                        * inc;
+
+                // features[PIECE_COUNT + piece as usize] +=
+                //     board.colored_pieces(color, piece).len()
                 //         as i8
                 //         * inc;
+
+                
+                // features[BISHOP_PAIR] += if piece == Piece::King {
+                //     board.colored_pieces(color, Piece::Bishop).len() / 2
+                // } else {
+                //     0
+                // } as i8 * inc;
     
                 // let square = match color {
                 //     Color::White => square,

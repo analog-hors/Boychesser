@@ -71,10 +71,12 @@ king_pst = take(32)
 material = take(6)
 mobility = take(4)
 tempo = take(1)
+own_pawns_file = take(6)
 for _ in weights: assert False
 
 add_psts([pawn_pst, knight_pst, bishop_pst, rook_pst, queen_pst, king_pst], material)
 add_weights("mobility", mobility)
+add_weights("own_pawns_file", own_pawns_file)
 print_weight("tempo", *tempo)
 
 packed_eval_consts = [*pst_deltas]

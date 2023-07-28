@@ -107,6 +107,9 @@ public class MyBot : IChessBot {
             3 /* BOUND_UPPER */ => score <= alpha,
         })
             return score;
+        else if (!ttHit && depth > 5)
+            // Internal Iterative Reduction (IIR)
+            depth--;
 
         // use tmp as phase (initialized above)
         // tempo

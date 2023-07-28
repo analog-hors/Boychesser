@@ -144,6 +144,9 @@ public class MyBot : IChessBot {
             alpha = Max(alpha, bestScore = score);
             if (bestScore >= beta)
                 return bestScore;
+            // Delta pruning
+            if (bestScore < alpha - 900)
+                return alpha;
         } else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
             score = depth < 4 ? score - 75 * depth : -Negamax(-beta, -alpha, depth - 3, nextPly);

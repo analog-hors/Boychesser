@@ -146,7 +146,7 @@ public class MyBot : IChessBot {
                 return bestScore;
         } else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
-            score = depth < 4 ? score - 75 * depth : -Negamax(-beta, -alpha, depth - 3, nextPly);
+            score = depth < 4 ? score - 50 * depth : -Negamax(-beta, -alpha, depth - 3, nextPly);
             board.UndoSkipTurn();
             if (score >= beta)
                 return score;

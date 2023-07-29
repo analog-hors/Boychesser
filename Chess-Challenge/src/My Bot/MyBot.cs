@@ -141,7 +141,7 @@ public class MyBot : IChessBot {
             // phaseWeightTable = [0, 1, 1, 2, 4, 0]
             tmp += 0x042110 >> pieceType * 4 & 0xF;
         }
-        eval = ((short)eval * tmp + (eval + 0x8000) / 0x10000 * (24 - tmp)) / 24;
+        eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
         // end tmp use
 
         if (inQSearch) {

@@ -88,8 +88,8 @@ public class MyBot : IChessBot {
             oldAlpha = alpha,
 
             // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 7, 8, 17, 49]
-            quietsToCheck = 0b_110001_010001_001000_000111_000000 >> depth * 6 & 0b111111,
+            moveCount = 0, // quietsToCheckTable = [0, 8, 7, 16, 50]
+            quietsToCheck = 0b_110010_010000_000111_001000_000000 >> depth * 6 & 0b111111,
 
             // static eval vars
             pieceType,
@@ -146,7 +146,7 @@ public class MyBot : IChessBot {
                 return bestScore;
         } else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
-            score = depth < 4 ? score - 75 * depth : -Negamax(-beta, -alpha, depth - 3, nextPly);
+            score = depth < 4 ? score - 42 * depth : -Negamax(-beta, -alpha, depth - 4, nextPly);
             board.UndoSkipTurn();
             if (score >= beta)
                 return score;
@@ -179,7 +179,7 @@ public class MyBot : IChessBot {
             else {
                 // use tmp as reduction
                 tmp = move.IsCapture || board.IsInCheck() ? 0
-                    : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4);
+                    : (moveCount * 59 + depth * 109) / 1000 + Convert.ToInt32(moveCount > 5);
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);

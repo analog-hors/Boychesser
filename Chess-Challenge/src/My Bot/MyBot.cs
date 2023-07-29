@@ -2,12 +2,16 @@
 using System;
 using static System.Math;
 
-// This struct should be 16 bytes large
-struct TtEntry {
-    public ulong hash;
-    public ushort moveRaw;
-    public short score, depth, bound /* BOUND_EXACT=1, BOUND_LOWER=2, BOUND_UPPER=3 */;
-}
+// This struct should be 16 bytes large.
+// C# appears to lay out struct fields sequentially,
+// so take care when changing this struct.
+record struct TtEntry(
+    ulong hash,
+    int score,
+    ushort moveRaw,
+    byte depth,
+    byte bound /* BOUND_EXACT=1, BOUND_LOWER=2, BOUND_UPPER=3 */
+);
 
 public class MyBot : IChessBot {
 
@@ -82,7 +86,8 @@ public class MyBot : IChessBot {
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         bool
             ttHit = tt.hash == board.ZobristKey,
-            nonPv = alpha + 1 == beta;
+            nonPv = alpha + 1 == beta,
+            inQSearch = depth <= 0;
         int
             bestScore = -99999,
             oldAlpha = alpha,
@@ -99,7 +104,7 @@ public class MyBot : IChessBot {
             tmp = 0;
 
         if (ttHit && tt.depth >= depth && tt.bound switch {
-            1 /* BOUND_EXACT */ => nonPv || depth <= 0,
+            1 /* BOUND_EXACT */ => nonPv || inQSearch,
             2 /* BOUND_LOWER */ => score >= beta,
             3 /* BOUND_UPPER */ => score <= alpha,
         })
@@ -134,12 +139,12 @@ public class MyBot : IChessBot {
             );
             // phase weight expression
             // maps 0 1 2 3 4 5 to 0 1 1 2 4 0
-            tmp += (pieceType + 2 ^ 2) % 5;
+            tmp += 0x042110 >> pieceType * 4 & 0xF;
         }
         score = ((short)score * tmp + (score + 0x8000) / 0x10000 * (24 - tmp)) / 24;
         // end tmp use
 
-        if (depth <= 0) {
+        if (inQSearch) {
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = score);
             if (bestScore >= beta)
@@ -152,7 +157,7 @@ public class MyBot : IChessBot {
                 return score;
         }
 
-        var moves = board.GetLegalMoves(depth <= 0);
+        var moves = board.GetLegalMoves(inQSearch);
         var scores = new int[moves.Length];
         // use tmp as scoreIndex
         tmp = 0;
@@ -178,8 +183,8 @@ public class MyBot : IChessBot {
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
                 // use tmp as reduction
-                tmp = move.IsCapture || board.IsInCheck() ? 0
-                    : (moveCount * 3 + depth * 4) / 40 + Convert.ToInt32(moveCount > 4);
+                tmp = move.IsCapture || nextDepth >= depth ? 0
+                    : (moveCount * 3 + depth * 4) / 40 + Min(moveCount / 5, 1);
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);
@@ -209,15 +214,20 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
-        tt.bound = (short)(bestScore >= beta ? 2 /* BOUND_LOWER */
+        // use tmp as tt.bound
+        var bound = (byte)(bestScore >= beta ? 2 /* BOUND_LOWER */
             : alpha > oldAlpha ? 1 /* BOUND_EXACT */
             : 3 /* BOUND_UPPER */);
-        tt.depth = (short)Max(depth, 0);
-        tt.hash = board.ZobristKey;
-        tt.score = (short)bestScore;
-        if (!ttHit || tt.bound != 3 /* BOUND_UPPER */)
-            tt.moveRaw = bestMove.RawValue;
-
+        tt = new(
+            board.ZobristKey,
+            bestScore,
+            ttHit && bound == 3 /* BOUND_UPPER */
+                ? tt.moveRaw
+                : bestMove.RawValue,
+            (byte)Max(depth, 0),
+            bound
+        );
+        // end tmp use
         searchBestMove = bestMove;
         return bestScore;
     }

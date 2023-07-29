@@ -3,11 +3,13 @@ using System;
 using static System.Math;
 
 // This struct should be 16 bytes large
-struct TtEntry {
-    public ulong hash;
-    public ushort moveRaw;
-    public short score, depth, bound /* BOUND_EXACT=1, BOUND_LOWER=2, BOUND_UPPER=3 */;
-}
+record struct TtEntry(
+    ulong hash,
+    ushort moveRaw,
+    short score,
+    short depth,
+    short bound /* BOUND_EXACT=1, BOUND_LOWER=2, BOUND_UPPER=3 */
+);
 
 public class MyBot : IChessBot {
 
@@ -209,15 +211,18 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
-        tt.bound = (short)(bestScore >= beta ? 2 /* BOUND_LOWER */
+        var bound = (byte)(bestScore >= beta ? 2 /* BOUND_LOWER */
             : alpha > oldAlpha ? 1 /* BOUND_EXACT */
             : 3 /* BOUND_UPPER */);
-        tt.depth = (short)Max(depth, 0);
-        tt.hash = board.ZobristKey;
-        tt.score = (short)bestScore;
-        if (!ttHit || tt.bound != 3 /* BOUND_UPPER */)
-            tt.moveRaw = bestMove.RawValue;
-
+        tt = new(
+            board.ZobristKey,
+            ttHit && bound == 3 /* BOUND_UPPER */
+                ? tt.moveRaw
+                : bestMove.RawValue,
+            (short)bestScore,
+            (short)Max(depth, 0),
+            bound
+        );
         searchBestMove = bestMove;
         return bestScore;
     }

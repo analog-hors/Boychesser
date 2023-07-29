@@ -173,7 +173,7 @@ public class MyBot : IChessBot {
                 break;
 
             board.MakeMove(move);
-            int nextDepth = board.IsInCheck() || moveCount == 0 && tt.bound != 3 /* BOUND UPPER */ && ttHit && score + 30 < tt.score ? depth : depth - 1;
+            int nextDepth = board.IsInCheck() || moveCount == 0 && tt.bound != 3 /* BOUND UPPER */ && ttHit && score + 30 < tt.score && depth < 5 ? depth : depth - 1;
             if (board.IsDraw())
                 score = 0;
             else if (moveCount == 0)

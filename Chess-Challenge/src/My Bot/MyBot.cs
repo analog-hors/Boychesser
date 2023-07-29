@@ -74,17 +74,12 @@ public class MyBot : IChessBot {
         //node count
         nodes++;
 
-        // check for game end
-        if (board.IsInCheckmate())
-            return nextPly - 30000;
-        nextPly++;
-
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         bool
             ttHit = tt.hash == board.ZobristKey,
             nonPv = alpha + 1 == beta;
         int
-            bestScore = -99999,
+            bestScore = nextPly++ - 30000,
             oldAlpha = alpha,
 
             // search loop vars

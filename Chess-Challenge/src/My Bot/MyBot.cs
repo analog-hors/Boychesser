@@ -116,17 +116,17 @@ public class MyBot : IChessBot {
             score += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
                 // material
                 EvalWeight(96 + pieceType)
-                // psts
+                    // psts
                     + (int)(
                         packedData[pieceType * 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
                             >> (0x01455410 >> square.File * 4) * 8
                             & 0xFF00FF
                     )
-                // mobility
+                    // mobility
                     + EvalWeight(100 + pieceType) * BitboardHelper.GetNumberOfSetBits(
-                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
+                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType + 1), square, board)
                     )
-                // own pawn on file
+                    // own pawn on file
                     + EvalWeight(106 + pieceType) * BitboardHelper.GetNumberOfSetBits(
                         0x0101010101010101UL << square.File
                             & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
@@ -146,10 +146,12 @@ public class MyBot : IChessBot {
                 return bestScore;
         } else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
-            score = depth < 4 ? score - 75 * depth : -Negamax(-beta, -alpha, depth - 3, nextPly);
+            // use tmp as RFP or NMP margin
+            tmp = depth < 4 ? score - 75 * depth : -Negamax(-beta, -alpha, depth - 3, nextPly);
             board.UndoSkipTurn();
-            if (score >= beta)
-                return score;
+            if (tmp >= beta)
+                return tmp;
+            // end tmp use
         }
 
         var moves = board.GetLegalMoves(depth <= 0);
@@ -171,7 +173,7 @@ public class MyBot : IChessBot {
                 break;
 
             board.MakeMove(move);
-            int nextDepth = board.IsInCheck() ? depth : depth - 1;
+            int nextDepth = board.IsInCheck() || moveCount == 0 && tt.bound != 3 /* BOUND UPPER */ && ttHit && score + 30 < tt.score ? depth : depth - 1;
             if (board.IsDraw())
                 score = 0;
             else if (moveCount == 0)

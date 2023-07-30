@@ -22,7 +22,7 @@ public class MyBot : IChessBot {
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transpositionTable = new TtEntry[0x1000000];
 
-    short[,,] history = new short[2, 7, 64];
+    int[,,] history = new int[2, 7, 64];
 
     ulong[] packedData = {
         0x0000000000000000, 0x30310b16342c1c05, 0x252616182d241d0c, 0x2129201e352b1509,
@@ -82,7 +82,8 @@ public class MyBot : IChessBot {
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         bool
             ttHit = tt.hash == board.ZobristKey,
-            nonPv = alpha + 1 == beta;
+            nonPv = alpha + 1 == beta,
+            inQSearch = depth <= 0;
         int
             bestScore = -99999,
             oldAlpha = alpha,
@@ -99,7 +100,7 @@ public class MyBot : IChessBot {
             tmp = 0;
 
         if (ttHit && tt.depth >= depth && tt.bound switch {
-            1 /* BOUND_EXACT */ => nonPv || depth <= 0,
+            1 /* BOUND_EXACT */ => nonPv || inQSearch,
             2 /* BOUND_LOWER */ => score >= beta,
             3 /* BOUND_UPPER */ => score <= alpha,
         })
@@ -132,27 +133,25 @@ public class MyBot : IChessBot {
                             & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
                     )
             );
-            // phase weight expression
-            // maps 0 1 2 3 4 5 to 0 1 1 2 4 0
-            tmp += (pieceType + 2 ^ 2) % 5;
+            // phaseWeightTable = [0, 1, 1, 2, 4, 0]
+            tmp += 0x042110 >> pieceType * 4 & 0xF;
         }
         score = ((short)score * tmp + (score + 0x8000) / 0x10000 * (24 - tmp)) / 24;
         // end tmp use
 
-        if (depth <= 0) {
+        if (inQSearch) {
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = score);
-            if (bestScore >= beta)
-                return bestScore;
         } else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
             score = depth < 4 ? score - 42 * depth : -Negamax(-beta, -alpha, depth - 4, nextPly);
             board.UndoSkipTurn();
-            if (score >= beta)
-                return score;
-        }
+        } else goto afterNullMoveObservation;
+        if (score >= beta)
+            return score;
+        afterNullMoveObservation:
 
-        var moves = board.GetLegalMoves(depth <= 0);
+        var moves = board.GetLegalMoves(inQSearch);
         var scores = new int[moves.Length];
         // use tmp as scoreIndex
         tmp = 0;
@@ -178,8 +177,8 @@ public class MyBot : IChessBot {
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
                 // use tmp as reduction
-                tmp = move.IsCapture || board.IsInCheck() ? 0
-                    : (moveCount * 59 + depth * 109) / 1000 + Convert.ToInt32(moveCount > 5);
+                tmp = move.IsCapture || nextDepth >= depth ? 0
+                    : (moveCount * 59 + depth * 109) / 1000 + Min(moveCount / 6, 1);
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);
@@ -200,8 +199,8 @@ public class MyBot : IChessBot {
                     tmp = depth * depth;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)
-                            HistoryValue(malusMove) -= (short)(tmp + tmp * HistoryValue(malusMove) / 512);
-                    HistoryValue(move) += (short)(tmp - tmp * HistoryValue(move) / 512);
+                            HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;
+                    HistoryValue(move) += tmp - tmp * HistoryValue(move) / 512;
                     // end tmp use
                 }
                 break;
@@ -222,7 +221,7 @@ public class MyBot : IChessBot {
         return bestScore;
     }
 
-    ref short HistoryValue(Move move) => ref history[
+    ref int HistoryValue(Move move) => ref history[
         board.IsWhiteToMove ? 1 : 0,
         (int)move.MovePieceType,
         (int)move.TargetSquare.Index

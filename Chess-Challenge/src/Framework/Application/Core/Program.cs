@@ -104,7 +104,8 @@ namespace ChessChallenge.Application {
                 long nps = bot.nodes * 1000 / timer.ElapsedMilliseconds;
                 int? tokens = null;
                 try {
-                    tokens = ChallengeController.GetTokenCount().totalTokenCount;
+                    var tokenCount = ChallengeController.GetTokenCount();
+                    tokens = tokenCount.totalTokenCount - tokenCount.debugTokenCount;
                 } catch (System.Exception) {
                     // whatever
                 }

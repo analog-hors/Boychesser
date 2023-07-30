@@ -11,7 +11,7 @@ struct TtEntry {
 
 public class MyBot : IChessBot {
 
-    public long nodes = 0;
+    public long nodes = 0; // #DEBUG
     public int maxSearchTime, searchingDepth;
 
     public Timer timer;
@@ -44,7 +44,7 @@ public class MyBot : IChessBot {
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
 
     public Move Think(Board boardOrig, Timer timerOrig) {
-        nodes = 0;
+        nodes = 0; // #DEBUG
         maxSearchTime = timerOrig.MillisecondsRemaining / 4;
 
         board = boardOrig;
@@ -72,7 +72,7 @@ public class MyBot : IChessBot {
             throw new TimeoutException();
 
         //node count
-        nodes++;
+        nodes++; // #DEBUG
 
         // check for game end
         if (board.IsInCheckmate())

@@ -106,6 +106,7 @@ public class MyBot : IChessBot {
             return score;
 
         // use tmp as phase (initialized above)
+        var values = new int[64];
         // tempo
         score = 0x00000006;
         ulong pieces = board.AllPiecesBitboard;
@@ -113,7 +114,7 @@ public class MyBot : IChessBot {
             Square square = new(BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
             Piece piece = board.GetPiece(square);
             pieceType = (int)piece.PieceType - 1;
-            score += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
+            score += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (values[square.Index] =
                 // material
                 EvalWeight(96 + pieceType)
                 // psts
@@ -158,8 +159,8 @@ public class MyBot : IChessBot {
         tmp = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[tmp++] -= ttHit && move.RawValue == tt.moveRaw ? 10000
-                : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
+            scores[tmp++] -= ttHit && move.RawValue == tt.moveRaw ? 100000
+                : move.IsCapture ? values[move.TargetSquare.Index] / 0x10000 - (int)move.MovePieceType + 50000
                 : HistoryValue(move);
         // end tmp use
 

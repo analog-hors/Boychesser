@@ -22,7 +22,7 @@ public class MyBot : IChessBot {
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     TtEntry[] transpositionTable = new TtEntry[0x1000000];
 
-    short[,,] history = new short[2, 7, 64];
+    short[,,] history = new short[2, 64, 64];
 
     ulong[] packedData = {
         0x0000000000000000, 0x30310b16342c1c05, 0x252616182d241d0c, 0x2129201e352b1509,
@@ -224,7 +224,7 @@ public class MyBot : IChessBot {
 
     ref short HistoryValue(Move move) => ref history[
         board.IsWhiteToMove ? 1 : 0,
-        (int)move.MovePieceType,
+        (int)move.StartSquare.Index,
         (int)move.TargetSquare.Index
     ];
 }

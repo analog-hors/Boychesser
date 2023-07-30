@@ -4,31 +4,52 @@ namespace ChessChallenge.API
 	using ChessChallenge.Chess;
 	using System;
 	using System.Collections.Generic;
+	using System.Linq;
 
 	public sealed class Board
 	{
 		readonly Chess.Board board;
 		readonly APIMoveGen moveGen;
+		readonly RepetitionTable repetitionTable;
 
-		readonly HashSet<ulong> repetitionHistory;
 		readonly PieceList[] allPieceLists;
 		readonly PieceList[] validPieceLists;
 
+        readonly Move[] movesDest;
 		Move[] cachedLegalMoves;
 		bool hasCachedMoves;
 		Move[] cachedLegalCaptureMoves;
 		bool hasCachedCaptureMoves;
+		bool hasCachedMoveCount;
+		int cachedMoveCount;
+		int depth;
 
-		/// <summary>
-		/// Create a new board. Note: this should not be used in the challenge,
-		/// use the board provided in the Think method instead.
-		/// </summary>
-		public Board(Chess.Board board)
+        /// <summary>
+        /// Create a new board. Note: this should not be used in the challenge,
+        /// use the board provided in the Think method instead.
+        /// </summary>
+        public Board(Chess.Board boardSource)
 		{
-			this.board = board;
+			// Clone board and create game move history
+			board = new Chess.Board();
+			board.LoadPosition(boardSource.StartPositionInfo);
+			GameMoveHistory = new Move[boardSource.AllGameMoves.Count];
+			repetitionTable = new();
+
+			for (int i = 0; i < boardSource.AllGameMoves.Count; i ++)
+			{
+				Chess.Move move = boardSource.AllGameMoves[i];
+				int movePieceType = PieceHelper.PieceType(board.Square[move.StartSquareIndex]);
+				int capturePieceType = move.IsEnPassant ? PieceHelper.Pawn : PieceHelper.PieceType(board.Square[move.TargetSquareIndex]);
+				GameMoveHistory[i] = new Move(move, movePieceType, capturePieceType);
+				board.MakeMove(move, false);
+			}
+
+			// Init move gen
 			moveGen = new APIMoveGen();
 			cachedLegalMoves = Array.Empty<Move>();
 			cachedLegalCaptureMoves = Array.Empty<Move>();
+			movesDest = new Move[APIMoveGen.MaxMoves];
 
 			// Init piece lists
 			List<PieceList> validPieceLists = new();
@@ -44,9 +65,9 @@ namespace ChessChallenge.API
 			this.validPieceLists = validPieceLists.ToArray();
 
 			// Init rep history
-			repetitionHistory = new HashSet<ulong>(board.RepetitionPositionHistory);
-			repetitionHistory.Remove(board.ZobristKey);
-		}
+			GameRepetitionHistory = board.RepetitionPositionHistory.ToArray();
+			repetitionTable.Init(board);
+        }
 
 		/// <summary>
 		/// Updates the board state with the given move.
@@ -55,13 +76,14 @@ namespace ChessChallenge.API
 		/// </summary>
 		public void MakeMove(Move move)
 		{
-			hasCachedMoves = false;
-			hasCachedCaptureMoves = false;
 			if (!move.IsNull)
 			{
-				repetitionHistory.Add(board.ZobristKey);
+				OnPositionChanged();
 				board.MakeMove(new Chess.Move(move.RawValue), inSearch: true);
-			}
+				repetitionTable.Push(ZobristKey, move.IsCapture || move.MovePieceType == PieceType.Pawn);
+                depth++;
+
+            }
 		}
 
 		/// <summary>
@@ -69,19 +91,19 @@ namespace ChessChallenge.API
 		/// </summary>
 		public void UndoMove(Move move)
 		{
-			hasCachedMoves = false;
-			hasCachedCaptureMoves = false;
 			if (!move.IsNull)
 			{
+				repetitionTable.TryPop();
 				board.UndoMove(new Chess.Move(move.RawValue), inSearch: true);
-				repetitionHistory.Remove(board.ZobristKey);
+                OnPositionChanged();
 			}
 		}
 
 		/// <summary>
-		/// Try skip the current turn
-		/// This will fail and return false if in check
-		/// Note: skipping a turn is not allowed in the game, but it can be used as a search technique
+		/// Try skip the current turn.
+		/// This will fail and return false if in check.
+		/// Note: skipping a turn is not allowed in the game, but it can be used as a search technique.
+		/// Skipped turns can be undone with UndoSkipTurn()
 		/// </summary>
 		public bool TrySkipTurn()
 		{
@@ -89,21 +111,33 @@ namespace ChessChallenge.API
 			{
 				return false;
 			}
-			hasCachedMoves = false;
-			hasCachedCaptureMoves = false;
 			board.MakeNullMove();
-			return true;
+            OnPositionChanged();
+            return true;
 		}
 
-		/// <summary>
-		/// Undo a turn that was succesfully skipped with the TrySkipTurn method
-		/// </summary>
-		public void UndoSkipTurn()
+        /// <summary>
+        /// Forcibly skips the current turn.
+		/// Unlike TrySkipTurn(), this will work even when in check, which has some dangerous side-effects if done:
+		/// 1) Generating 'legal' moves will now include the illegal capture of the king.
+		/// 2) If the skipped turn is undone, the board will now incorrectly report that the position is not check.
+        /// Note: skipping a turn is not allowed in the game, but it can be used as a search technique.
+		/// Skipped turns can be undone with UndoSkipTurn()
+        /// </summary>
+        public void ForceSkipTurn()
+        {
+            board.MakeNullMove();
+            OnPositionChanged();
+        }
+
+        /// <summary>
+        /// Undo a turn that was succesfully skipped with TrySkipTurn() or ForceSkipTurn()
+        /// </summary>
+        public void UndoSkipTurn()
 		{
-			hasCachedMoves = false;
-			hasCachedCaptureMoves = false;
 			board.UnmakeNullMove();
-		}
+            OnPositionChanged();
+        }
 
 		/// <summary>
 		/// Gets an array of the legal moves in the current position.
@@ -118,20 +152,40 @@ namespace ChessChallenge.API
 
 			if (!hasCachedMoves)
 			{
-				cachedLegalMoves = moveGen.GenerateMoves(board, includeQuietMoves: true);
-				hasCachedMoves = true;
+                Span<Move> moveSpan = movesDest.AsSpan();
+                moveGen.GenerateMoves(ref moveSpan, board, includeQuietMoves: true);
+                cachedLegalMoves = moveSpan.ToArray();
+                hasCachedMoves = true;
+				hasCachedMoveCount = true;
+				cachedMoveCount = moveSpan.Length;
 			}
 
 			return cachedLegalMoves;
 		}
+
+        /// <summary>
+        /// Fills the given move span with legal moves, and slices it to the correct length.
+        /// Can choose to get only capture moves with the optional 'capturesOnly' parameter.
+		/// This gives the same result as the GetLegalMoves function, but allows you to be more
+		/// efficient with memory by allocating moves on the stack rather than the heap.
+        /// </summary>
+        public void GetLegalMovesNonAlloc(ref Span<Move> moveList, bool capturesOnly = false)
+		{
+			bool includeQuietMoves = !capturesOnly;
+			moveGen.GenerateMoves(ref moveList, board, includeQuietMoves);
+            hasCachedMoveCount = true;
+            cachedMoveCount = moveList.Length;
+        }
 
 
 		Move[] GetLegalCaptureMoves()
 		{
 			if (!hasCachedCaptureMoves)
 			{
-				cachedLegalCaptureMoves = moveGen.GenerateMoves(board, includeQuietMoves: false);
-				hasCachedCaptureMoves = true;
+                Span<Move> moveSpan = movesDest.AsSpan();
+                moveGen.GenerateMoves(ref moveSpan, board, includeQuietMoves: false);
+                cachedLegalCaptureMoves = moveSpan.ToArray();
+                hasCachedCaptureMoves = true;
 			}
 			return cachedLegalCaptureMoves;
 		}
@@ -139,32 +193,52 @@ namespace ChessChallenge.API
 		/// <summary>
 		/// Test if the player to move is in check in the current position.
 		/// </summary>
-		public bool IsInCheck() => board.IsInCheck();
+		public bool IsInCheck() => moveGen.IsInitialized ? moveGen.InCheck() : board.IsInCheck();
 
 		/// <summary>
 		/// Test if the current position is checkmate
 		/// </summary>
-		public bool IsInCheckmate() => IsInCheck() && GetLegalMoves().Length == 0;
+		public bool IsInCheckmate() => IsInCheck() && HasZeroLegalMoves();
 
-		/// <summary>
-		/// Test if the current position is a draw due stalemate,
-		/// 3-fold repetition, insufficient material, or 50-move rule.
-		/// </summary>
-		public bool IsDraw()
+        /// <summary>
+        /// Test if the current position is a draw due stalemate, repetition, insufficient material, or 50-move rule.
+        /// Note: this function will return true if the same position has occurred twice on the board (rather than 3 times,
+        /// which is when the game is actually drawn). This quirk is to help bots avoid repeating positions unnecessarily.
+        /// </summary>
+        public bool IsDraw()
 		{
-			return IsFiftyMoveDraw() || Arbiter.InsufficentMaterial(board) || IsInStalemate() || IsRepetition();
-
-			bool IsInStalemate() => !IsInCheck() && GetLegalMoves().Length == 0;
-			bool IsFiftyMoveDraw() => board.currentGameState.fiftyMoveCounter >= 100;
-			bool IsRepetition() => repetitionHistory.Contains(board.ZobristKey);
+			return IsFiftyMoveDraw() || IsInsufficientMaterial() || IsInStalemate() || IsRepeatedPosition();
 		}
 
+        /// <summary>
+        /// Test if the current position is a draw due to stalemate
+        /// </summary>
+        public bool IsInStalemate() => !IsInCheck() && HasZeroLegalMoves();
+
+        /// <summary>
+        /// Test if the current position is a draw due to the fifty move rule
+        /// </summary>
+        public bool IsFiftyMoveDraw() => board.currentGameState.fiftyMoveCounter >= 100;
+
+        /// <summary>
+        /// Test if the current position has occurred at least once before on the board.
+        /// This includes both positions in the actual game, and positions reached by
+        /// making moves while the bot is thinking.
+        /// </summary>
+        public bool IsRepeatedPosition() => depth > 0 && repetitionTable.Contains(board.ZobristKey);
+
 		/// <summary>
-		/// Does the given player still have the right to castle kingside?
-		/// Note that having the right to castle doesn't necessarily mean castling is legal right now
-		/// (for example, a piece might be in the way, or player might be in check, etc).
+		/// Test if there are sufficient pieces remaining on the board to potentially deliver checkmate.
+		/// If not, the game is automatically a draw.
 		/// </summary>
-		public bool HasKingsideCastleRight(bool white) => board.currentGameState.HasKingsideCastleRight(white);
+		public bool IsInsufficientMaterial() => Arbiter.InsufficentMaterial(board);
+
+        /// <summary>
+        /// Does the given player still have the right to castle kingside?
+        /// Note that having the right to castle doesn't necessarily mean castling is legal right now
+        /// (for example, a piece might be in the way, or player might be in check, etc).
+        /// </summary>
+        public bool HasKingsideCastleRight(bool white) => board.currentGameState.HasKingsideCastleRight(white);
 
 		/// <summary>
 		/// Does the given player still have the right to castle queenside?
@@ -215,11 +289,7 @@ namespace ChessChallenge.API
 		/// </summary>
 		public bool SquareIsAttackedByOpponent(Square square)
 		{
-			if (!hasCachedMoves)
-			{
-				GetLegalMoves();
-			}
-			return BitboardHelper.SquareIsSet(moveGen.opponentAttackMap, square);
+			return BitboardHelper.SquareIsSet(moveGen.GetOpponentAttackMap(board), square);
 		}
 
 
@@ -228,11 +298,11 @@ namespace ChessChallenge.API
 		/// </summary>
 		public string GetFenString() => FenUtility.CurrentFen(board);
 
-		/// <summary>
-		/// 64-bit number where each bit that is set to 1 represents a
-		/// square that contains a piece of the given type and colour.
-		/// </summary>
-		public ulong GetPieceBitboard(PieceType pieceType, bool white)
+        /// <summary>
+        /// 64-bit number where each bit that is set to 1 represents a
+        /// square that contains a piece of the given type and colour.
+        /// </summary>
+        public ulong GetPieceBitboard(PieceType pieceType, bool white)
 		{
 			return board.pieceBitboards[PieceHelper.MakePiece((int)pieceType, white)];
 		}
@@ -259,10 +329,35 @@ namespace ChessChallenge.API
 		/// </summary>
 		public int PlyCount => board.plyCount;
 
+        /// <summary>
+        ///  Number of ply (a single move by either white or black) since the last pawn move or capture.
+		///  If this value reaches a hundred (meaning 50 full moves without a pawn move or capture), the game is drawn.
+        /// </summary>
+        public int FiftyMoveCounter => board.currentGameState.fiftyMoveCounter;
+
 		/// <summary>
 		/// 64-bit hash of the current position
 		/// </summary>
 		public ulong ZobristKey => board.ZobristKey;
+
+		/// <summary>
+		/// Zobrist keys for all the positions played in the game so far. This is reset whenever a
+		/// pawn move or capture is made, as previous positions are now impossible to reach again.
+		/// Note that this is not updated when your bot makes moves on the board while thinking,
+		/// but rather only when moves are actually played in the game.
+		/// </summary>
+		public ulong[] GameRepetitionHistory { get; private set; }
+
+        /// <summary>
+        /// FEN representation of the game's starting position.
+        /// </summary>
+        public string GameStartFenString => board.GameStartFen;
+
+		/// <summary>
+		/// All the moves played in the game so far.
+		/// This only includes moves played in the actual game, not moves made on the board while the bot is thinking.
+		/// </summary>
+		public Move[] GameMoveHistory { get; private set; }
 
         /// <summary>
         /// Creates a board from the given fen string. Please note that this is quite slow, and so it is advised
@@ -274,6 +369,23 @@ namespace ChessChallenge.API
             boardCore.LoadPosition(fen);
             return new Board(boardCore);
         }
+
+        void OnPositionChanged()
+        {
+            moveGen.NotifyPositionChanged();
+            hasCachedMoves = false;
+            hasCachedCaptureMoves = false;
+			hasCachedMoveCount = false;
+        }
+
+		bool HasZeroLegalMoves()
+		{
+			if (hasCachedMoveCount)
+			{
+				return cachedMoveCount == 0;
+			}
+			return moveGen.NoLegalMovesInPosition(board);
+		}
 
     }
 }

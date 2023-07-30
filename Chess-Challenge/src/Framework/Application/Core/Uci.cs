@@ -46,7 +46,7 @@ namespace Uci {
                         if (moveIndex != -1) {
                             for (int i = moveIndex + 1; i < tokens.Length; i++) {
                                 var move = MoveUtility.GetMoveFromUCIName(tokens[i], board);
-                                board.MakeMove(move, true);
+                                board.MakeMove(move, false);
                             }
                         }
                         break;

@@ -21,6 +21,7 @@ It has been necessary to make some bug fixes to the original project, and I've a
 * <b>V1.15</b> Fixed incorrect `move.CapturePieceType` for en-passant moves and moves in `board.GameMoveHistory`. Added `BitboardHelper.VisualizeBitboard()` to help with debugging bitboards.
 * <b>V1.16</b> Added `timer.GameStartTimeMilliseconds`, `timer.OpponentMillisecondsRemaining`, `board.ForceSkipTurn()`.
 * <b>V1.17</b> Added `BitboardHelper.GetPieceAttacks()` and optimized `board.SquareIsAttackedByOponent()`. Writing `#DEBUG` in a comment will now exclude code in that line from counting towards the token limit (for testing only of course).
+* <b>V1.18</b> Added `timer.IncrementMilliseconds` (this will be 0 for the main tournament, but a small increment may be used in the final playoff games). Fixed a bug in the repetition handling, and optimized check/stalemate detection.
 
 [There will be no API changes after August 1]
 
@@ -71,8 +72,8 @@ There is a size limit on the code you create called the _bot brain capacity_. Th
 All names (variables, functions, etc.) are counted as a single token, regardless of length. This means that both lines of code: `bool a = true;` and `bool myObscenelyLongVariableName = true;` count the same. Additionally, the following things do not count towards the limit: white space, new lines, comments, access modifiers, commas, and semicolons.
 
 ## FAQ and Troubleshooting
-* Will the final tournament games be played from the standard starting position, or from custom positions?
-  * Games will be played from the standard starting position. If tiebreak games are required, custom positions will be used.
+* What is the format of the tournament?
+  * The format may change depending on the number of entries, but the current plan is to run two tournaments, with the first being a large Swiss tournament in which all bots are able to receive a ranking. These games will be played from the standard starting position. Some percengtage of the top bots will then be promoted to a second knock-out tournament, which will use a selection of different opening positions. The exact number of rounds/games and time-control are TBD.
 * [Unable to build/run the project from my IDE/Code editor](https://github.com/SebLague/Chess-Challenge/issues/85)
   * After downloading the project and installing .Net 6.0, open a terminal / command prompt window.
   * Navigate to the folder where Chess-Challenge.csproj is located using the `cd` command.

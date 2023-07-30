@@ -77,6 +77,8 @@ public class MyBot : IChessBot {
         // check for game end
         if (board.IsInCheckmate())
             return nextPly - 30000;
+        if (board.IsDraw())
+            return 0;
         nextPly++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
@@ -171,9 +173,7 @@ public class MyBot : IChessBot {
 
             board.MakeMove(move);
             int nextDepth = board.IsInCheck() ? depth : depth - 1;
-            if (board.IsDraw())
-                score = 0;
-            else if (moveCount == 0)
+            if (moveCount == 0)
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {
                 // use tmp as reduction

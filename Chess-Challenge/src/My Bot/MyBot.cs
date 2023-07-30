@@ -119,17 +119,17 @@ public class MyBot : IChessBot {
             score += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
                 // material
                 EvalWeight(96 + pieceType)
-                // psts
+                    // psts
                     + (int)(
                         packedData[pieceType * 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
                             >> (0x01455410 >> square.File * 4) * 8
                             & 0xFF00FF
                     )
-                // mobility
+                    // mobility
                     + EvalWeight(100 + pieceType) * BitboardHelper.GetNumberOfSetBits(
-                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType+1), square, board)
+                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType + 1), square, board)
                     )
-                // own pawn on file
+                    // own pawn on file
                     + EvalWeight(106 + pieceType) * BitboardHelper.GetNumberOfSetBits(
                         0x0101010101010101UL << square.File
                             & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
@@ -168,7 +168,7 @@ public class MyBot : IChessBot {
         Move bestMove = nullMove;
         foreach (Move move in moves) {
             //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && moveCount != 0 && (quietsToCheck-- == 0 || scores[moveCount] > 256))
+            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || scores[moveCount] > 256 && moveCount != 0))
                 break;
 
             board.MakeMove(move);

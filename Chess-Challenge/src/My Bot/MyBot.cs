@@ -1,6 +1,7 @@
 ﻿using ChessChallenge.API;
 using System;
 using static System.Math;
+using static ChessChallenge.API.BitboardHelper;
 
 // This struct should be 16 bytes large
 struct TtEntry {
@@ -116,45 +117,45 @@ public class MyBot : IChessBot {
         // tempo
         ulong pieces = board.AllPiecesBitboard;
         while (pieces != 0) {
-            Square square = new(BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
+            Square square = new(ClearAndGetIndexOfLSB(ref pieces));
             Piece piece = board.GetPiece(square);
-            pieceType = (int)piece.PieceType - 1;
+            pieceType = (int)piece.PieceType;
             eval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
                 // material
-                EvalWeight(96 + pieceType)
+                EvalWeight(95 + pieceType)
                     // psts
                     + (int)(
-                        packedData[pieceType * 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
+                        packedData[pieceType * 8 - 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
                             >> (0x01455410 >> square.File * 4) * 8
                             & 0xFF00FF
                     )
                     // mobility
-                    + EvalWeight(100 + pieceType) * BitboardHelper.GetNumberOfSetBits(
-                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType + 1), square, board)
+                    + EvalWeight(99 + pieceType) * GetNumberOfSetBits(
+                        GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
                     )
                     // own pawn on file
-                    + EvalWeight(106 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                    + EvalWeight(105 + pieceType) * GetNumberOfSetBits(
                         0x0101010101010101UL << square.File
                             & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
                     )
             );
-            // phaseWeightTable = [0, 1, 1, 2, 4, 0]
-            tmp += 0x042110 >> pieceType * 4 & 0xF;
+            // phaseWeightTable = [X, 0, 1, 1, 2, 4, 0]
+            tmp += 0x0421100 >> pieceType * 4 & 0xF;
         }
-        eval = ((short)eval * tmp + (eval + 0x8000) / 0x10000 * (24 - tmp)) / 24;
+        // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
+        eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
         // end tmp use
 
-        if (inQSearch) {
+        if (inQSearch)
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = eval);
-        } else if (nonPv && board.TrySkipTurn()) {
+        else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
-            eval = depth < 4 ? eval - 42 * depth : -Negamax(-beta, -alpha, depth * 2 / 3 - 2, nextPly);
+            bestScore = depth < 4 ? eval - 42 * depth : -Negamax(-beta, -alpha, depth * 2 / 3 - 2, nextPly);
             board.UndoSkipTurn();
-        } else goto afterNullMoveObservation;
-        if (eval >= beta)
-            return eval;
-        afterNullMoveObservation:
+        }
+        if (bestScore >= beta)
+            return bestScore;
 
         var moves = board.GetLegalMoves(inQSearch);
         var scores = new int[moves.Length];
@@ -170,9 +171,6 @@ public class MyBot : IChessBot {
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
         foreach (Move move in moves) {
-            //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || (scores[moveCount] > 256 || eval + 300 * depth < alpha) && moveCount != 0))
-                break;
 
             board.MakeMove(move);
             int nextDepth = board.IsInCheck() ? depth : depth - 1;
@@ -208,6 +206,25 @@ public class MyBot : IChessBot {
                 }
                 break;
             }
+
+            // Pruning techniques that break the move loop
+            if (
+                nonPv && depth <= 4 && !move.IsCapture && (
+                    // LMP
+                    quietsToCheck-- == 1 ||
+                    // History Pruning
+                    scores[moveCount] > 256 ||
+                    // Futility Pruning
+                    eval + 300 * depth < alpha
+                ) ||
+                // Delta pruning
+                // deltas = [210, 390, 440, 680, 1350]
+                // due to sharing of the top bit of each entry with the bottom bit of the next one
+                // (expands the range of values for the queen) all deltas must be even (except pawn)
+                inQSearch && bestScore + (0b1_0101000110_1010101000_0110111000_0110000110_0011010010_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha
+            )
+                break;
+
             moveCount++;
         }
 
@@ -217,7 +234,7 @@ public class MyBot : IChessBot {
         tt.depth = (short)Max(depth, 0);
         tt.hash = board.ZobristKey;
         tt.score = (short)bestScore;
-        if (!ttHit || tt.bound != 3 /* BOUND_UPPER */)
+        if (tt.bound != 3 /* BOUND_UPPER */)
             tt.moveRaw = bestMove.RawValue;
 
         searchBestMove = bestMove;

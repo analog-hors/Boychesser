@@ -170,10 +170,6 @@ public class MyBot : IChessBot {
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
         foreach (Move move in moves) {
-            //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || (scores[moveCount] > 256 || eval + 600 < alpha) && moveCount != 0))
-                break;
-
             board.MakeMove(move);
             int nextDepth = board.IsInCheck() ? depth : depth - 1;
             if (moveCount == 0)
@@ -208,6 +204,11 @@ public class MyBot : IChessBot {
                 }
                 break;
             }
+
+            //LMP
+            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 1 || scores[moveCount] > 256 || eval + 600 < alpha))
+                break;
+
             moveCount++;
         }
 

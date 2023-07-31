@@ -146,12 +146,12 @@ public class MyBot : IChessBot {
             alpha = Max(alpha, bestScore = score);
         } else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
-            score = depth < 4 ? score - 42 * depth : -Negamax(-beta, -alpha, depth - 4, nextPly);
+            bestScore = depth < 4 ? score - 42 * depth
+                : -Negamax(-beta, -alpha, depth - 4, nextPly);
             board.UndoSkipTurn();
-        } else goto afterNullMoveObservation;
-        if (score >= beta)
-            return score;
-        afterNullMoveObservation:
+        }
+        if (bestScore >= beta)
+            return bestScore;
 
         var moves = board.GetLegalMoves(inQSearch);
         var scores = new int[moves.Length];

@@ -87,6 +87,7 @@ public class MyBot : IChessBot {
             nonPv = alpha + 1 == beta,
             inQSearch = depth <= 0;
         int
+            staticEval = 0x00000006,
             bestScore = -99999,
             oldAlpha = alpha,
 
@@ -113,13 +114,12 @@ public class MyBot : IChessBot {
 
         // use tmp as phase (initialized above)
         // tempo
-        score = 0x00000006;
         ulong pieces = board.AllPiecesBitboard;
         while (pieces != 0) {
             Square square = new(BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
             Piece piece = board.GetPiece(square);
             pieceType = (int)piece.PieceType - 1;
-            score += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
+            staticEval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
                 // material
                 EvalWeight(96 + pieceType)
                     // psts
@@ -141,15 +141,15 @@ public class MyBot : IChessBot {
             // phaseWeightTable = [0, 1, 1, 2, 4, 0]
             tmp += 0x042110 >> pieceType * 4 & 0xF;
         }
-        score = ((short)score * tmp + (score + 0x8000) / 0x10000 * (24 - tmp)) / 24;
+        staticEval = ((short)staticEval * tmp + (staticEval + 0x8000) / 0x10000 * (24 - tmp)) / 24;
         // end tmp use
 
         if (inQSearch) {
             // stand pat in quiescence search
-            alpha = Max(alpha, bestScore = score);
+            alpha = Max(alpha, bestScore = staticEval);
         } else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
-            score = depth < 4 ? score - 42 * depth : -Negamax(-beta, -alpha, depth * 2 / 3 - 2, nextPly);
+            score = depth < 4 ? staticEval - 42 * depth : -Negamax(-beta, -alpha, depth * 2 / 3 - 2, nextPly);
             board.UndoSkipTurn();
         } else goto afterNullMoveObservation;
         if (score >= beta)
@@ -171,7 +171,7 @@ public class MyBot : IChessBot {
         Move bestMove = nullMove;
         foreach (Move move in moves) {
             //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || scores[moveCount] > 256 && moveCount != 0))
+            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || (scores[moveCount] > 256 || staticEval + 800 < alpha) && moveCount != 0))
                 break;
 
             board.MakeMove(move);

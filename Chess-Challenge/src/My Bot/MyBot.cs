@@ -171,7 +171,7 @@ public class MyBot : IChessBot {
         Move bestMove = nullMove;
         foreach (Move move in moves) {
             //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || (scores[moveCount] > 256 || eval + 300 * depth < alpha) && moveCount != 0))
+            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || (scores[moveCount] > 128 * depth || eval + 300 * depth < alpha) && moveCount != 0))
                 break;
 
             board.MakeMove(move);

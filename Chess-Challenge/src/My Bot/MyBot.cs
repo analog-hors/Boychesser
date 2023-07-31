@@ -174,6 +174,10 @@ public class MyBot : IChessBot {
             if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || scores[moveCount] > 256 && moveCount != 0))
                 break;
 
+            // deltas = [7, 13, 15, 23, 45]
+            if (inQSearch && bestScore + 30 * (0b101101_010111_001111_001101_000111 >> (int)move.CapturePieceType * 6 - 6 & 0b111111) <= alpha)
+                break;
+
             board.MakeMove(move);
             int nextDepth = board.IsInCheck() ? depth : depth - 1;
             if (moveCount == 0)

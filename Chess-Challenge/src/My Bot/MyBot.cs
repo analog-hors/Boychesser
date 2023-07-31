@@ -39,6 +39,7 @@ public class MyBot : IChessBot {
         0x7f7927226c50240b, 0x859132228c611c1c, 0x849231279c4d1026, 0x565a89835b01676e,
         0x00d80099005f002e, 0x01bb00ce010e00bf, 0x00000000043b01dc, 0x0002000200060004,
         0xfffcfffd00020002, 0x00030003ffecfff9, 0xfff3fff4fffa0004, 0xfffd000bfff30000,
+        0x00000186000000D2, 0x000002B2000001C2, 0x0000000000000546
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -171,11 +172,11 @@ public class MyBot : IChessBot {
         Move bestMove = nullMove;
         foreach (Move move in moves) {
             //LMP
-            if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || scores[moveCount] > 256 && moveCount != 0))
-                break;
-
-            // deltas = [7, 13, 15, 23, 45]
-            if (inQSearch && bestScore + 30 * (0b101101_010111_001111_001101_000111 >> (int)move.CapturePieceType * 6 - 6 & 0b111111) <= alpha)
+            if (
+                nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || scores[moveCount] > 256 && moveCount != 0)
+                // deltas = [210, 390, 450, 690, 1350]
+                || inQSearch && bestScore + EvalWeight(111 + (int)move.CapturePieceType) <= alpha
+            )
                 break;
 
             board.MakeMove(move);

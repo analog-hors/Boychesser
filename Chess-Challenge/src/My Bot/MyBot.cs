@@ -25,20 +25,21 @@ public class MyBot : IChessBot {
     int[,,] history = new int[2, 7, 64];
 
     ulong[] packedData = {
-        0x0000000000000000, 0x30310b16342c1c05, 0x252616182d241d0c, 0x2129201e352b1509,
-        0x313a2923443f220e, 0x5e693e387d6f2d15, 0xa1bc6452d5c52d41, 0x0000000000000000,
-        0x6b62524e4e394a42, 0x79725d5a705a504e, 0x8f856b628066604e, 0x9c996d6b8a79695e,
-        0xa59e757a957d6a6d, 0x96979e9486798e64, 0x9184888382685a58, 0x879f6d0b862e1802,
-        0x45432f3049403135, 0x4648343645483e3d, 0x504e35394f513d3b, 0x4a523f344f4b3640,
-        0x4e514640574f3b3d, 0x4c52554e5857523f, 0x5a58343a5c58332d, 0x6a6b120267630e1e,
-        0x959b6d669e9a615e, 0x9d9d5e599b9c554c, 0xa5a85a58a6a35b52, 0xafb4615fb3b15759,
-        0xb7bc7770c0ba6867, 0xb3bb9486b9bf8674, 0xbcbc9e95c5bf777b, 0xb8ba999abbb79895,
-        0x887d959588a1958e, 0x9786959a8f9c999a, 0xb5b98e93ada79699, 0xe4d3858dd1bf8e98,
-        0xf7f2898eecc08ea3, 0xfcfe9a97e4d7a8a2, 0xfff7929bfedb8a9d, 0xd1d8bab9e0e0aa9b,
-        0x1d24252719003d33, 0x4d440a18311b2b2e, 0x645b020147311209, 0x74681312573e1200,
-        0x7f7927226c50240b, 0x859132228c611c1c, 0x849231279c4d1026, 0x565a89835b01676e,
-        0x00d80099005f002e, 0x01bb00ce010e00bf, 0x00000000043b01dc, 0x0002000200060004,
-        0xfffcfffd00020002, 0x00030003ffecfff9, 0xfff3fff4fffa0004, 0xfffd000bfff30000,
+        0x0000000000000000, 0x35350b1838281c03, 0x282914162d1e1b0a, 0x252b221f39251708,
+        0x353f2c26483b250e, 0x636e443d836a3116, 0xa7c46c56ddc43045, 0x0000000000000000,
+        0x453f454029103c36, 0x5a534e4b4c354340, 0x716657505a404d3f, 0x7c7a5c5b6752594f,
+        0x877f656971585b5e, 0x7778908364557f59, 0x6f647b775d434c4b, 0x60765f0061000c00,
+        0x5b5846455d514649, 0x5c5e4f505a585750, 0x65634f536261544e, 0x62675b4f635d5054,
+        0x6565625b6c615254, 0x616771696a696b55, 0x6f6c4d526d684c44, 0x7c7e251379782333,
+        0xa8ae7c74b1ac6d69, 0xb3b26d67afb06258, 0xb9bc6562b7b6645d, 0xc1c56c68c6c26362,
+        0xc6cd817acfcb7371, 0xc4cba091cbd0907d, 0xcdcda8a0d6d08387, 0xcacaa3a4cbc9a2a0,
+        0x887db2b287a0b2a9, 0x9788b6ba8b99b8b4, 0xb4b8acb0aca4b2b3, 0xe1d0a4acccbbacb2,
+        0xf6efa9abe5bea9be, 0xfafbb9b4e0d2c5bb, 0xfff5aeb8f9d8a3b6, 0xd0d6d4d1dedec2b3,
+        0x1b232c3019014842, 0x4a420e1d301b333b, 0x5e560104432f1512, 0x6d631315543e1702,
+        0x79752725694f290e, 0x818d352488602121, 0x808d3629974f1531, 0x54568f895b017275,
+        0x010600a500690031, 0x01aa00ca010500b4, 0x00000000044201ca, 0xfffe0001fff4fffd,
+        0x0002000200040003, 0xfffdfffe00020001, 0x00020003ffeefff9, 0xfff6fff4fffb0003,
+        0xfffe000bfff50000,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -110,7 +111,7 @@ public class MyBot : IChessBot {
 
         // use tmp as phase (initialized above)
         // tempo
-        score = 0x00000006;
+        score = 0x00010006;
         ulong pieces = board.AllPiecesBitboard;
         while (pieces != 0) {
             Square square = new(BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
@@ -126,11 +127,11 @@ public class MyBot : IChessBot {
                             & 0xFF00FF
                     )
                     // mobility
-                    + EvalWeight(100 + pieceType) * BitboardHelper.GetNumberOfSetBits(
-                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType + 1), square, board)
+                    + EvalWeight(102 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                        BitboardHelper.GetPieceAttacks((PieceType)Min(5, pieceType + 1), square, board, piece.IsWhite) & ~(piece.IsWhite ? board.WhitePiecesBitboard : board.BlackPiecesBitboard)
                     )
                     // own pawn on file
-                    + EvalWeight(106 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                    + EvalWeight(108 + pieceType) * BitboardHelper.GetNumberOfSetBits(
                         0x0101010101010101UL << square.File
                             & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
                     )

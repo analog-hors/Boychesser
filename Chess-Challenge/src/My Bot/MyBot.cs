@@ -1,6 +1,7 @@
 ﻿using ChessChallenge.API;
 using System;
 using static System.Math;
+using static ChessChallenge.API.BitboardHelper;
 
 // This struct should be 16 bytes large
 struct TtEntry {
@@ -25,20 +26,21 @@ public class MyBot : IChessBot {
     int[,,] history = new int[2, 7, 64];
 
     ulong[] packedData = {
-        0x0000000000000000, 0x30310b16342c1c05, 0x252616182d241d0c, 0x2129201e352b1509,
-        0x313a2923443f220e, 0x5e693e387d6f2d15, 0xa1bc6452d5c52d41, 0x0000000000000000,
-        0x6b62524e4e394a42, 0x79725d5a705a504e, 0x8f856b628066604e, 0x9c996d6b8a79695e,
-        0xa59e757a957d6a6d, 0x96979e9486798e64, 0x9184888382685a58, 0x879f6d0b862e1802,
-        0x45432f3049403135, 0x4648343645483e3d, 0x504e35394f513d3b, 0x4a523f344f4b3640,
-        0x4e514640574f3b3d, 0x4c52554e5857523f, 0x5a58343a5c58332d, 0x6a6b120267630e1e,
-        0x959b6d669e9a615e, 0x9d9d5e599b9c554c, 0xa5a85a58a6a35b52, 0xafb4615fb3b15759,
-        0xb7bc7770c0ba6867, 0xb3bb9486b9bf8674, 0xbcbc9e95c5bf777b, 0xb8ba999abbb79895,
-        0x887d959588a1958e, 0x9786959a8f9c999a, 0xb5b98e93ada79699, 0xe4d3858dd1bf8e98,
-        0xf7f2898eecc08ea3, 0xfcfe9a97e4d7a8a2, 0xfff7929bfedb8a9d, 0xd1d8bab9e0e0aa9b,
-        0x1d24252719003d33, 0x4d440a18311b2b2e, 0x645b020147311209, 0x74681312573e1200,
-        0x7f7927226c50240b, 0x859132228c611c1c, 0x849231279c4d1026, 0x565a89835b01676e,
-        0x00d80099005f002e, 0x01bb00ce010e00bf, 0x00000000043b01dc, 0x0002000200060004,
-        0xfffcfffd00020002, 0x00030003ffecfff9, 0xfff3fff4fffa0004, 0xfffd000bfff30000,
+        0x0000000000000000, 0x30310a16322b1b04, 0x252615172c231d0b, 0x22281f1d362a1508,
+        0x353d2923463f220d, 0x636e3e39806f2e14, 0xa2bd6754d6c52e44, 0x0000000000000000,
+        0x6660544f4c364c44, 0x78715f5c6e595351, 0x8e836c647c646251, 0x9b996f6d88776a60,
+        0xaba16e76967d666a, 0x9a99958d897a8661, 0x9385828180685956, 0x849a6906842a1a00,
+        0x474532314b413338, 0x474936374749403e, 0x4f4e373c51523f3a, 0x4c534036514d3940,
+        0x5052443e5b513a3b, 0x4e53514c5a5a4f3a, 0x5b5934395b57352e, 0x696c120168660f21,
+        0x999f7067a29e6360, 0xa2a2615ba0a0574f, 0xa9ac5c58a9a75b55, 0xb2b7635fb7b3595a,
+        0xbac07972c2bd6a69, 0xb7bf9586bec28674, 0xc2c29891cbc4747a, 0xbdbd9496bebc9594,
+        0x9488979691a79790, 0xa592989d94a19b9a, 0xbfc19194b4ad999a, 0xe8d9878fd4c19099,
+        0xfbf5898cefc48ea0, 0xfafb9796e7d3a49c, 0xfff38b98fad6889b, 0xc2cbb2b2d4d0a79a,
+        0x1c231c1e18013428, 0x453d0a162c192a28, 0x534a070a3b2b1804, 0x605614164a361500,
+        0x6f6a242261492302, 0x7a843327825c1f15, 0x7985372c914d1423, 0x5152857f5701635d,
+        0x00de00970062002e, 0x01bb00cd010e00bf, 0x00000000043801e4, 0x0002000200060004,
+        0xfffdfffd00010002, 0x00020002ffecfff9, 0xfff2fff5fffa0003, 0x0000000affef0000,
+        0xfff8000afff60002, 0xfffc0009fffd0009, 0x00000000000d0006,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -110,10 +112,10 @@ public class MyBot : IChessBot {
 
         // use tmp as phase (initialized above)
         // tempo
-        score = 0x00000006;
+        score = 0x00010006;
         ulong pieces = board.AllPiecesBitboard;
         while (pieces != 0) {
-            Square square = new(BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
+            Square square = new(ClearAndGetIndexOfLSB(ref pieces));
             Piece piece = board.GetPiece(square);
             pieceType = (int)piece.PieceType - 1;
             score += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
@@ -126,13 +128,17 @@ public class MyBot : IChessBot {
                             & 0xFF00FF
                     )
                     // mobility
-                    + EvalWeight(100 + pieceType) * BitboardHelper.GetNumberOfSetBits(
-                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType + 1), square, board)
+                    + EvalWeight(100 + pieceType) * GetNumberOfSetBits(
+                        GetSliderAttacks((PieceType)Min(5, pieceType + 1), square, board)
                     )
                     // own pawn on file
-                    + EvalWeight(106 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                    + EvalWeight(106 + pieceType) * GetNumberOfSetBits(
                         0x0101010101010101UL << square.File
                             & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
+                    )
+                    // king ring attacks
+                    + EvalWeight(112 + pieceType) * GetNumberOfSetBits(
+                        GetPieceAttacks(piece.PieceType, square, board, piece.IsWhite) & GetKingAttacks(board.GetKingSquare(!piece.IsWhite))
                     )
             );
             // phaseWeightTable = [0, 1, 1, 2, 4, 0]

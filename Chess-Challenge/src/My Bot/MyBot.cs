@@ -147,7 +147,7 @@ public class MyBot : IChessBot {
         if (inQSearch) {
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = eval);
-        } else if (nonPv && board.TrySkipTurn()) {
+        } else if (nonPv && eval >= beta && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
             eval = depth < 4 ? eval - 42 * depth : -Negamax(-beta, -alpha, depth * 2 / 3 - 2, nextPly);
             board.UndoSkipTurn();

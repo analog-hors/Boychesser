@@ -174,6 +174,9 @@ public class MyBot : IChessBot {
             if (nonPv && depth <= 4 && !move.IsCapture && (quietsToCheck-- == 0 || scores[moveCount] > 256 && moveCount != 0))
                 break;
 
+            if (inQSearch && nonPv && bestScore + (short)EvalWeight(95 + (int)move.CapturePieceType) < beta)
+                break;
+
             board.MakeMove(move);
             int nextDepth = board.IsInCheck() ? depth : depth - 1;
             if (moveCount == 0)

@@ -216,7 +216,7 @@ public class MyBot : IChessBot {
         tt.depth = (short)Max(depth, 0);
         tt.hash = board.ZobristKey;
         tt.score = (short)bestScore;
-        if (!ttHit || tt.bound != 3 /* BOUND_UPPER */)
+        if (tt.bound != 3 /* BOUND_UPPER */)
             tt.moveRaw = bestMove.RawValue;
 
         searchBestMove = bestMove;

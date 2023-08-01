@@ -227,14 +227,19 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
-        tt.bound = (short)(bestScore >= beta ? 2 /* BOUND_LOWER */
+        // use tmp as bound
+        tmp = bestScore >= beta ? 2 /* BOUND_LOWER */
             : alpha > oldAlpha ? 1 /* BOUND_EXACT */
-            : 3 /* BOUND_UPPER */);
-        tt.depth = (short)Max(depth, 0);
-        tt.hash = board.ZobristKey;
-        tt.score = (short)bestScore;
-        if (tt.bound != 3 /* BOUND_UPPER */)
+            : 3 /* BOUND_UPPER */;
+        tt = tt with {
+            bound = (short)tmp,
+            depth = (short)Max(depth, 0),
+            hash = board.ZobristKey,
+            score = (short)bestScore,
+        };
+        if (tmp != 3)
             tt.moveRaw = bestMove.RawValue;
+        // end tmp use
 
         searchBestMove = bestMove;
         return bestScore;

@@ -1,6 +1,7 @@
 ﻿using ChessChallenge.API;
 using System;
 using static System.Math;
+using static ChessChallenge.API.BitboardHelper;
 
 // This struct should be 16 bytes large
 struct TtEntry {
@@ -116,38 +117,38 @@ public class MyBot : IChessBot {
         // tempo
         ulong pieces = board.AllPiecesBitboard;
         while (pieces != 0) {
-            Square square = new(BitboardHelper.ClearAndGetIndexOfLSB(ref pieces));
+            Square square = new(ClearAndGetIndexOfLSB(ref pieces));
             Piece piece = board.GetPiece(square);
-            pieceType = (int)piece.PieceType - 1;
+            pieceType = (int)piece.PieceType;
             eval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
                 // material
-                EvalWeight(96 + pieceType)
+                EvalWeight(95 + pieceType)
                     // psts
                     + (int)(
-                        packedData[pieceType * 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
+                        packedData[pieceType * 8 - 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
                             >> (0x01455410 >> square.File * 4) * 8
                             & 0xFF00FF
                     )
                     // mobility
-                    + EvalWeight(100 + pieceType) * BitboardHelper.GetNumberOfSetBits(
-                        BitboardHelper.GetSliderAttacks((PieceType)Min(5, pieceType + 1), square, board)
+                    + EvalWeight(99 + pieceType) * GetNumberOfSetBits(
+                        GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
                     )
                     // own pawn on file
-                    + EvalWeight(106 + pieceType) * BitboardHelper.GetNumberOfSetBits(
+                    + EvalWeight(105 + pieceType) * GetNumberOfSetBits(
                         0x0101010101010101UL << square.File
                             & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
                     )
             );
             // phaseWeightTable = [0, 1, 1, 2, 4, 0]
-            tmp += 0x042110 >> pieceType * 4 & 0xF;
+            tmp += 0x0421100 >> pieceType * 4 & 0xF;
         }
         eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
         // end tmp use
 
-        if (inQSearch) {
+        if (inQSearch)
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = eval);
-        } else if (nonPv && board.TrySkipTurn()) {
+        else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
             bestScore = depth < 4 ? eval - 42 * depth : -Negamax(-beta, -alpha, depth * 2 / 3 - 2, nextPly);
             board.UndoSkipTurn();

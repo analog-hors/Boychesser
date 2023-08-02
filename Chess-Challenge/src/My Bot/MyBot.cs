@@ -142,7 +142,7 @@ public class MyBot : IChessBot {
             tmp += 0x0421100 >> pieceType * 4 & 0xF;
         }
         // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
-        eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
+        eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / (28 - tmp / 3);
         // end tmp use
 
         if (inQSearch)
@@ -240,7 +240,7 @@ public class MyBot : IChessBot {
             (short)tmp
         );
         // end tmp use
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

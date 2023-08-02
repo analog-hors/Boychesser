@@ -178,7 +178,7 @@ public class MyBot : IChessBot {
                 break;
 
             board.MakeMove(move);
-            int nextDepth = board.IsInCheck() ? depth : depth - 1;
+            int nextDepth = board.IsInCheck() || move.PromotionPieceType == PieceType.Queen ? depth : depth - 1;
             if (moveCount == 0)
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
             else {

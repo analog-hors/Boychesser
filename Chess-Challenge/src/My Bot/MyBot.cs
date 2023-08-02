@@ -185,7 +185,7 @@ public class MyBot : IChessBot {
             else {
                 // use tmp as reduction
                 tmp = move.IsCapture || nextDepth >= depth ? 0
-                    : (moveCount * 59 + depth * 109) / 1000 + Min(moveCount / 6, 1);
+                    : Max(0, (moveCount * 59 + depth * 109) / 1000 + Min(moveCount / 6, 1) - HistoryValue(move) / 200);
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);

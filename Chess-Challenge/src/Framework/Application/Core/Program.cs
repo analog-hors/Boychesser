@@ -90,6 +90,7 @@ namespace ChessChallenge.Application {
                 var board = new ChessChallenge.Chess.Board();
                 for (int i = 0; i < benches.Length; i++) {
                     board.LoadPosition(benches[i]);
+                    bot.history = new int[2, 7, 64];
                     for (int d = 1; d <= 10; d++) {
                         bot.maxSearchTime = 100000;
                         bot.board = new ChessChallenge.API.Board(board);

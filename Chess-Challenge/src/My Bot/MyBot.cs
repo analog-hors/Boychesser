@@ -170,6 +170,9 @@ public class MyBot : IChessBot {
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
         foreach (Move move in moves) {
+            if (move.IsPromotion && move.PromotionPieceType != PieceType.Queen)
+                continue;
+
             // Delta pruning
             // deltas = [210, 390, 440, 680, 1350]
             // due to sharing of the top bit of each entry with the bottom bit of the next one
@@ -240,7 +243,7 @@ public class MyBot : IChessBot {
             (short)tmp
         );
         // end tmp use
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

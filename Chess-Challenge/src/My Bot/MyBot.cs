@@ -15,8 +15,8 @@ public class MyBot : IChessBot {
 
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     (
-        ulong,
-        ushort,
+        ulong, // hash
+        ushort, // moveRaw
         short, // score
         short, // depth 
         short // bound BOUND_EXACT=1, BOUND_LOWER=2, BOUND_UPPER=3
@@ -226,6 +226,7 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
+        // use tmp as bound
         tmp = bestScore >= beta ? 2 /* BOUND_LOWER */
             : alpha > oldAlpha ? 1 /* BOUND_EXACT */
             : 3 /* BOUND_UPPER */;
@@ -238,6 +239,7 @@ public class MyBot : IChessBot {
             (short)Max(depth, 0),
             (short)tmp
         );
+        // end tmp use
         
         searchBestMove = bestMove;
         return bestScore;

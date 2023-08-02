@@ -213,11 +213,11 @@ public class MyBot : IChessBot {
             }
 
             // Pruning techniques that break the move loop
-            if (nonPv && depth <= 4 && !move.IsCapture && (
+            if (nonPv && !move.IsCapture && (
                 // LMP
-                quietsToCheck-- == 1 ||
+                depth <= 4 && quietsToCheck-- == 1 ||
                 // History Pruning
-                scores[moveCount] > 64 * depth ||
+                depth <= 8 && scores[moveCount] > 64 * depth ||
                 // Futility Pruning
                 eval + 300 * depth < alpha
             ))
@@ -240,7 +240,7 @@ public class MyBot : IChessBot {
             (short)tmp
         );
         // end tmp use
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

@@ -226,21 +226,22 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
-        // use tmp as bound
-        tmp = bestScore >= beta ? 2 /* BOUND_LOWER */
-            : alpha > oldAlpha ? 1 /* BOUND_EXACT */
-            : 3 /* BOUND_UPPER */;
-        tt = (
-            board.ZobristKey,
-            tmp /* bound */ != 3 /* BOUND_UPPER */
-                ? bestMove.RawValue
-                : tt.Item2 /* moveRaw */,
-            (short)bestScore,
-            (short)Max(depth, 0),
-            (short)tmp
-        );
+        if (depth * 2 > tt.Item4)
+            // use tmp as bound
+            tt = (
+                board.ZobristKey,
+                (tmp = bestScore >= beta ? 2 /* BOUND_LOWER */
+                : alpha > oldAlpha ? 1 /* BOUND_EXACT */
+                : 3 /* BOUND_UPPER */) /* bound */ != 3 /* BOUND_UPPER */
+                    ? bestMove.RawValue
+                    : tt.Item2 /* moveRaw */,
+                (short)bestScore,
+                (short)Max(depth, 0),
+                (short)tmp
+            );
+
         // end tmp use
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

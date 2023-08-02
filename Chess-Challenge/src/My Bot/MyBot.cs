@@ -226,7 +226,7 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
-        if (depth * 2 > tt.Item4)
+        if (Max(depth, 0) * 2 >= tt.Item4)
             // use tmp as bound
             tt = (
                 board.ZobristKey,

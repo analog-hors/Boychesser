@@ -219,7 +219,7 @@ public class MyBot : IChessBot {
                 // History Pruning
                 scores[moveCount] > 64 * depth ||
                 // Futility Pruning
-                eval + 300 * depth < alpha
+                depth <= 2 && eval + 300 * depth < alpha
             ))
                 break;
 
@@ -240,7 +240,7 @@ public class MyBot : IChessBot {
             (short)tmp
         );
         // end tmp use
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

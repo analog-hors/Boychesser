@@ -213,13 +213,13 @@ public class MyBot : IChessBot {
             }
 
             // Pruning techniques that break the move loop
-            if (nonPv && !move.IsCapture && (
+            if (nonPv && depth <= 8 && !move.IsCapture && (
                 // LMP
                 depth <= 4 && quietsToCheck-- == 1 ||
                 // History Pruning
-                depth <= 8 && scores[moveCount] > 64 * depth ||
+                scores[moveCount] > 64 * depth ||
                 // Futility Pruning
-                eval + 300 * depth < alpha
+                depth <= 4 && eval + 300 * depth < alpha
             ))
                 break;
 

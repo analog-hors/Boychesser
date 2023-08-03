@@ -24,6 +24,8 @@ public class MyBot : IChessBot {
 
     int[,,] history = new int[2, 7, 64];
 
+    int[] evals = new int[256];
+
     ulong[] packedData = {
         0x0000000000000000, 0x30310b16342c1c05, 0x252616182d241d0c, 0x2129201e352b1509,
         0x313a2923443f220e, 0x5e693e387d6f2d15, 0xa1bc6452d5c52d41, 0x0000000000000000,
@@ -79,7 +81,6 @@ public class MyBot : IChessBot {
             return nextPly - 30000;
         if (board.IsDraw())
             return 0;
-        nextPly++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         bool
@@ -142,8 +143,11 @@ public class MyBot : IChessBot {
             tmp += 0x0421100 >> pieceType * 4 & 0xF;
         }
         // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
-        eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
+        evals[nextPly++] = eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
         // end tmp use
+
+        if (nextPly > 2 && eval > evals[nextPly - 3])
+            quietsToCheck /= 2;
 
         if (inQSearch)
             // stand pat in quiescence search

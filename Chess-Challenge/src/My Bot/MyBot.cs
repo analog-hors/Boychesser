@@ -92,8 +92,8 @@ public class MyBot : IChessBot {
             oldAlpha = alpha,
 
             // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 8, 7, 16, 50]
-            quietsToCheck = 0b_110010_010000_000111_001000_000000 >> depth * 6 & 0b111111,
+            moveCount = 0, // quietsToCheckTable = [0, 5, 8, 14, 49]
+            quietsToCheck = 0b_110001_001110_001000_000101_000000 >> depth * 6 & 0b111111,
 
             // static eval vars
             pieceType,
@@ -150,7 +150,7 @@ public class MyBot : IChessBot {
             alpha = Max(alpha, bestScore = eval);
         else if (nonPv && board.TrySkipTurn()) {
             // Null Move Pruning (NMP)
-            bestScore = depth < 4 ? eval - 42 * depth : -Negamax(-beta, -alpha, depth * 2 / 3 - 2, nextPly);
+            bestScore = depth <= 3 ? eval - 44 * depth : -Negamax(-beta, -alpha, depth * 639 / 1000 - 1, nextPly);
             board.UndoSkipTurn();
         }
         if (bestScore >= beta)
@@ -171,10 +171,10 @@ public class MyBot : IChessBot {
         Move bestMove = nullMove;
         foreach (Move move in moves) {
             // Delta pruning
-            // deltas = [210, 390, 440, 680, 1350]
+            // deltas = [208, 382, 440, 640, 1340]
             // due to sharing of the top bit of each entry with the bottom bit of the next one
             // (expands the range of values for the queen) all deltas must be even (except pawn)
-            if (inQSearch && bestScore + (0b1_0101000110_1010101000_0110111000_0110000110_0011010010_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
+            if (inQSearch && bestScore + (0b1_0100111100_1010000000_0110111000_0101111110_0011010000_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
                 break;
 
             board.MakeMove(move);
@@ -184,7 +184,7 @@ public class MyBot : IChessBot {
             else {
                 // use tmp as reduction
                 tmp = move.IsCapture || nextDepth >= depth ? 0
-                    : (moveCount * 59 + depth * 109) / 1000 + Min(moveCount / 6, 1);
+                    : (moveCount * 76 + depth * 103) / 1000 + Min(moveCount / 7, 1);
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);
@@ -219,7 +219,7 @@ public class MyBot : IChessBot {
                 // History Pruning
                 scores[moveCount] > 64 * depth ||
                 // Futility Pruning
-                eval + 300 * depth < alpha
+                eval + 271 * depth < alpha
             ))
                 break;
 

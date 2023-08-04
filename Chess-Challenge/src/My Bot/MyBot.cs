@@ -179,19 +179,16 @@ public class MyBot : IChessBot {
 
             board.MakeMove(move);
             int nextDepth = board.IsInCheck() ? depth : depth - 1;
-            if (moveCount == 0)
-                score = -Negamax(-beta, -alpha, nextDepth, nextPly);
-            else {
+            if (moveCount > 0) {
                 // use tmp as reduction
                 tmp = move.IsCapture || nextDepth >= depth ? 0
                     : (moveCount * 76 + depth * 103) / 1000 + Min(moveCount / 7, 1);
-                score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
-                if (score > alpha && tmp != 0)
-                    score = -Negamax(~alpha, -alpha, nextDepth, nextPly);
-                if (score > alpha && score < beta)
-                    score = -Negamax(-beta, -alpha, nextDepth, nextPly);
+                while ((score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly)) > alpha && tmp != 0)
+                    tmp = 0;
                 // end tmp use
             }
+            if (moveCount == 0 || score > alpha && score < beta)
+                score = -Negamax(-beta, -alpha, nextDepth, nextPly);
 
             board.UndoMove(move);
 
@@ -240,7 +237,7 @@ public class MyBot : IChessBot {
             (short)tmp
         );
         // end tmp use
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

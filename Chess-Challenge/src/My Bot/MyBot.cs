@@ -112,38 +112,42 @@ public class MyBot : IChessBot {
             // Internal Iterative Reduction (IIR)
             depth--;
 
-        // use tmp as phase (initialized above)
-        // tempo
-        ulong pieces = board.AllPiecesBitboard;
-        while (pieces != 0) {
-            Square square = new(ClearAndGetIndexOfLSB(ref pieces));
-            Piece piece = board.GetPiece(square);
-            pieceType = (int)piece.PieceType;
-            eval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
-                // material
-                EvalWeight(95 + pieceType)
-                    // psts
-                    + (int)(
-                        packedData[pieceType * 8 - 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
-                            >> (0x01455410 >> square.File * 4) * 8
-                            & 0xFF00FF
-                    )
-                    // mobility
-                    + EvalWeight(99 + pieceType) * GetNumberOfSetBits(
-                        GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
-                    )
-                    // own pawn on file
-                    + EvalWeight(105 + pieceType) * GetNumberOfSetBits(
-                        0x0101010101010101UL << square.File
-                            & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
-                    )
-            );
-            // phaseWeightTable = [X, 0, 1, 1, 2, 4, 0]
-            tmp += 0x0421100 >> pieceType * 4 & 0xF;
+        if (ttHit && !inQSearch)
+            eval = score;
+        else {
+            ulong pieces = board.AllPiecesBitboard;
+            // use tmp as phase (initialized above)
+            // tempo
+            while (pieces != 0) {
+                Square square = new(ClearAndGetIndexOfLSB(ref pieces));
+                Piece piece = board.GetPiece(square);
+                pieceType = (int)piece.PieceType;
+                eval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
+                    // material
+                    EvalWeight(95 + pieceType)
+                        // psts
+                        + (int)(
+                            packedData[pieceType * 8 - 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
+                                >> (0x01455410 >> square.File * 4) * 8
+                                & 0xFF00FF
+                        )
+                        // mobility
+                        + EvalWeight(99 + pieceType) * GetNumberOfSetBits(
+                            GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
+                        )
+                        // own pawn on file
+                        + EvalWeight(105 + pieceType) * GetNumberOfSetBits(
+                            0x0101010101010101UL << square.File
+                                & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
+                        )
+                );
+                // phaseWeightTable = [X, 0, 1, 1, 2, 4, 0]
+                tmp += 0x0421100 >> pieceType * 4 & 0xF;
+            }
+            // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
+            eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
+            // end tmp use
         }
-        // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
-        eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
-        // end tmp use
 
         if (inQSearch)
             // stand pat in quiescence search

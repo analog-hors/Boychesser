@@ -5,7 +5,6 @@ use std::time::Instant;
 
 use bytemuck::Zeroable;
 use marlinformat::PackedBoard;
-use rand::distributions::WeightedIndex;
 use rand::{thread_rng, Rng};
 use structopt::StructOpt;
 
@@ -61,29 +60,30 @@ pub fn interleave(
         }
     }
 
-    let mut sampler = match WeightedIndex::new(streams.iter().map(|&(count, _)| count)) {
-        Ok(v) => v,
-        Err(_) => return Ok(()),
-    };
-
     let mut written = 0;
 
-    loop {
-        let index = thread_rng().sample(&sampler);
+    while total > 0 {
+        let mut spot = thread_rng().gen_range(0..total);
+        let mut index = 0;
+        while streams[index].0 < spot {
+            spot -= streams[index].0;
+            index += 1;
+        }
         let (count, reader) = &mut streams[index];
 
         let mut value = PackedBoard::zeroed();
         reader.read_exact(bytemuck::bytes_of_mut(&mut value))?;
         into.write_all(bytemuck::bytes_of(&value))?;
 
+        total -= 1;
         *count -= 1;
         if *count == 0 {
-            if sampler.update_weights(&[(index, &0)]).is_err() {
-                return Ok(());
-            }
+            streams.swap_remove(index);
         }
 
         written += 1;
         progress(written, total);
     }
+
+    Ok(())
 }

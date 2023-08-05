@@ -2,10 +2,10 @@ import os, sys, json
 
 EVAL_SCALE = 160
 
-os.system(f"tar -xf {sys.argv[1]} 0-10.json")
-with open("0-10.json") as weights_file:
+os.system(f"tar -xf {sys.argv[1]} 0-15.json")
+with open("0-15.json") as weights_file:
     raw_weights: list[float] = json.load(weights_file)["params.weight"][0]
-os.remove("0-10.json")
+os.remove("0-15.json")
 
 features = len(raw_weights) // 2
 mg_weights = raw_weights[:features]

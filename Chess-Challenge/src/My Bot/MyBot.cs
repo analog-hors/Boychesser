@@ -25,20 +25,21 @@ public class MyBot : IChessBot {
     int[,,] history = new int[2, 7, 64];
 
     ulong[] packedData = {
-        0x0000000000000000, 0x30310b16342c1c05, 0x252616182d241d0c, 0x2129201e352b1509,
-        0x313a2923443f220e, 0x5e693e387d6f2d15, 0xa1bc6452d5c52d41, 0x0000000000000000,
-        0x6b62524e4e394a42, 0x79725d5a705a504e, 0x8f856b628066604e, 0x9c996d6b8a79695e,
-        0xa59e757a957d6a6d, 0x96979e9486798e64, 0x9184888382685a58, 0x879f6d0b862e1802,
-        0x45432f3049403135, 0x4648343645483e3d, 0x504e35394f513d3b, 0x4a523f344f4b3640,
-        0x4e514640574f3b3d, 0x4c52554e5857523f, 0x5a58343a5c58332d, 0x6a6b120267630e1e,
-        0x959b6d669e9a615e, 0x9d9d5e599b9c554c, 0xa5a85a58a6a35b52, 0xafb4615fb3b15759,
-        0xb7bc7770c0ba6867, 0xb3bb9486b9bf8674, 0xbcbc9e95c5bf777b, 0xb8ba999abbb79895,
-        0x887d959588a1958e, 0x9786959a8f9c999a, 0xb5b98e93ada79699, 0xe4d3858dd1bf8e98,
-        0xf7f2898eecc08ea3, 0xfcfe9a97e4d7a8a2, 0xfff7929bfedb8a9d, 0xd1d8bab9e0e0aa9b,
-        0x1d24252719003d33, 0x4d440a18311b2b2e, 0x645b020147311209, 0x74681312573e1200,
-        0x7f7927226c50240b, 0x859132228c611c1c, 0x849231279c4d1026, 0x565a89835b01676e,
-        0x00d80099005f002e, 0x01bb00ce010e00bf, 0x00000000043b01dc, 0x0002000200060004,
-        0xfffcfffd00020002, 0x00030003ffecfff9, 0xfff3fff4fffa0004, 0xfffd000bfff30000,
+        0x0000000000000000, 0x2d2e0c152e271a01, 0x21231717281f1d08, 0x1e24211d31251405,
+        0x2e382a22403a220a, 0x5b6740397a6a2e12, 0x9dbb6854d4c22b41, 0x0000000000000000,
+        0x6761514c4d374840, 0x77715c596e594f4e, 0x8d8369617b645f4d, 0x99986c6b8776675d,
+        0xa49d7579927b696b, 0x93959e9284788c64, 0x8f83868380665756, 0x839b6a0686281600,
+        0x474532314b413338, 0x484a363748483f3f, 0x5250363b52523f3b, 0x4e554036534e3940,
+        0x525447415c523c3e, 0x4f55574f5b595240, 0x5e5b353a5e58342f, 0x6b6d12016a670e22,
+        0x979d6e66a19c615e, 0xa0a05f5a9ea0554d, 0xa7ab5b57a8a65b53, 0xb1b6625fb7b45958,
+        0xb8be7a72c1bc6b68, 0xb5bd9789bcc18975, 0xbfbf9d96c8c1797e, 0xbbbb989abcbb9895,
+        0x867b9392869d938c, 0x958694988a989796, 0xb2b68d90aba49496, 0xe0d1858cccbb8d95,
+        0xf6f1898be8bf8ba1, 0xfafb9a96e1d2a79f, 0xfff6909bfbd7879b, 0xcfd5b8b6dddca899,
+        0x1c23252918013d34, 0x4c440c18311a2b30, 0x625a02034730110a, 0x72681314573e1300,
+        0x7f7a28246e50260b, 0x859234248c611e1e, 0x849032279b51102d, 0x575a89825f026978,
+        0x00da009b00600018, 0x01ba00d0011300be, 0x00000000043b01e4, 0x0002000300050004,
+        0xfffcfffd00020002, 0x00020002ffeefffd, 0xfff4fff4fffb0003, 0xfffb000efff6ffff,
+        0x000600020006000d, 0xfffdfffefffc0003, 0xfffd000b0005fffc,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -87,7 +88,7 @@ public class MyBot : IChessBot {
             nonPv = alpha + 1 == beta,
             inQSearch = depth <= 0;
         int
-            eval = 0x00000006,
+            eval = 0x00010006, // tempo
             bestScore = -99999,
             oldAlpha = alpha,
 
@@ -115,13 +116,13 @@ public class MyBot : IChessBot {
         if (ttHit && !inQSearch)
             eval = score;
         else {
-            ulong pieces = board.AllPiecesBitboard;
+            ulong pieces = board.AllPiecesBitboard, ownPawns;
             // use tmp as phase (initialized above)
-            // tempo
             while (pieces != 0) {
                 Square square = new(ClearAndGetIndexOfLSB(ref pieces));
                 Piece piece = board.GetPiece(square);
                 pieceType = (int)piece.PieceType;
+                ownPawns = board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite);
                 eval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
                     // material
                     EvalWeight(95 + pieceType)
@@ -137,8 +138,11 @@ public class MyBot : IChessBot {
                         )
                         // own pawn on file
                         + EvalWeight(105 + pieceType) * GetNumberOfSetBits(
-                            0x0101010101010101UL << square.File
-                                & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
+                            0x0101010101010101UL << square.File & ownPawns
+                        )
+                        // own pawn on right file
+                        + EvalWeight(111 + pieceType) * GetNumberOfSetBits(
+                            0x0202020202020202UL << square.File & ownPawns
                         )
                 );
                 // phaseWeightTable = [X, 0, 1, 1, 2, 4, 0]

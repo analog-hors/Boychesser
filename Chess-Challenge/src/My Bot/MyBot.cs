@@ -25,6 +25,8 @@ public class MyBot : IChessBot {
     int[,,] history = new int[2, 7, 64];
 
     ulong[] packedData = {
+        0x005f002e00000000, 0x010e00bf00d80099, 0x043b01dc01bb00ce, 0x0002000200060004,
+        0xfffcfffd00020002, 0x00030003ffecfff9, 0xfff3fff4fffa0004, 0xfffd000bfff30000,
         0x0000000000000000, 0x30310b16342c1c05, 0x252616182d241d0c, 0x2129201e352b1509,
         0x313a2923443f220e, 0x5e693e387d6f2d15, 0xa1bc6452d5c52d41, 0x0000000000000000,
         0x6b62524e4e394a42, 0x79725d5a705a504e, 0x8f856b628066604e, 0x9c996d6b8a79695e,
@@ -37,8 +39,6 @@ public class MyBot : IChessBot {
         0xf7f2898eecc08ea3, 0xfcfe9a97e4d7a8a2, 0xfff7929bfedb8a9d, 0xd1d8bab9e0e0aa9b,
         0x1d24252719003d33, 0x4d440a18311b2b2e, 0x645b020147311209, 0x74681312573e1200,
         0x7f7927226c50240b, 0x859132228c611c1c, 0x849231279c4d1026, 0x565a89835b01676e,
-        0x00d80099005f002e, 0x01bb00ce010e00bf, 0x00000000043b01dc, 0x0002000200060004,
-        0xfffcfffd00020002, 0x00030003ffecfff9, 0xfff3fff4fffa0004, 0xfffd000bfff30000,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -101,14 +101,14 @@ public class MyBot : IChessBot {
             // temp vars
             score = tt.Item3 /* score */,
             tmp = 0;
-
-        if (ttHit && tt.Item4 /* depth */ >= depth && tt.Item5 /* bound */ switch {
-            1 /* BOUND_EXACT */ => nonPv || inQSearch,
-            2 /* BOUND_LOWER */ => score >= beta,
-            3 /* BOUND_UPPER */ => score <= alpha,
-        })
-            return score;
-        else if (!ttHit && depth > 5)
+        if (ttHit) {
+            if (tt.Item4 /* depth */ >= depth && tt.Item5 /* bound */ switch {
+                1 /* BOUND_EXACT */ => nonPv || inQSearch,
+                2 /* BOUND_LOWER */ => score >= beta,
+                3 /* BOUND_UPPER */ => score <= alpha,
+            })
+                return score;
+        } else if (depth > 5)
             // Internal Iterative Reduction (IIR)
             depth--;
 
@@ -124,19 +124,19 @@ public class MyBot : IChessBot {
                 pieceType = (int)piece.PieceType;
                 eval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
                     // material
-                    EvalWeight(95 + pieceType)
+                    EvalWeight(pieceType)
                         // psts
                         + (int)(
-                            packedData[pieceType * 8 - 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
+                            packedData[pieceType * 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
                                 >> (0x01455410 >> square.File * 4) * 8
                                 & 0xFF00FF
                         )
                         // mobility
-                        + EvalWeight(99 + pieceType) * GetNumberOfSetBits(
+                        + EvalWeight(3 + pieceType) * GetNumberOfSetBits(
                             GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
                         )
                         // own pawn on file
-                        + EvalWeight(105 + pieceType) * GetNumberOfSetBits(
+                        + EvalWeight(9 + pieceType) * GetNumberOfSetBits(
                             0x0101010101010101UL << square.File
                                 & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
                         )

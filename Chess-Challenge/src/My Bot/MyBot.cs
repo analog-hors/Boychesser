@@ -166,8 +166,8 @@ public class MyBot : IChessBot {
         tmp = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[tmp++] -= ttHit && move.RawValue == tt.Item2 /* moveRaw */ ? 10000
-                : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
+            scores[tmp++] -= ttHit && move.RawValue == tt.Item2 /* moveRaw */ ? 100000
+                : move.IsCapture ? (int)move.CapturePieceType * 4096 - (int)move.MovePieceType
                 : HistoryValue(move);
         // end tmp use
 
@@ -205,7 +205,7 @@ public class MyBot : IChessBot {
                 if (!move.IsCapture) {
                     // use tmp as change
                     tmp = depth * depth;
-                    foreach (Move malusMove in moves.AsSpan(0, moveCount))
+                    foreach (Move malusMove in moves[..moveCount])
                         if (!malusMove.IsCapture)
                             HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;
                     HistoryValue(move) += tmp - tmp * HistoryValue(move) / 512;

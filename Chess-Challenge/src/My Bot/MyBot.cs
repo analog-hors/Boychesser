@@ -186,7 +186,7 @@ public class MyBot : IChessBot {
             if (moveCount != 0) {
                 // use tmp as reduction
                 tmp = move.IsCapture || nextDepth >= depth ? 0
-                    : (moveCount * 76 + depth * 103) / 1000 + Min(moveCount / 7, 1);
+                    : (moveCount * 76 + depth * 103) / 1000 + Min(moveCount / 7, 1) + Convert.ToInt32(nonPv);
                 score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
                 if (score > alpha && tmp != 0)
                     score = -Negamax(~alpha, -alpha, nextDepth, nextPly);
@@ -241,7 +241,7 @@ public class MyBot : IChessBot {
             (ushort)tmp
         );
         // end tmp use
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

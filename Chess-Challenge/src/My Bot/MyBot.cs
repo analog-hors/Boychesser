@@ -45,7 +45,7 @@ public class MyBot : IChessBot {
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0; // #DEBUG
-        maxSearchTime = timerOrig.MillisecondsRemaining / 4;
+        maxSearchTime = timerOrig.MillisecondsRemaining;
 
         board = boardOrig;
         timer = timerOrig;
@@ -55,20 +55,22 @@ public class MyBot : IChessBot {
             //If score is of this value search has been aborted, DO NOT use result
             try {
                 Negamax(-32000, 32000, searchingDepth, 0);
+                if (rootBestMove == searchBestMove)
+                    maxSearchTime = timerOrig.MillisecondsRemaining;
                 rootBestMove = searchBestMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
             } catch (TimeoutException) {
                 break;
             }
-        while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10);
+        while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 40);
 
         return rootBestMove;
     }
 
     public int Negamax(int alpha, int beta, int depth, int nextPly) {
         //abort search
-        if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
+        if (timer.MillisecondsElapsedThisTurn >= maxSearchTime / 4 && searchingDepth > 1)
             throw new TimeoutException();
 
         //node count
@@ -241,7 +243,7 @@ public class MyBot : IChessBot {
             (ushort)tmp
         );
         // end tmp use
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

@@ -219,7 +219,7 @@ public class MyBot : IChessBot {
                 // LMP
                 quietsToCheck-- == 1 ||
                 // History Pruning
-                eval <= alpha && scores[moveCount] > 64 * depth ||
+                eval <= alpha && scores[moveCount] > 32 * depth ||
                 // Futility Pruning
                 eval + 271 * depth < alpha
             ))

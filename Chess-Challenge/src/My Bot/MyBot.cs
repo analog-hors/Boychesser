@@ -175,10 +175,10 @@ public class MyBot : IChessBot {
         Move bestMove = nullMove;
         foreach (Move move in moves) {
             // Delta pruning
-            // deltas = [208, 382, 440, 640, 1340]
+            // deltas = [208, 382, 400, 640, 1340]
             // due to sharing of the top bit of each entry with the bottom bit of the next one
             // (expands the range of values for the queen) all deltas must be even (except pawn)
-            if (inQSearch && eval + (0b1_0100111100_1010000000_0110111000_0101111110_0011010000_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
+            if (inQSearch && eval + (0b1_0100111100_1010000000_0110010000_0101111110_0011010000_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
                 break;
 
             board.MakeMove(move);
@@ -219,9 +219,9 @@ public class MyBot : IChessBot {
                 // LMP
                 quietsToCheck-- == 1 ||
                 // History Pruning
-                eval <= alpha && scores[moveCount] > 64 * depth ||
+                eval <= alpha && scores[moveCount] > 96 * depth ||
                 // Futility Pruning
-                eval + 271 * depth < alpha
+                eval + 250 * depth < alpha
             ))
                 break;
 

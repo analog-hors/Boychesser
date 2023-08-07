@@ -228,20 +228,19 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
-        // use tmp as bound
-        tmp = bestScore >= beta ? 2 /* BOUND_LOWER */
-            : alpha > oldAlpha ? 1 /* BOUND_EXACT */
-            : 3 /* BOUND_UPPER */;
         tt = (
             board.ZobristKey,
-            tmp /* bound */ != 3 /* BOUND_UPPER */
+            alpha > oldAlpha // if not upper bound
                 ? bestMove.RawValue
                 : tt.Item2 /* moveRaw */,
             (short)bestScore,
             (short)Max(depth, 0),
-            (short)tmp
+            (short)(
+                bestScore >= beta ? 2 /* BOUND_LOWER */
+                : alpha > oldAlpha ? 1 /* BOUND_EXACT */
+                : 3 /* BOUND_UPPER */
+            )
         );
-        // end tmp use
         
         searchBestMove = bestMove;
         return bestScore;

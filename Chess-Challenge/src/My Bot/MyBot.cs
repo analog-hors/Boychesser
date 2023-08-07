@@ -166,9 +166,8 @@ public class MyBot : IChessBot {
         tmp = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[tmp++] -= ttHit && move.RawValue == tt.Item2 /* moveRaw */ ? 10000
-                : move.IsCapture ? (int)move.CapturePieceType * 8 - (int)move.MovePieceType + 5000
-                : HistoryValue(move);
+            scores[tmp++] -= ttHit && move.RawValue == tt.Item2 /* moveRaw */ ? 100000
+                : Max((int)move.CapturePieceType * 4096 - (int)move.MovePieceType - 2048, HistoryValue(move));
         // end tmp use
 
         Array.Sort(scores, moves);

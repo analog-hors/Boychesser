@@ -82,8 +82,10 @@ public class MyBot : IChessBot {
         nextPly++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
+        var (ttHash, ttMoveRaw, ttScore, ttDepth, ttBound) = tt;
+
         bool
-            ttHit = tt.Item1 /* hash */ == board.ZobristKey,
+            ttHit = ttHash == board.ZobristKey,
             nonPv = alpha + 1 == beta,
             inQSearch = depth <= 0;
         int
@@ -99,10 +101,10 @@ public class MyBot : IChessBot {
             pieceType,
 
             // temp vars
-            score = tt.Item3 /* score */,
+            score = ttScore,
             tmp = 0;
         if (ttHit) {
-            if (tt.Item4 /* depth */ >= depth && tt.Item5 /* bound */ switch {
+            if (ttDepth >= depth && ttBound switch {
                 65535 /* BOUND_LOWER */ => score >= beta,
                 0 /* BOUND_UPPER */ => score <= alpha,
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
@@ -166,7 +168,7 @@ public class MyBot : IChessBot {
         tmp = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[tmp++] -= ttHit && move.RawValue == tt.Item2 /* moveRaw */ ? 100000
+            scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 100000
                 : move.IsCapture ? (int)move.CapturePieceType * 4096 - (int)move.MovePieceType
                 : HistoryValue(move);
         // end tmp use
@@ -238,7 +240,7 @@ public class MyBot : IChessBot {
             board.ZobristKey,
             tmp /* bound */ != 0 /* BOUND_UPPER */
                 ? bestMove.RawValue
-                : tt.Item2 /* moveRaw */,
+                : ttMoveRaw,
             (short)bestScore,
             (short)Max(depth, 0),
             (ushort)tmp

@@ -81,7 +81,8 @@ public class MyBot : IChessBot {
             return 0;
         nextPly++;
 
-        ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
+        ref var ttRef = ref transpositionTable[board.ZobristKey % 0x1000000];
+        var tt = ttRef;
         bool
             ttHit = tt.Item1 /* hash */ == board.ZobristKey,
             nonPv = alpha + 1 == beta,
@@ -234,7 +235,7 @@ public class MyBot : IChessBot {
         // use tmp as bound
         tmp = bestScore >= beta ? 65535 /* BOUND_LOWER */
             : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */;
-        tt = (
+        ttRef = (
             board.ZobristKey,
             tmp /* bound */ != 0 /* BOUND_UPPER */
                 ? bestMove.RawValue

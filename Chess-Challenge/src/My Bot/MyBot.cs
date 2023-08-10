@@ -92,8 +92,7 @@ public class MyBot : IChessBot {
             oldAlpha = alpha,
 
             // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 5, 8, 14, 49]
-            quietsToCheck = 0b_110001_001110_001000_000101_000000 >> depth * 6 & 0b111111,
+            moveCount = 0,
 
             // static eval vars
             pieceType,
@@ -219,8 +218,6 @@ public class MyBot : IChessBot {
 
             // Pruning techniques that break the move loop
             if (nonPv && depth <= 4 && !move.IsCapture && (
-                // LMP
-                quietsToCheck-- == 1 ||
                 // History Pruning
                 eval <= alpha && scores[moveCount] > 64 * depth ||
                 // Futility Pruning

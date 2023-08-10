@@ -82,12 +82,14 @@ public class MyBot : IChessBot {
         nextPly++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
+        var (ttHash, ttMoveRaw, ttScore, ttDepth, ttBound) = tt;
+
         bool
-            ttHit = tt.Item1 /* hash */ == board.ZobristKey,
+            ttHit = ttHash == board.ZobristKey,
             nonPv = alpha + 1 == beta,
             inQSearch = depth <= 0;
         int
-            eval = 0x00000006,
+            eval = 0x00000006, // tempo
             bestScore = -99999,
             oldAlpha = alpha,
 
@@ -99,10 +101,10 @@ public class MyBot : IChessBot {
             pieceType,
 
             // temp vars
-            score = tt.Item3 /* score */,
+            score = ttScore,
             tmp = 0;
         if (ttHit) {
-            if (tt.Item4 /* depth */ >= depth && tt.Item5 /* bound */ switch {
+            if (ttDepth >= depth && ttBound switch {
                 65535 /* BOUND_LOWER */ => score >= beta,
                 0 /* BOUND_UPPER */ => score <= alpha,
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
@@ -115,38 +117,39 @@ public class MyBot : IChessBot {
         if (ttHit && !inQSearch)
             eval = score;
         else {
-            ulong pieces = board.AllPiecesBitboard;
-            // use tmp as phase (initialized above)
-            // tempo
-            while (pieces != 0) {
-                Square square = new(ClearAndGetIndexOfLSB(ref pieces));
-                Piece piece = board.GetPiece(square);
-                pieceType = (int)piece.PieceType;
-                eval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
-                    // material
-                    EvalWeight(pieceType)
-                        // psts
-                        + (int)(
-                            packedData[pieceType * 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
-                                >> (0x01455410 >> square.File * 4) * 8
-                                & 0xFF00FF
-                        )
-                        // mobility
-                        + EvalWeight(3 + pieceType) * GetNumberOfSetBits(
-                            GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
-                        )
-                        // own pawn on file
-                        + EvalWeight(9 + pieceType) * GetNumberOfSetBits(
-                            0x0101010101010101UL << square.File
-                                & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
-                        )
-                );
-                // phaseWeightTable = [X, 0, 1, 1, 2, 4, 0]
-                tmp += 0x0421100 >> pieceType * 4 & 0xF;
+            void Eval(ulong pieces) {
+                // use tmp as phase (initialized above)
+                while (pieces != 0) {
+                    Square square = new(ClearAndGetIndexOfLSB(ref pieces));
+                    Piece piece = board.GetPiece(square);
+                    pieceType = (int)piece.PieceType;
+                    eval += (piece.IsWhite == board.IsWhiteToMove ? 1 : -1) * (
+                        // material
+                        EvalWeight(pieceType)
+                            // psts
+                            + (int)(
+                                packedData[pieceType * 8 + square.Rank ^ (piece.IsWhite ? 0 : 0b111)]
+                                    >> (0x01455410 >> square.File * 4) * 8
+                                    & 0xFF00FF
+                            )
+                            // mobility
+                            + EvalWeight(3 + pieceType) * GetNumberOfSetBits(
+                                GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
+                            )
+                            // own pawn on file
+                            + EvalWeight(9 + pieceType) * GetNumberOfSetBits(
+                                0x0101010101010101UL << square.File
+                                    & board.GetPieceBitboard(PieceType.Pawn, piece.IsWhite)
+                            )
+                    );
+                    // phaseWeightTable = [X, 0, 1, 1, 2, 4, 0]
+                    tmp += 0x0421100 >> pieceType * 4 & 0xF;
+                }
+                // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
+                eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
+                // end tmp use
             }
-            // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
-            eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
-            // end tmp use
+            Eval(board.AllPiecesBitboard);
         }
 
         if (inQSearch)
@@ -166,9 +169,8 @@ public class MyBot : IChessBot {
         tmp = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[tmp++] -= ttHit && move.RawValue == tt.Item2 /* moveRaw */ ? 100000
-                : move.IsCapture ? (int)move.CapturePieceType * 4096 - (int)move.MovePieceType
-                : HistoryValue(move);
+            scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 100000
+                : Max((int)move.CapturePieceType * 4096 - (int)move.MovePieceType - 2048, HistoryValue(move));
         // end tmp use
 
         Array.Sort(scores, moves);
@@ -182,19 +184,20 @@ public class MyBot : IChessBot {
                 break;
 
             board.MakeMove(move);
-            int nextDepth = board.IsInCheck() ? depth : depth - 1;
-            if (moveCount != 0) {
-                // use tmp as reduction
-                tmp = Max(
+            int
+                nextDepth = board.IsInCheck() ? depth : depth - 1,
+                reduction = Max(
                     move.IsCapture || nextDepth >= depth ? 0
                     : (moveCount * 120 + depth * 103) / 1000 + scores[moveCount] / 256,
                     0
                 );
-                score = -Negamax(~alpha, -alpha, nextDepth - tmp, nextPly);
-                if (score > alpha && tmp != 0)
-                    score = -Negamax(~alpha, -alpha, nextDepth, nextPly);
-                // end tmp use
-            }
+            while (
+                moveCount != 0
+                    && (score = -Negamax(~alpha, -alpha, nextDepth - reduction, nextPly)) > alpha
+                    && reduction != 0
+            )
+                reduction = 0;
+            // end tmp use
             if (moveCount == 0 || score > alpha && score < beta)
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
 
@@ -231,19 +234,19 @@ public class MyBot : IChessBot {
             moveCount++;
         }
 
-        // use tmp as bound
-        tmp = bestScore >= beta ? 65535 /* BOUND_LOWER */
-            : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */;
         tt = (
             board.ZobristKey,
-            tmp /* bound */ != 0 /* BOUND_UPPER */
+            alpha > oldAlpha // if not upper bound
                 ? bestMove.RawValue
-                : tt.Item2 /* moveRaw */,
+                : ttMoveRaw,
             (short)bestScore,
             (short)Max(depth, 0),
-            (ushort)tmp
+            (ushort)(
+                bestScore >= beta
+                    ? 65535 /* BOUND_LOWER */
+                    : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
+            )
         );
-        // end tmp use
         
         searchBestMove = bestMove;
         return bestScore;

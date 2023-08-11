@@ -75,30 +75,39 @@ pst_deltas, material_consts = encode_psts_and_material(all_psts, material)
 mobility_consts = encode_weights(mobility)
 own_pawns_file_consts = encode_weights(own_pawns_file)
 
+# interpet as LE u64 array
+packed_data_bytes: list[int | None] = [None] * 520
+
+def add_u8_data(offset: int, data: list[int]):
+    assert all(n <= 255 for n in data)
+    for i, n in enumerate(data):
+        if packed_data_bytes[offset + i] is not None:
+            raise Exception("attempted to write to non-empty data slot")
+        packed_data_bytes[offset + i] = n
+
+def add_i32_data(offset: int, data: list[int]):
+    assert all(n >= -2147483648 and n <= 2147483647 for n in data)
+    data_bytes = []
+    for n in data:
+        data_bytes.extend(n.to_bytes(4, "little", signed=True))
+    add_u8_data(offset * 4, data_bytes)
+
+def add_u64_data(offset: int, data: list[int]):
+    assert all(n < 2 ** 64 for n in data)
+    data_bytes = []
+    for n in data:
+        data_bytes.extend(n.to_bytes(8, "little", signed=False))
+    add_u8_data(offset * 8, data_bytes)
+
+add_u64_data(0, pst_deltas)
+add_i32_data(112, material_consts)
+add_i32_data(118, mobility_consts)
+add_i32_data(122, own_pawns_file_consts)
+
 packed_data = []
-
-def add_i32_data(all_consts: list[tuple[str, list[int]]]):
-    flattened = []
-    for name, consts in all_consts:
-        offset = len(packed_data) * 2 + len(flattened)
-        print(f"{name} offset: {offset} (i32 data)")
-        flattened.extend(consts)
-    for i in range(0, len(flattened), 2):
-        lo = flattened[i]
-        hi = flattened[i + 1] if i + 1 < len(flattened) else 0
-        packed_data.append((hi % 2 ** 32) << 32 | (lo % 2 ** 32))
-
-def add_u64_data(name: str, consts: list[int]):
-    print(f"{name} offset: {len(packed_data)} (u64 data)")
-    packed_data.extend(consts)
-
-add_u64_data("psts", pst_deltas)
-add_i32_data([
-    ("material", material_consts),
-    ("mobility", mobility_consts),
-    ("own_pawns_file", own_pawns_file_consts),
-])
-
+for i in range(0, len(packed_data_bytes), 8):
+    u64_bytes = [n or 0 for n in packed_data_bytes[i: i + 8]]
+    packed_data.append(int.from_bytes(u64_bytes, "little", signed=False))
 print("ulong[] packedData = {", end="")
 for i, n in enumerate(packed_data):
     if i % 4 == 0:

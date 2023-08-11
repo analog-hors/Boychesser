@@ -87,7 +87,7 @@ impl InputFeatureSet for Ice4InputFeatures {
                 }
                 .len() as i8;
 
-                features[MOBILITY + piece as usize - 2] += inc * cnt;
+                features[MOBILITY + piece_index - 3] += inc * cnt;
 
                 features[MATERIAL + piece_index] += inc;
 

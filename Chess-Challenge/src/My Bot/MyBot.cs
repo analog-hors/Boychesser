@@ -232,8 +232,6 @@ public class MyBot : IChessBot {
             if (nonPv && depth <= 4 && !move.IsCapture && (
                 // LMP
                 quietsToCheck-- == 1 ||
-                // History Pruning
-                eval <= alpha && scores[moveCount] > 64 * depth ||
                 // Futility Pruning
                 eval + 271 * depth < alpha
             ))

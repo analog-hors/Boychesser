@@ -126,6 +126,8 @@ public class MyBot : IChessBot {
                     Square square = new(ClearAndGetIndexOfLSB(ref pieces));
                     Piece piece = board.GetPiece(square);
                     pieceType = (int)piece.PieceType;
+                    // virtual pawn type
+                    // consider pawns on the opposite half of the king as distinct piece types (piece 0)
                     if (
                         square.File >= 4 != board.GetKingSquare(pieceIsWhite = piece.IsWhite).File >= 4
                             && pieceType == 1

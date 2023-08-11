@@ -31,14 +31,14 @@ def quantize_u8(n: float) -> int:
 def packed_eval(mg: float, eg: float) -> int:
     return quantize_i16(eg) * 0x10000 + quantize_i16(mg)
 
-def encode_weights(weights: list[tuple[float, float]]) -> list[int]:
+def encode_weights(weights: list[tuple[float, float]]) -> list[int | None]:
     return [packed_eval(mg, eg) for mg, eg in weights]
 
 def print_weight(name: str, weight: tuple[float, float]):
     value = packed_eval(weight[0], weight[1])
     print(f"{name} value: {value:#010x}")
 
-def encode_psts_and_material(psts: list[list[tuple[float, float]]], material: list[tuple[float, float]]) -> tuple[list[int], list[int]]:
+def encode_psts_and_material(psts: list[list[tuple[float, float]]], material: list[tuple[float, float]]) -> tuple[list[int | None], list[int | None]]:
     assert len(psts) == len(material)
     material_consts = []
     pst_deltas = []
@@ -54,6 +54,17 @@ def encode_psts_and_material(psts: list[list[tuple[float, float]]], material: li
             pst_deltas.append(int.from_bytes(b, "big"))
     # remove the redundant king value
     material_consts.pop()
+
+    # mark empty pawn rows as empty slots
+    assert pst_deltas[0] == 0
+    assert pst_deltas[7] == 0
+    assert pst_deltas[8] == 0
+    assert pst_deltas[15] == 0
+    pst_deltas[0] = None
+    pst_deltas[7] = None
+    pst_deltas[8] = None
+    pst_deltas[15] = None
+
     return pst_deltas, material_consts
 
 opposite_pawn_pst = take(32)
@@ -76,33 +87,39 @@ mobility_consts = encode_weights(mobility)
 own_pawns_file_consts = encode_weights(own_pawns_file)
 
 # interpet as LE u64 array
-packed_data_bytes: list[int | None] = [None] * 520
+packed_data_bytes: list[int | None] = [None] * 504
 
-def add_u8_data(offset: int, data: list[int]):
-    assert all(n <= 255 for n in data)
+def add_u8_data(offset: int, data: list[int | None]):
+    assert all(n is None or n <= 255 for n in data)
     for i, n in enumerate(data):
-        if packed_data_bytes[offset + i] is not None:
+        if n is not None and packed_data_bytes[offset + i] is not None:
             raise Exception("attempted to write to non-empty data slot")
         packed_data_bytes[offset + i] = n
 
-def add_i32_data(offset: int, data: list[int]):
-    assert all(n >= -2147483648 and n <= 2147483647 for n in data)
+def add_i32_data(offset: int, data: list[int | None]):
+    assert all(n is None or n >= -2147483648 and n <= 2147483647 for n in data)
     data_bytes = []
     for n in data:
-        data_bytes.extend(n.to_bytes(4, "little", signed=True))
+        if n is None:
+            data_bytes.extend([None] * 4)
+        else:
+            data_bytes.extend(n.to_bytes(4, "little", signed=True))
     add_u8_data(offset * 4, data_bytes)
 
-def add_u64_data(offset: int, data: list[int]):
-    assert all(n < 2 ** 64 for n in data)
+def add_u64_data(offset: int, data: list[int | None]):
+    assert all(n is None or n < 2 ** 64 for n in data)
     data_bytes = []
     for n in data:
-        data_bytes.extend(n.to_bytes(8, "little", signed=False))
+        if n is None:
+            data_bytes.extend([None] * 8)
+        else:
+            data_bytes.extend(n.to_bytes(8, "little", signed=False))
     add_u8_data(offset * 8, data_bytes)
 
 add_u64_data(0, pst_deltas)
 add_i32_data(112, material_consts)
-add_i32_data(118, mobility_consts)
-add_i32_data(122, own_pawns_file_consts)
+add_i32_data(14, mobility_consts) # pack mobility in empty pawn rows
+add_i32_data(118, own_pawns_file_consts)
 
 packed_data = []
 for i in range(0, len(packed_data_bytes), 8):

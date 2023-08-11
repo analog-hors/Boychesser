@@ -26,8 +26,8 @@ public class MyBot : IChessBot {
 
     ulong[] packedData = {
         0x0000000000000000, 0x2c32120c35321201, 0x22241b1531261409, 0x1e27241a362d1206,
-        0x30372d214141220e, 0x5a5e433c6e693319, 0x979f6e68b7b5565b, 0x0000000000000000,
-        0x0000000000000000, 0x2f2907232b222809, 0x2423111c241d2a0f, 0x1f231b2230241b0a,
+        0x30372d214141220e, 0x5a5e433c6e693319, 0x979f6e68b7b5565b, 0x0002000300050004,
+        0xfffcfffe00030001, 0x2f2907232b222809, 0x2423111c241d2a0f, 0x1f231b2230241b0a,
         0x2e3825284239240d, 0x5f6e3939866c2913, 0xa6d05942ead10026, 0x0000000000000000,
         0x696255504f384b43, 0x79715f5f6f5b5450, 0x8e846c647d666250, 0x9a996f6e88786b60,
         0xa59d787c947d6c6d, 0x95959f9587798c68, 0x8f848b8680695d58, 0x849c6c07872c1a00,
@@ -39,9 +39,8 @@ public class MyBot : IChessBot {
         0xf5f09091eac490a2, 0xf9fb9f9be4d4a9a2, 0xfff495a2fadc8d9c, 0xd3d8bab9e2e4a998,
         0x2026292a1b014344, 0x51460b1e331b3139, 0x675e010449311913, 0x776b1214593f1705,
         0x837c24256f4f2a11, 0x889336268c5e2329, 0x848e3b30984b183c, 0x53519a9255007b78,
-        0x00630037005f002b, 0x010e00c300d9009c, 0x042901eb01ba00d1, 0x0002000300050004,
-        0xfffcfffe00030001, 0xffecfff8ffedfff9, 0xfffa000300030002, 0xfff4fffffff4fff3,
-        0x00000000fffb0008,
+        0x00630037005f002b, 0x010e00c300d9009c, 0x042901eb01ba00d1, 0xffecfff8ffedfff9,
+        0xfffa000300030002, 0xfff4fffffff4fff3, 0x00000000fffb0008,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -142,11 +141,11 @@ public class MyBot : IChessBot {
                                     & 0xFF00FF
                             )
                             // mobility
-                            + EvalWeight(115 + pieceType) * GetNumberOfSetBits(
+                            + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
                                 GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
                             )
                             // own pawn on file
-                            + EvalWeight(122 + pieceType) * GetNumberOfSetBits(
+                            + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
                                 0x0101010101010101UL << square.File
                                     & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
                             )

@@ -128,11 +128,7 @@ public class MyBot : IChessBot {
                     pieceType = (int)piece.PieceType;
                     // virtual pawn type
                     // consider pawns on the opposite half of the king as distinct piece types (piece 0)
-                    if (
-                        square.File >= 4 != board.GetKingSquare(pieceIsWhite = piece.IsWhite).File >= 4
-                            && pieceType == 1
-                    )
-                        pieceType--;
+                    pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) / 4 / pieceType;
                     eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
                         // material
                         EvalWeight(112 + pieceType)
@@ -152,7 +148,7 @@ public class MyBot : IChessBot {
                                     & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
                             )
                     );
-                    // phaseWeightTable = [X, 0, 1, 1, 2, 4, 0]
+                    // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
                     tmp += 0x0421100 >> pieceType * 4 & 0xF;
                 }
                 // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
@@ -207,7 +203,6 @@ public class MyBot : IChessBot {
                     && reduction != 0
             )
                 reduction = 0;
-            // end tmp use
             if (moveCount == 0 || score > alpha && score < beta)
                 score = -Negamax(-beta, -alpha, nextDepth, nextPly);
 

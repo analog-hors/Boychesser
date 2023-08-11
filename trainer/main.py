@@ -24,7 +24,7 @@ class WeightClipper:
             w = module.weight.data
             c = w.clamp(0, 255/160)
             features = w.shape[1] // 2
-            pst_features = 32 * 6
+            pst_features = 32 * 7
             w = torch.cat(
                 (
                     c[:,:pst_features],

@@ -25,16 +25,17 @@ macro_rules! offsets {
 }
 
 offsets! {
+    OPPOSITE_PAWN_PST: 32;
     PAWN_PST: 32;
     KNIGHT_PST: 32;
     BISHOP_PST: 32;
     ROOK_PST: 32;
     QUEEN_PST: 32;
     KING_PST: 32;
-    MATERIAL: 6;
+    MATERIAL: 7;
     MOBILITY: 4;
     TEMPO: 1;
-    OWN_PAWNS_FILE: 6;
+    OWN_PAWNS_FILE: 7;
 }
 
 impl InputFeatureSet for Ice4InputFeatures {
@@ -68,7 +69,12 @@ impl InputFeatureSet for Ice4InputFeatures {
                     Color::Black => (-1, b_king, w_king, square.flip_rank()),
                 };
 
-                features[PAWN_PST + piece as usize * 32 + hm_feature(sq)] += inc;
+                let mut piece_index = piece as usize + 1;
+                let on_king_half = (square.file() > File::D) == (board.king(color).file() > File::D);
+                if piece == Piece::Pawn && !on_king_half {
+                    piece_index -= 1;
+                }
+                features[OPPOSITE_PAWN_PST + piece_index * 32 + hm_feature(sq)] += inc;
 
                 let cnt = match piece {
                     Piece::Queen | Piece::King => {
@@ -83,9 +89,9 @@ impl InputFeatureSet for Ice4InputFeatures {
 
                 features[MOBILITY + piece as usize - 2] += inc * cnt;
 
-                features[MATERIAL + piece as usize] += inc;
+                features[MATERIAL + piece_index] += inc;
 
-                features[OWN_PAWNS_FILE + piece as usize] +=
+                features[OWN_PAWNS_FILE + piece_index] +=
                     (board.colored_pieces(color, Piece::Pawn) & square.file().bitboard()).len()
                         as i8
                         * inc;

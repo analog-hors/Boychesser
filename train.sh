@@ -11,7 +11,7 @@ NETS=`mktemp -d`
 
 # d7-50M-v3, 1016 scale, 0.5 wdl, 10 epochs, lrdrop 9, 0.001 lr
 python3.8 trainer/main.py --nndir "$NETS" --data "datasets/$1" --scale 1016 --save-epochs 1 \
-    --lr 0.001 --epochs 15 --lr-drop 13 --wdl 0.5 \
+    --lr 0.001 --epochs 15 --lr-drop 13 --wdl 1.0 \
     | tee /dev/stderr >"$NETS"/log
 
 pushd "$NETS" >/dev/null

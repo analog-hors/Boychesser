@@ -182,7 +182,7 @@ public class MyBot : IChessBot {
         Array.Sort(scores, moves);
         Move bestMove = nullMove;
         foreach (Move move in moves) {
-            // Delta pruning
+            // Delta pruning (23 elo, 21 tokens, 1.1 elo/token)
             // deltas = [208, 382, 440, 640, 1340]
             // due to sharing of the top bit of each entry with the bottom bit of the next one
             // (expands the range of values for the queen) all deltas must be even (except pawn)
@@ -227,9 +227,9 @@ public class MyBot : IChessBot {
 
             // Pruning techniques that break the move loop
             if (nonPv && depth <= 4 && !move.IsCapture && (
-                // LMP
+                // LMP (34 elo, 14 tokens, 2.4 elo/token)
                 quietsToCheck-- == 1 ||
-                // Futility Pruning
+                // Futility Pruning (11 elo, 8 tokens, 1.4 elo/token)
                 eval + 271 * depth < alpha
             ))
                 break;

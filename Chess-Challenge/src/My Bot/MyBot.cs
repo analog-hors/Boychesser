@@ -1,5 +1,6 @@
 ﻿using ChessChallenge.API;
 using System;
+using System.Numerics;
 using static System.Math;
 using static ChessChallenge.API.BitboardHelper;
 
@@ -25,22 +26,23 @@ public class MyBot : IChessBot {
     int[,,] history = new int[2, 7, 64];
 
     ulong[] packedData = {
-        0x0000000000000000, 0x292f1611332f1801, 0x2222241c2d25190a, 0x1a232e21312a1809,
-        0x293336263b3d2912, 0x5b614f4671673821, 0x96a37664b1ad5d59, 0x0002000300060005,
-        0xfffcfffe00040002, 0x32260223271d2b09, 0x26210f1c221b2c11, 0x1e1f1a232c211b0b,
-        0x2832282d3d372a10, 0x60683c4a856d341b, 0x9fc75f45ddcc0722, 0x0000000000000000,
-        0x5e5549463d2e3e36, 0x6d64575860534944, 0x8376685f6e585b44, 0x8e8c6d6a78696554,
-        0x978e787e826b6967, 0x8083a29470608a63, 0x796b7f836c535852, 0x67795e0669050200,
-        0x3939302b3b353434, 0x3b382f3938343e3e, 0x424032363f453b35, 0x3a423d30443c303b,
-        0x3e3f443e4a443836, 0x3941504b464a4f41, 0x46443033473f302a, 0x575401004d4f0d13,
-        0x868c68608d8b5a57, 0x8b885d5c888e5444, 0x919257559093584b, 0x9a9d5c599d9d514f,
-        0x9fa36d6ba3a3635f, 0x9ca18a809ea3846e, 0xa3a49392aaa3727b, 0xa1a38f92a1a18c8b,
-        0xa89a7a79a2b6776f, 0xaaa280819fab7e7b, 0xc5cc7679c9bc7a7b, 0xece46f73e1d57779,
-        0xfff77177f4d67689, 0xfcff8783e0de9691, 0xffff7d84fce66c82, 0xe1e99b97e3ee846a,
-        0x222c31301a004d4a, 0x554a0d25371c3b43, 0x696100014b341d0e, 0x7b6e0005593b0c00,
-        0x8175052367452606, 0x7d7a384770455332, 0x66694e4d6c313d22, 0x2d215a722f005b00,
-        0x0060004100600029, 0x00e600de00c200bd, 0x032c0286019500ff, 0xffecfff6ffecfff9,
-        0xfffb000300030001, 0xfff3fffffff4fff0, 0x00000000fff9000b,
+        0x0000000000000000, 0x262d070834331606, 0x1e2014132e28170f, 0x16211e19312d170f,
+        0x2531271f3c402818, 0x575f403f726b3826, 0x91a16a5fb2b05e60, 0x0002000300060006,
+        0xfffcfffe00040002, 0x2b21031d2014280a, 0x1f1c10161b122912, 0x161a1a1d2518180c,
+        0x222e2625372e2611, 0x596439407f652e1b, 0x98c35d3dd7c40221, 0x0000000000000000,
+        0x574d444137273b34, 0x665d5052584b4440, 0x7d6f6259674f5644, 0x8885656471625e52,
+        0x918771787b646565, 0x787c9c906959875f, 0x71637a7f654c5551, 0x5f71570261010000,
+        0x393a322d3c363536, 0x3c38303a38354041, 0x4340323740463c37, 0x3b433d30453d303c,
+        0x3e40443e4a453937, 0x3941514c474b5041, 0x464530344841322b, 0x575401004e4f0d17,
+        0x8488635c8b89534f, 0x89865858858c4e3c, 0x8f8f53518d915344, 0x979a57559b9b4c47,
+        0x9da16866a1a05d58, 0x999f857b9ba17e67, 0xa0a28f8da8a06c75, 0x9fa1898ba09f8483,
+        0xa7987877a2b67670, 0xaaa17c7e9fab7d7c, 0xc6cc7376c6b9797b, 0xede46b6fdfcf737a,
+        0xfff66d73f3d27387, 0xfcfe8481dedd938f, 0xffff7a82fbe36c84, 0xe1e89893e0e8836d,
+        0x233325312100668a, 0x545002253d1a5583, 0x6566000450353646, 0x7771000c5f442218,
+        0x7e780e2e6d4a392b, 0x7a7c4855764c654f, 0x646b605f71384f3d, 0x2c236a8632017000,
+        0x006000530069004d, 0x00e700e000c900cc, 0x032e028d01990103, 0xffecfff7ffecfff8,
+        0xfffb00020001ffff, 0xfff5fffefff4fff0, 0xfffdfff9fffeffff, 0xfffffffd0004fff6,
+        0x00000001ffffffff, 0x00000000fffffffe,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -102,6 +104,8 @@ public class MyBot : IChessBot {
 
             // static eval vars
             pieceType,
+            sqFile,
+            kingSqFile,
 
             // temp vars
             score = ttScore,
@@ -126,16 +130,18 @@ public class MyBot : IChessBot {
                     Square square = new(ClearAndGetIndexOfLSB(ref pieces));
                     Piece piece = board.GetPiece(square);
                     pieceType = (int)piece.PieceType;
+                    sqFile = square.File;
+                    kingSqFile = board.GetKingSquare(pieceIsWhite = piece.IsWhite).File;
                     // virtual pawn type
                     // consider pawns on the opposite half of the king as distinct piece types (piece 0)
-                    pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
+                    pieceType -= (sqFile ^ kingSqFile) >> 1 >> pieceType;
                     eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
                         // material
                         EvalWeight(112 + pieceType)
                             // psts
                             + (int)(
                                 packedData[pieceType * 8 + square.Rank ^ (pieceIsWhite ? 0 : 0b111)]
-                                    >> (0x01455410 >> square.File * 4) * 8
+                                    >> (0x01455410 >> sqFile * 4) * 8
                                     & 0xFF00FF
                             )
                             // mobility
@@ -144,9 +150,11 @@ public class MyBot : IChessBot {
                             )
                             // own pawn on file
                             + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
-                                0x0101010101010101UL << square.File
+                                0x0101010101010101UL << sqFile
                                     & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
                             )
+                            // king file distance
+                            + EvalWeight(125 + pieceType) * Abs(sqFile - kingSqFile)
                     );
                     // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
                     tmp += 0x0421100 >> pieceType * 4 & 0xF;

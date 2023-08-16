@@ -96,6 +96,18 @@ impl InputFeatureSet for Ice4InputFeatures {
                         as i8
                         * inc;
 
+
+                // let ahead = match color {
+                //     Color::White => 0x0101010101010100 << square as usize,
+                //     Color::Black => 0x0080808080808080 >> 63 - square as usize,
+                // };
+
+                // features[OWN_PAWNS_AHEAD + piece_index] +=
+                //     (board.colored_pieces(color, Piece::Pawn) & BitBoard(ahead)).len() as i8 * inc;
+
+                // features[OPP_PAWNS_AHEAD + piece_index] +=
+                //     (board.colored_pieces(!color, Piece::Pawn) & BitBoard(ahead)).len() as i8 * inc;
+
                 // features[PIECE_COUNT + piece as usize] +=
                 //     board.colored_pieces(color, piece).len()
                 //         as i8

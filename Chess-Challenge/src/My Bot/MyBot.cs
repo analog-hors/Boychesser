@@ -192,9 +192,8 @@ public class MyBot : IChessBot {
             board.MakeMove(move);
             int
                 nextDepth = board.IsInCheck() ? depth : depth - 1,
-                reduction = Max(
-                    nextDepth >= depth ? 0
-                    : (moveCount * 120 + depth * 103) / 1000 + scores[moveCount] / 256,
+                reduction = (depth - nextDepth) * Max(
+                    (moveCount * 120 + depth * 103) / 1000 + scores[moveCount] / 256,
                     0
                 );
             while (

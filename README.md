@@ -22,6 +22,8 @@ It has been necessary to make some bug fixes to the original project, and I've a
 * <b>V1.16</b> Added `timer.GameStartTimeMilliseconds`, `timer.OpponentMillisecondsRemaining`, `board.ForceSkipTurn()`.
 * <b>V1.17</b> Added `BitboardHelper.GetPieceAttacks()` and optimized `board.SquareIsAttackedByOponent()`. Writing `#DEBUG` in a comment will now exclude code in that line from counting towards the token limit (for testing only of course).
 * <b>V1.18</b> Added `timer.IncrementMilliseconds` (this will be 0 for the main tournament, but a small increment may be used in the final playoff games). Fixed a bug in the repetition handling, and optimized check/stalemate detection.
+* <b>V1.19</b> Fixed potential out of bounds exception. Fixed bug in stalemate detection.
+* <b>V1.20</b> Fixed (another) bug in the repetition detection.
 
 [There will be no API changes after August 1]
 
@@ -88,4 +90,5 @@ All names (variables, functions, etc.) are counted as a single token, regardless
 * `GetPiece()` function is giving a null piece after making a move
   * Please make sure you are using the latest version of the project, there was a bug with this function in the original version
 * There is a community-run discord server [over here](https://github.com/SebLague/Chess-Challenge/discussions/156).
+* There is also an unofficial [live leaderboard](https://chess.stjo.dev/) created by a member of the community (source code available [here](https://github.com/StanislavNikolov/chess-league)).
   

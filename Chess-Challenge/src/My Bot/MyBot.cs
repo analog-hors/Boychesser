@@ -138,11 +138,11 @@ public class MyBot : IChessBot {
                                     >> (0x01455410 >> square.File * 4) * 8
                                     & 0xFF00FF
                             )
-                            // mobility
+                            // mobility (35 elo, 19 tokens, 1.8 elo/token)
                             + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
                                 GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
                             )
-                            // own pawn ahead
+                            // own pawn ahead (29 elo, 37 tokens, 0.8 elo/token)
                             + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
                                 (pieceIsWhite ? 0x0101010101010100UL << square.Index : 0x0080808080808080UL >> 63 - square.Index)
                                     & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
@@ -162,8 +162,12 @@ public class MyBot : IChessBot {
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = eval);
         else if (nonPv && eval >= beta && board.TrySkipTurn()) {
-            // Null Move Pruning (NMP)
-            bestScore = depth <= 3 ? eval - 44 * depth : -Negamax(-beta, -alpha, (depth * 96 + beta - eval) / 150 - 1, nextPly);
+            // Pruning based on null move observation
+            bestScore = depth <= 3
+                // RFP (66 elo, 10 tokens, 6.6 elo/token)
+                ? eval - 44 * depth
+                // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
+                : -Negamax(-beta, -alpha, (depth * 96 + beta - eval) / 150 - 1, nextPly);
             board.UndoSkipTurn();
         }
         if (bestScore >= beta)
@@ -193,7 +197,9 @@ public class MyBot : IChessBot {
             int
                 nextDepth = board.IsInCheck() ? depth : depth - 1,
                 reduction = (depth - nextDepth) * Max(
-                    (moveCount * 120 + depth * 103) / 1000 + scores[moveCount] / 256,
+                    (moveCount * 120 + depth * 103) / 1000
+                        // history reduction (5 elo, 4 tokens, 1.2 elo/token)
+                        + scores[moveCount] / 256,
                     0
                 );
             while (
@@ -238,7 +244,7 @@ public class MyBot : IChessBot {
 
         tt = (
             board.ZobristKey,
-            alpha > oldAlpha // if not upper bound
+            alpha > oldAlpha // don't update best move if upper bound (31 elo, 6 tokens, 5.2 elo/token)
                 ? bestMove.RawValue
                 : ttMoveRaw,
             (short)bestScore,

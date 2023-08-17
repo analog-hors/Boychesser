@@ -35,11 +35,11 @@ offsets! {
     MATERIAL: 7;
     MOBILITY: 4;
     TEMPO: 1;
-    OWN_PAWNS_FILE: 7;
+    OWN_PAWNS_AHEAD: 7;
 }
 
 impl InputFeatureSet for Ice4InputFeatures {
-    const MAX_FEATURES: usize = 48;
+    const MAX_FEATURES: usize = 64;
     const INDICES_PER_FEATURE: usize = 2;
     const TENSORS_PER_BOARD: usize = 1;
 
@@ -70,7 +70,8 @@ impl InputFeatureSet for Ice4InputFeatures {
                 };
 
                 let mut piece_index = piece as usize + 1;
-                let on_king_half = (square.file() > File::D) == (board.king(color).file() > File::D);
+                let on_king_half =
+                    (square.file() > File::D) == (board.king(color).file() > File::D);
                 if piece == Piece::Pawn && !on_king_half {
                     piece_index -= 1;
                 }
@@ -91,35 +92,46 @@ impl InputFeatureSet for Ice4InputFeatures {
 
                 features[MATERIAL + piece_index] += inc;
 
-                features[OWN_PAWNS_FILE + piece_index] +=
-                    (board.colored_pieces(color, Piece::Pawn) & square.file().bitboard()).len()
-                        as i8
-                        * inc;
+                // features[OWN_PAWNS_FILE + piece_index] += (board.colored_pieces(color, Piece::Pawn)
+                //     & square.file().bitboard())
+                // .len() as i8
+                //     * inc;
 
+                // let distance = std::cmp::max(
+                //     (square.file() as i8 - opp_king.file() as i8).abs(),
+                //     (square.rank() as i8 - opp_king.rank() as i8).abs(),
+                // );
+                // features[OPP_KING_TROPISM + piece_index] += inc * distance;
 
-                // let ahead = match color {
-                //     Color::White => 0x0101010101010100 << square as usize,
-                //     Color::Black => 0x0080808080808080 >> 63 - square as usize,
-                // };
+                let ahead = match color {
+                    Color::White => 0x0101010101010100 << square as usize,
+                    Color::Black => 0x0080808080808080 >> 63 - square as usize,
+                };
 
-                // features[OWN_PAWNS_AHEAD + piece_index] +=
-                //     (board.colored_pieces(color, Piece::Pawn) & BitBoard(ahead)).len() as i8 * inc;
+                features[OWN_PAWNS_AHEAD + piece_index] +=
+                    (board.colored_pieces(color, Piece::Pawn) & BitBoard(ahead)).len() as i8 * inc;
 
                 // features[OPP_PAWNS_AHEAD + piece_index] +=
                 //     (board.colored_pieces(!color, Piece::Pawn) & BitBoard(ahead)).len() as i8 * inc;
+
+                // if piece == Piece::Pawn {
+                //     features[PASSED_PAWN] += (board.colored_pieces(!color, Piece::Pawn)
+                //         & BitBoard(ahead | ahead << 1 & 0x7F7F7F7F7F7F7F7F | ahead >> 1 & 0xFEFEFEFEFEFEFEFE))
+                //     .is_empty() as i8
+                //         * inc;
+                // }
 
                 // features[PIECE_COUNT + piece as usize] +=
                 //     board.colored_pieces(color, piece).len()
                 //         as i8
                 //         * inc;
 
-                
                 // features[BISHOP_PAIR] += if piece == Piece::King {
                 //     board.colored_pieces(color, Piece::Bishop).len() / 2
                 // } else {
                 //     0
                 // } as i8 * inc;
-    
+
                 // let square = match color {
                 //     Color::White => square,
                 //     Color::Black => square.flip_rank(),
@@ -136,7 +148,6 @@ impl InputFeatureSet for Ice4InputFeatures {
                 // features[KING_FILE + piece as usize] +=
                 //     (square.file() as i8).abs_diff(king.file() as i8) as i8 * inc;
                 // // features[EDGE + piece as usize] += BitBoard::EDGES.has(square) as i8 * inc;
-
             }
         }
 

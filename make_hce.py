@@ -77,14 +77,14 @@ king_pst = take(32)
 material = take(7)
 mobility = take(4)
 tempo = take(1)
-own_pawns_file = take(7)
+own_pawns_ahead = take(7)
 for _ in weights: assert False
 
 print_weight("tempo", *tempo)
 all_psts = [opposite_pawn_pst, pawn_pst, knight_pst, bishop_pst, rook_pst, queen_pst, king_pst]
 pst_deltas, material_consts = encode_psts_and_material(all_psts, material)
 mobility_consts = encode_weights(mobility)
-own_pawns_file_consts = encode_weights(own_pawns_file)
+own_pawns_ahead_consts = encode_weights(own_pawns_ahead)
 
 # interpet as LE u64 array
 packed_data_bytes: list[int | None] = [None] * 504
@@ -119,7 +119,7 @@ def add_u64_data(offset: int, data: list[int | None]):
 add_u64_data(0, pst_deltas)
 add_i32_data(112, material_consts)
 add_i32_data(14, mobility_consts) # pack mobility in empty pawn rows
-add_i32_data(118, own_pawns_file_consts)
+add_i32_data(118, own_pawns_ahead_consts)
 
 packed_data = []
 for i in range(0, len(packed_data_bytes), 8):

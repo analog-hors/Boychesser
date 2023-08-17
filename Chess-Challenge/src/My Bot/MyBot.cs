@@ -25,22 +25,23 @@ public class MyBot : IChessBot {
     int[,,] history = new int[2, 7, 64];
 
     ulong[] packedData = {
-        0x0000000000000000, 0x292f1611332f1801, 0x2222241c2d25190a, 0x1a232e21312a1809,
-        0x293336263b3d2912, 0x5b614f4671673821, 0x96a37664b1ad5d59, 0x0002000300060005,
-        0xfffcfffe00040002, 0x32260223271d2b09, 0x26210f1c221b2c11, 0x1e1f1a232c211b0b,
-        0x2832282d3d372a10, 0x60683c4a856d341b, 0x9fc75f45ddcc0722, 0x0000000000000000,
-        0x5e5549463d2e3e36, 0x6d64575860534944, 0x8376685f6e585b44, 0x8e8c6d6a78696554,
-        0x978e787e826b6967, 0x8083a29470608a63, 0x796b7f836c535852, 0x67795e0669050200,
-        0x3939302b3b353434, 0x3b382f3938343e3e, 0x424032363f453b35, 0x3a423d30443c303b,
-        0x3e3f443e4a443836, 0x3941504b464a4f41, 0x46443033473f302a, 0x575401004d4f0d13,
-        0x868c68608d8b5a57, 0x8b885d5c888e5444, 0x919257559093584b, 0x9a9d5c599d9d514f,
-        0x9fa36d6ba3a3635f, 0x9ca18a809ea3846e, 0xa3a49392aaa3727b, 0xa1a38f92a1a18c8b,
-        0xa89a7a79a2b6776f, 0xaaa280819fab7e7b, 0xc5cc7679c9bc7a7b, 0xece46f73e1d57779,
-        0xfff77177f4d67689, 0xfcff8783e0de9691, 0xffff7d84fce66c82, 0xe1e99b97e3ee846a,
-        0x222c31301a004d4a, 0x554a0d25371c3b43, 0x696100014b341d0e, 0x7b6e0005593b0c00,
-        0x8175052367452606, 0x7d7a384770455332, 0x66694e4d6c313d22, 0x2d215a722f005b00,
-        0x0060004100600029, 0x00e600de00c200bd, 0x032c0286019500ff, 0xffecfff6ffecfff9,
-        0xfffb000300030001, 0xfff3fffffff4fff0, 0x00000000fff9000b,
+        0x0000000000000000, 0x181e140f211c1701, 0x1616221a20151809, 0x121b2c1f241c1808,
+        0x252b3426312f2912, 0x595b4d4665583922, 0x919a7868a197625f, 0x0002000400060005,
+        0xfffdfffe00050002, 0x2115022115082705, 0x1913101b130a2a0f, 0x14151c2321131a0a,
+        0x222d292d352c290f, 0x5e673d498064331b, 0x9bc1644ad5be0c25, 0x0000000000000000,
+        0x49404d4a2718413a, 0x5a5152534d40443f, 0x71645b525d464e39, 0x7e7c575568595144,
+        0x887f5b64745b5053, 0x7173817962506f4a, 0x695b61695b42433e, 0x57613f0051000000,
+        0x2b2a36322d253a3a, 0x312e30392e2a3e3f, 0x3b392c31383d3631, 0x373f32253f362732,
+        0x3d3e3430483f2a2b, 0x39403e3b43464132, 0x45411d244239241d, 0x514c00004646040c,
+        0x696f5d546e6b4f4d, 0x7572474770754030, 0x808139367d7e3a31, 0x8e9034328d892f2f,
+        0x96983d40948f3d3f, 0x939658548e8e5f50, 0x9c9960669c8f4d5f, 0x929169718e8a6f73,
+        0xb8a98986b0c8857d, 0xaaa27f80a5b87d7c, 0xb3bf686bc3c26c71, 0xcece5256d5d75c65,
+        0xe0df4450e9da5364, 0xe0ec5356dce46b6b, 0xfef13857fef54d65, 0xcbdb6b72e5fd654c,
+        0x1a2427271802413a, 0x251c304814055550, 0x2b2823271c144322, 0x3a33121f2b1d2501,
+        0x453f1a373b273b14, 0x4948495b4828633c, 0x373b5a5e4216512c, 0x13033f6410005c00,
+        0x005a003b0057002c, 0x00da010100ce00f4, 0x036302f10195014b, 0xffecfff7ffebfff9,
+        0xfffa000300020001, 0xfff0fffffff3fff0, 0x00060000fffb000a, 0x0000fff800060001,
+        0x0005fff70003fffa, 0x00000000ffeffff2,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -129,6 +130,7 @@ public class MyBot : IChessBot {
                     // virtual pawn type
                     // consider pawns on the opposite half of the king as distinct piece types (piece 0)
                     pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
+                    Square opp_king = board.GetKingSquare(!pieceIsWhite);
                     eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
                         // material
                         EvalWeight(112 + pieceType)
@@ -146,6 +148,10 @@ public class MyBot : IChessBot {
                             + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
                                 0x0101010101010101UL << square.File
                                     & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
+                            )
+                            // opp king tropism
+                            + EvalWeight(125 + pieceType) * Max(
+                                Abs(square.File - opp_king.File), Abs(square.Rank - opp_king.Rank)
                             )
                     );
                     // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]

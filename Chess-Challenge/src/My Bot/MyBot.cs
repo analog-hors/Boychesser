@@ -238,9 +238,7 @@ public class MyBot : IChessBot {
 
         tt = (
             board.ZobristKey,
-            alpha > oldAlpha // if not upper bound
-                ? bestMove.RawValue
-                : ttMoveRaw,
+            bestMove.RawValue,
             (short)bestScore,
             (short)Max(depth, 0),
             (ushort)(

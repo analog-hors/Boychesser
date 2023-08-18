@@ -56,7 +56,7 @@ public class MyBot : IChessBot {
         do
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                Negamax(-32000, 32000, searchingDepth,  -30000);
+                Negamax(-32000, 32000, searchingDepth, -30000);
                 rootBestMove = searchBestMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
@@ -147,6 +147,7 @@ public class MyBot : IChessBot {
                 tmp += 0x0421100 >> pieceType * 4 & 0xF;
             }
             // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
+            // the division is also moved outside Eval to save a token
             return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
             // end tmp use
         }

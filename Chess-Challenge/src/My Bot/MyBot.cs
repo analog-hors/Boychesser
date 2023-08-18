@@ -128,7 +128,8 @@ public class MyBot : IChessBot {
                 // virtual pawn type
                 // consider pawns on the opposite half of the king as distinct piece types (piece 0)
                 pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
-                eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
+                // use sqIndex as piece value temporarily to save tokens
+                sqIndex =
                     // material
                     EvalWeight(112 + pieceType)
                         // psts
@@ -145,17 +146,19 @@ public class MyBot : IChessBot {
                         + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
                             (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
                                 & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
-                        )
-                );
+                        );
+                eval += pieceIsWhite == board.IsWhiteToMove ? sqIndex : -sqIndex;
+                // end usage of sqIndex as piece value
                 // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
                 tmp += 0x0421100 >> pieceType * 4 & 0xF;
             }
             // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
-            return ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
+            // the division by 24 is also moved outside Eval to save tokens
+            return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
             // end usage of tmp as phase
         }
 
-        eval = ttHit && !inQSearch ? score : Eval(board.AllPiecesBitboard);
+        eval = ttHit && !inQSearch ? score : Eval(board.AllPiecesBitboard) / 24;
 
         if (inQSearch)
             // stand pat in quiescence search

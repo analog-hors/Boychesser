@@ -100,9 +100,6 @@ public class MyBot : IChessBot {
             moveCount = 0, // quietsToCheckTable = [0, 5, 8, 14, 49]
             quietsToCheck = 0b_110001_001110_001000_000101_000000 >> depth * 6 & 0b111111,
 
-            // static eval vars
-            pieceType,
-
             // temp vars
             score = ttScore,
             tmp = 0;
@@ -123,7 +120,8 @@ public class MyBot : IChessBot {
             void Eval(ulong pieces) {
                 // use tmp as phase (initialized above)
                 while (pieces != 0) {
-                    Square square = new(ClearAndGetIndexOfLSB(ref pieces));
+                    int pieceType, sqIndex;
+                    Square square = new(sqIndex = ClearAndGetIndexOfLSB(ref pieces));
                     Piece piece = board.GetPiece(square);
                     pieceType = (int)piece.PieceType;
                     // virtual pawn type
@@ -135,7 +133,7 @@ public class MyBot : IChessBot {
                             // psts
                             + (int)(
                                 packedData[pieceType * 8 + square.Rank ^ (pieceIsWhite ? 0 : 0b111)]
-                                    >> (0x01455410 >> square.File * 4) * 8
+                                    >> (0x01455410 >> sqIndex * 4) * 8
                                     & 0xFF00FF
                             )
                             // mobility (35 elo, 19 tokens, 1.8 elo/token)
@@ -144,7 +142,7 @@ public class MyBot : IChessBot {
                             )
                             // own pawn ahead (29 elo, 37 tokens, 0.8 elo/token)
                             + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
-                                (pieceIsWhite ? 0x0101010101010100UL << square.Index : 0x0080808080808080UL >> 63 - square.Index)
+                                (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
                                     & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
                             )
                     );

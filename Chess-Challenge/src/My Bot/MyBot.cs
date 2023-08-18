@@ -219,7 +219,10 @@ public class MyBot : IChessBot {
             if (score >= beta) {
                 if (!move.IsCapture) {
                     // use tmp as change
-                    tmp = (int)Pow(depth + Convert.ToInt32(eval <= alpha), 2);
+                    tmp = depth;
+                    if (eval <= alpha)
+                        tmp++;
+                    tmp *= tmp;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)
                             HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;

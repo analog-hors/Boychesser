@@ -215,6 +215,7 @@ public class MyBot : IChessBot {
                 bestMove = move;
             }
             if (score >= beta) {
+                depth += Convert.ToInt32(eval <= alpha);
                 if (!move.IsCapture) {
                     // use tmp as change
                     tmp = depth * depth;

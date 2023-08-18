@@ -56,7 +56,7 @@ public class MyBot : IChessBot {
         do
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                Negamax(-32000, 32000, searchingDepth, 0);
+                Negamax(-32000, 32000, searchingDepth,  -30000);
                 rootBestMove = searchBestMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
@@ -68,7 +68,7 @@ public class MyBot : IChessBot {
         return rootBestMove;
     }
 
-    public int Negamax(int alpha, int beta, int depth, int nextPly) {
+    public int Negamax(int alpha, int beta, int depth, int mateScore) {
         //abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw new TimeoutException();
@@ -78,10 +78,10 @@ public class MyBot : IChessBot {
 
         // check for game end
         if (board.IsInCheckmate())
-            return nextPly - 30000;
+            return mateScore;
         if (board.IsDraw())
             return 0;
-        nextPly++;
+        mateScore++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         var (ttHash, ttMoveRaw, ttScore, ttDepth, ttBound) = tt;
@@ -161,7 +161,7 @@ public class MyBot : IChessBot {
                 // RFP (66 elo, 10 tokens, 6.6 elo/token)
                 ? eval - 44 * depth
                 // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
-                : -Negamax(-beta, -alpha, (depth * 96 + beta - eval) / 150 - 1, nextPly);
+                : -Negamax(-beta, -alpha, (depth * 96 + beta - eval) / 150 - 1, mateScore);
             board.UndoSkipTurn();
         }
         if (bestScore >= beta)
@@ -198,12 +198,12 @@ public class MyBot : IChessBot {
                 );
             while (
                 moveCount != 0
-                    && (score = -Negamax(~alpha, -alpha, nextDepth - reduction, nextPly)) > alpha
+                    && (score = -Negamax(~alpha, -alpha, nextDepth - reduction, mateScore)) > alpha
                     && reduction != 0
             )
                 reduction = 0;
             if (moveCount == 0 || score > alpha && score < beta)
-                score = -Negamax(-beta, -alpha, nextDepth, nextPly);
+                score = -Negamax(-beta, -alpha, nextDepth, mateScore);
 
             board.UndoMove(move);
 

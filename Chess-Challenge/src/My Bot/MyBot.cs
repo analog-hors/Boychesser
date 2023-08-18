@@ -219,9 +219,13 @@ public class MyBot : IChessBot {
             if (score >= beta) {
                 if (!move.IsCapture) {
                     // use tmp as change
-                    tmp = depth;
-                    if (eval <= alpha)
-                        tmp++;
+                    // equivalent to tmp = eval < alpha ? -(depth + 1) : depth
+                    // 1. eval - alpha is < 0 if eval < alpha and >= 0 otherwise
+                    // 2. >> 31 maps numbers < 0 to -1 and numbers >= 0 to 0
+                    // 3. -1 ^ depth = ~depth while 0 ^ depth = depth
+                    // 4. ~depth = -depth - 1 = -(depth + 1)
+                    // since we're squaring tmp, sign doesn't matter
+                    tmp = eval - alpha >> 31 ^ depth;
                     tmp *= tmp;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)

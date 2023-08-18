@@ -114,47 +114,43 @@ public class MyBot : IChessBot {
             // Internal Iterative Reduction (IIR)
             depth--;
 
-        if (ttHit && !inQSearch)
-            eval = score;
-        else {
-            void Eval(ulong pieces) {
-                // use tmp as phase (initialized above)
-                while (pieces != 0) {
-                    int pieceType, sqIndex;
-                    Square square = new(sqIndex = ClearAndGetIndexOfLSB(ref pieces));
-                    Piece piece = board.GetPiece(square);
-                    pieceType = (int)piece.PieceType;
-                    // virtual pawn type
-                    // consider pawns on the opposite half of the king as distinct piece types (piece 0)
-                    pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
-                    eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
-                        // material
-                        EvalWeight(112 + pieceType)
-                            // psts
-                            + (int)(
-                                packedData[pieceType * 8 + square.Rank ^ (pieceIsWhite ? 0 : 0b111)]
-                                    >> (0x01455410 >> sqIndex * 4) * 8
-                                    & 0xFF00FF
-                            )
-                            // mobility (35 elo, 19 tokens, 1.8 elo/token)
-                            + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
-                                GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
-                            )
-                            // own pawn ahead (29 elo, 37 tokens, 0.8 elo/token)
-                            + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
-                                (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
-                                    & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
-                            )
-                    );
-                    // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
-                    tmp += 0x0421100 >> pieceType * 4 & 0xF;
-                }
-                // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
-                eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
-                // end tmp use
+        int Eval(ulong pieces) {
+            // use tmp as phase (initialized above)
+            while (pieces != 0) {
+                int pieceType, sqIndex;
+                Square square = new(sqIndex = ClearAndGetIndexOfLSB(ref pieces));
+                Piece piece = board.GetPiece(square);
+                pieceType = (int)piece.PieceType;
+                // virtual pawn type
+                // consider pawns on the opposite half of the king as distinct piece types (piece 0)
+                pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
+                eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
+                    // material
+                    EvalWeight(112 + pieceType)
+                        // psts
+                        + (int)(
+                            packedData[pieceType * 8 + square.Rank ^ (pieceIsWhite ? 0 : 0b111)]
+                                >> (0x01455410 >> sqIndex * 4) * 8
+                                & 0xFF00FF
+                        )
+                        // mobility (35 elo, 19 tokens, 1.8 elo/token)
+                        + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
+                            GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
+                        )
+                        // own pawn ahead (29 elo, 37 tokens, 0.8 elo/token)
+                        + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
+                            (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
+                                & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
+                        )
+                );
+                // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
+                tmp += 0x0421100 >> pieceType * 4 & 0xF;
             }
-            Eval(board.AllPiecesBitboard);
+            // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
+            return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
+            // end tmp use
         }
+        eval = ttHit && !inQSearch ? score : Eval(board.AllPiecesBitboard) / 24;
 
         if (inQSearch)
             // stand pat in quiescence search

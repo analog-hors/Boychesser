@@ -56,7 +56,7 @@ public class MyBot : IChessBot {
         do
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                Negamax(-32000, 32000, searchingDepth, 0);
+                Negamax(-32000, 32000, searchingDepth, -30000);
                 rootBestMove = searchBestMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
@@ -68,7 +68,7 @@ public class MyBot : IChessBot {
         return rootBestMove;
     }
 
-    public int Negamax(int alpha, int beta, int depth, int nextPly) {
+    public int Negamax(int alpha, int beta, int depth, int checkmateScore) {
         //abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw new TimeoutException();
@@ -78,10 +78,10 @@ public class MyBot : IChessBot {
 
         // check for game end
         if (board.IsInCheckmate())
-            return nextPly - 30000;
+            return checkmateScore;
         if (board.IsDraw())
             return 0;
-        nextPly++;
+        checkmateScore++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         var (ttHash, ttMoveRaw, ttScore, ttDepth, ttBound) = tt;
@@ -102,6 +102,7 @@ public class MyBot : IChessBot {
 
             // static eval vars
             pieceType,
+            sqIndex,
 
             // temp vars
             score = ttScore,
@@ -117,46 +118,44 @@ public class MyBot : IChessBot {
             // Internal Iterative Reduction (IIR)
             depth--;
 
-        if (ttHit && !inQSearch)
-            eval = score;
-        else {
-            void Eval(ulong pieces) {
-                // use tmp as phase (initialized above)
-                while (pieces != 0) {
-                    Square square = new(ClearAndGetIndexOfLSB(ref pieces));
-                    Piece piece = board.GetPiece(square);
-                    pieceType = (int)piece.PieceType;
-                    // virtual pawn type
-                    // consider pawns on the opposite half of the king as distinct piece types (piece 0)
-                    pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
-                    eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
-                        // material
-                        EvalWeight(112 + pieceType)
-                            // psts
-                            + (int)(
-                                packedData[pieceType * 8 + square.Rank ^ (pieceIsWhite ? 0 : 0b111)]
-                                    >> (0x01455410 >> square.File * 4) * 8
-                                    & 0xFF00FF
-                            )
-                            // mobility (35 elo, 19 tokens, 1.8 elo/token)
-                            + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
-                                GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
-                            )
-                            // own pawn ahead (29 elo, 37 tokens, 0.8 elo/token)
-                            + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
-                                (pieceIsWhite ? 0x0101010101010100UL << square.Index : 0x0080808080808080UL >> 63 - square.Index)
-                                    & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
-                            )
+        int Eval(ulong pieces) {
+            // use tmp as phase (initialized above)
+            while (pieces != 0) {
+                Square square = new(sqIndex = ClearAndGetIndexOfLSB(ref pieces));
+                Piece piece = board.GetPiece(square);
+                pieceType = (int)piece.PieceType;
+                // virtual pawn type
+                // consider pawns on the opposite half of the king as distinct piece types (piece 0)
+                pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
+                // we reuse sqIndex to hold the eval for the current piece
+                sqIndex =
+                    // material
+                    EvalWeight(112 + pieceType)
+                    // psts
+                    + (int)(
+                        packedData[pieceType * 8 + square.Rank ^ (pieceIsWhite ? 0 : 0b111)]
+                            >> (0x01455410 >> square.File * 4) * 8
+                            & 0xFF00FF
+                    )
+                    // mobility (35 elo, 19 tokens, 1.8 elo/token)
+                    + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
+                        GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
+                    )
+                    // own pawn ahead (29 elo, 37 tokens, 0.8 elo/token)
+                    + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
+                        (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
+                            & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
                     );
-                    // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
-                    tmp += 0x0421100 >> pieceType * 4 & 0xF;
-                }
-                // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
-                eval = ((short)eval * tmp + eval / 0x10000 * (24 - tmp)) / 24;
-                // end tmp use
+                eval += pieceIsWhite == board.IsWhiteToMove ? sqIndex : -sqIndex;
+                // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
+                tmp += 0x0421100 >> pieceType * 4 & 0xF;
             }
-            Eval(board.AllPiecesBitboard);
+            // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
+            return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
+            // end tmp use
         }
+
+        eval = ttHit && !inQSearch ? score : Eval(board.AllPiecesBitboard) / 24;
 
         if (inQSearch)
             // stand pat in quiescence search
@@ -167,7 +166,7 @@ public class MyBot : IChessBot {
                 // RFP (66 elo, 10 tokens, 6.6 elo/token)
                 ? eval - 44 * depth
                 // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
-                : -Negamax(-beta, -alpha, (depth * 96 + beta - eval) / 150 - 1, nextPly);
+                : -Negamax(-beta, -alpha, (depth * 96 + beta - eval) / 150 - 1, checkmateScore);
             board.UndoSkipTurn();
         }
         if (bestScore >= beta)
@@ -204,12 +203,12 @@ public class MyBot : IChessBot {
                 );
             while (
                 moveCount != 0
-                    && (score = -Negamax(~alpha, -alpha, nextDepth - reduction, nextPly)) > alpha
+                    && (score = -Negamax(~alpha, -alpha, nextDepth - reduction, checkmateScore)) > alpha
                     && reduction != 0
             )
                 reduction = 0;
             if (moveCount == 0 || score > alpha && score < beta)
-                score = -Negamax(-beta, -alpha, nextDepth, nextPly);
+                score = -Negamax(-beta, -alpha, nextDepth, checkmateScore);
 
             board.UndoMove(move);
 
@@ -220,9 +219,13 @@ public class MyBot : IChessBot {
             if (score >= beta) {
                 if (!move.IsCapture) {
                     // use tmp as change
-                    tmp = depth;
-                    if (eval <= alpha)
-                        tmp++;
+                    // equivalent to tmp = eval < alpha ? -(depth + 1) : depth
+                    // 1. eval - alpha is < 0 if eval < alpha and >= 0 otherwise
+                    // 2. >> 31 maps numbers < 0 to -1 and numbers >= 0 to 0
+                    // 3. -1 ^ depth = ~depth while 0 ^ depth = depth
+                    // 4. ~depth = -depth - 1 = -(depth + 1)
+                    // since we're squaring tmp, sign doesn't matter
+                    tmp = eval - alpha >> 31 ^ depth;
                     tmp *= tmp;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)

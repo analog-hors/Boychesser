@@ -217,10 +217,9 @@ public class MyBot : IChessBot {
                 bestMove = move;
             }
             if (score >= beta) {
-                depth += Convert.ToInt32(eval <= alpha);
                 if (!move.IsCapture) {
                     // use tmp as change
-                    tmp = depth * depth;
+                    tmp = (int)Pow(depth + Convert.ToInt32(eval <= alpha), 2);
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)
                             HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;
@@ -255,7 +254,7 @@ public class MyBot : IChessBot {
                     : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
             )
         );
-        
+
         searchBestMove = bestMove;
         return bestScore;
     }

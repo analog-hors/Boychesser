@@ -114,6 +114,14 @@ public class MyBot : IChessBot {
             // Internal Iterative Reduction (IIR)
             depth--;
 
+        if (!ttHit)
+            ttMoveRaw = 0;
+
+        if (depth >= 3 && !nonPv && (!ttHit || ttBound == 0 || ttBound == 65535)) {
+            Negamax(alpha, beta, depth - 2, mateScore - 1);
+            ttMoveRaw = tt.Item2;
+        }
+
         int Eval(ulong pieces) {
             // use tmp as phase (initialized above)
             while (pieces != 0) {
@@ -174,7 +182,7 @@ public class MyBot : IChessBot {
         tmp = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 100000
+            scores[tmp++] -= move.RawValue == ttMoveRaw ? 100000
                 : Max((int)move.CapturePieceType * 4096 - (int)move.MovePieceType - 1024, HistoryValue(move));
         // end tmp use
 

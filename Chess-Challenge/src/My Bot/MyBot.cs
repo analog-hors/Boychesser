@@ -222,6 +222,8 @@ public class MyBot : IChessBot {
                     // 4. ~depth = -depth - 1 = -(depth + 1)
                     // since we're squaring tmp, sign doesn't matter
                     tmp = eval - alpha >> 31 ^ depth;
+                    if (score > beta + 50)
+                        tmp++;
                     tmp *= tmp;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)

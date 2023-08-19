@@ -103,16 +103,12 @@ public class MyBot : IChessBot {
             // temp vars
             score = ttScore,
             tmp = 0;
-        if (ttHit) {
-            if (ttDepth >= depth && ttBound switch {
-                65535 /* BOUND_LOWER */ => score >= beta,
-                0 /* BOUND_UPPER */ => score <= alpha,
-                _ /* BOUND_EXACT */ => nonPv || inQSearch,
-            })
-                return score;
-        } else if (depth > 5)
-            // Internal Iterative Reduction (IIR)
-            depth--;
+        if (ttHit && ttDepth >= depth && ttBound switch {
+            65535 /* BOUND_LOWER */ => score >= beta,
+            0 /* BOUND_UPPER */ => score <= alpha,
+            _ /* BOUND_EXACT */ => nonPv || inQSearch,
+        })
+            return score;
 
         int Eval(ulong pieces) {
             // use tmp as phase (initialized above)

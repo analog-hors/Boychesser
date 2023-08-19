@@ -81,7 +81,6 @@ public class MyBot : IChessBot {
             return mateScore;
         if (board.IsDraw())
             return 0;
-        mateScore++;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         var (ttHash, ttMoveRaw, ttScore, ttDepth, ttBound) = tt;
@@ -103,6 +102,7 @@ public class MyBot : IChessBot {
             // temp vars
             score = ttScore,
             tmp = 0;
+
         if (ttHit) {
             if (ttDepth >= depth && ttBound switch {
                 65535 /* BOUND_LOWER */ => score >= beta,
@@ -110,9 +110,14 @@ public class MyBot : IChessBot {
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
             })
                 return score;
-        } else if (depth > 5)
-            // Internal Iterative Reduction (IIR)
-            depth--;
+            if (depth >= 3 && !nonPv && ttBound == 0) {
+                Negamax(alpha, beta, depth - 2, mateScore);
+                ttMoveRaw = tt.Item2;
+            }
+        } else
+            ttMoveRaw = 0;
+
+        mateScore++;
 
         int Eval(ulong pieces) {
             // use tmp as phase (initialized above)
@@ -174,7 +179,7 @@ public class MyBot : IChessBot {
         tmp = 0;
         foreach (Move move in moves)
             // sort capture moves by MVV-LVA, quiets by history, and hashmove first
-            scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 100000
+            scores[tmp++] -= move.RawValue == ttMoveRaw ? 100000
                 : Max((int)move.CapturePieceType * 4096 - (int)move.MovePieceType - 1024, HistoryValue(move));
         // end tmp use
 

@@ -202,7 +202,7 @@ public class MyBot : IChessBot {
                     && (score = -Negamax(~alpha, -alpha, nextDepth - reduction, mateScore)) > alpha
                     && reduction != 0
             )
-                reduction = 0;
+                reduction = Max(0, reduction - 4);
             if (moveCount == 0 || score > alpha && score < beta)
                 score = -Negamax(-beta, -alpha, nextDepth, mateScore);
 

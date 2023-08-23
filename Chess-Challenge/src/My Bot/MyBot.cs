@@ -97,8 +97,8 @@ public class MyBot : IChessBot {
             oldAlpha = alpha,
 
             // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 5, 8, 14, 49]
-            quietsToCheck = 0b_110001_001110_001000_000101_000000 >> depth * 6 & 0b111111,
+            moveCount = 0, // quietsToCheckTable = [0, 4, 6, 13, 47]
+            quietsToCheck = 0b_101111_001101_000110_000100_000000 >> depth * 6 & 0b111111,
 
             // temp vars
             score = ttScore,
@@ -160,9 +160,9 @@ public class MyBot : IChessBot {
             // Pruning based on null move observation
             bestScore = depth <= 3
                 // RFP (66 elo, 10 tokens, 6.6 elo/token)
-                ? eval - 44 * depth
+                ? eval - 51 * depth
                 // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
-                : -Negamax(-beta, -alpha, (depth * 96 + beta - eval) / 150 - 1, mateScore);
+                : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1, mateScore);
             board.UndoSkipTurn();
         }
         if (bestScore >= beta)
@@ -182,19 +182,19 @@ public class MyBot : IChessBot {
         Move bestMove = nullMove;
         foreach (Move move in moves) {
             // Delta pruning (23 elo, 21 tokens, 1.1 elo/token)
-            // deltas = [208, 382, 440, 640, 1340]
+            // deltas = [172, 388, 450, 668, 1310]
             // due to sharing of the top bit of each entry with the bottom bit of the next one
             // (expands the range of values for the queen) all deltas must be even (except pawn)
-            if (inQSearch && eval + (0b1_0100111100_1010000000_0110111000_0101111110_0011010000_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
+            if (inQSearch && eval + (0b1_0100011110_1010011100_0111000010_0110000100_0010101100_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
                 break;
 
             board.MakeMove(move);
             int
                 nextDepth = board.IsInCheck() ? depth : depth - 1,
                 reduction = (depth - nextDepth) * Max(
-                    (moveCount * 120 + depth * 103) / 1000
+                    (moveCount * 91 + depth * 140) / 1000
                         // history reduction (5 elo, 4 tokens, 1.2 elo/token)
-                        + scores[moveCount] / 256,
+                        + scores[moveCount] / 227,
                     0
                 );
             while (
@@ -237,7 +237,7 @@ public class MyBot : IChessBot {
                 // LMP (34 elo, 14 tokens, 2.4 elo/token)
                 quietsToCheck-- == 1 ||
                 // Futility Pruning (11 elo, 8 tokens, 1.4 elo/token)
-                eval + 271 * depth < alpha
+                eval + 185 * depth < alpha
             ))
                 break;
 

@@ -194,7 +194,8 @@ public class MyBot : IChessBot {
                 reduction = (depth - nextDepth) * Max(
                     (moveCount * 91 + depth * 140) / 1000
                         // history reduction (5 elo, 4 tokens, 1.2 elo/token)
-                        + scores[moveCount] / 227,
+                        + scores[moveCount] / 227
+                        + Convert.ToInt32(nonPv),
                     0
                 );
             while (

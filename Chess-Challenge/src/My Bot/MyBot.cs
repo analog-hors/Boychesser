@@ -97,8 +97,7 @@ public class MyBot : IChessBot {
             oldAlpha = alpha,
 
             // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 4, 6, 13, 47]
-            quietsToCheck = 0b_101111_001101_000110_000100_000000 >> depth * 6 & 0b111111,
+            moveCount = 0,
 
             // temp vars
             score = ttScore,
@@ -177,8 +176,10 @@ public class MyBot : IChessBot {
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 100000
                 : Max((int)move.CapturePieceType * 4096 - (int)move.MovePieceType - 1024, HistoryValue(move));
         // end tmp use
-
         Array.Sort(scores, moves);
+
+        // quietsToCheckTable = [0, 4, 6, 13, 47, 60]
+        ulong quietsToCheck = 0b_111100_101111_001101_000110_000100_000000UL >> depth * 6 & 0b111111;
         Move bestMove = nullMove;
         foreach (Move move in moves) {
             // Delta pruning (23 elo, 21 tokens, 1.1 elo/token)
@@ -233,7 +234,7 @@ public class MyBot : IChessBot {
             }
 
             // Pruning techniques that break the move loop
-            if (nonPv && depth <= 4 && !move.IsCapture && (
+            if (nonPv && depth <= 5 && !move.IsCapture && (
                 // LMP (34 elo, 14 tokens, 2.4 elo/token)
                 quietsToCheck-- == 1 ||
                 // Futility Pruning (11 elo, 8 tokens, 1.4 elo/token)

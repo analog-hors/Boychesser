@@ -197,6 +197,7 @@ public class MyBot : IChessBot {
                         + scores[moveCount] / 227,
                     0
                 );
+            if (depth <= 3) reduction = 0;
             while (
                 moveCount != 0
                     && (score = -Negamax(~alpha, -alpha, nextDepth - reduction, mateScore)) > alpha

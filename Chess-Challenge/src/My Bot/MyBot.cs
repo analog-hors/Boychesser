@@ -191,10 +191,11 @@ public class MyBot : IChessBot {
             board.MakeMove(move);
             int
                 nextDepth = board.IsInCheck() ? depth : depth - 1,
-                reduction = (depth - nextDepth) * Max(
-                    (moveCount * 91 + depth * 140) / 1000
+                reduction = (depth - nextDepth) * (int)Max(
+                    0.247
+                        + Log(moveCount) * Log(Max(depth, 1)) / 1.8
                         // history reduction (5 elo, 4 tokens, 1.2 elo/token)
-                        + scores[moveCount] / 227,
+                        + scores[moveCount] / 222,
                     0
                 );
             while (

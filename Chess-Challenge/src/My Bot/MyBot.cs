@@ -203,7 +203,7 @@ public class MyBot : IChessBot {
                     && reduction != 0
             )
                 reduction = 0;
-            if (moveCount == 0 || score > alpha && score < beta)
+            if (moveCount == 0 || score > alpha)
                 score = -Negamax(-beta, -alpha, nextDepth, mateScore);
 
             board.UndoMove(move);

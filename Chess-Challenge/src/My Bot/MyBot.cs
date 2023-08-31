@@ -118,24 +118,23 @@ public class MyBot : IChessBot {
             // use tmp as phase (initialized above)
             while (pieces != 0) {
                 int pieceType, sqIndex;
-                Square square = new(sqIndex = ClearAndGetIndexOfLSB(ref pieces));
-                Piece piece = board.GetPiece(square);
+                Piece piece = board.GetPiece(new(sqIndex = ClearAndGetIndexOfLSB(ref pieces)));
                 pieceType = (int)piece.PieceType;
                 // virtual pawn type
                 // consider pawns on the opposite half of the king as distinct piece types (piece 0)
-                pieceType -= (square.File ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
+                pieceType -= (sqIndex % 8 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
                 eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
                     // material
                     EvalWeight(112 + pieceType)
                         // psts
                         + (int)(
-                            packedData[pieceType * 8 + square.Rank ^ (pieceIsWhite ? 0 : 0b111)]
+                            packedData[pieceType * 8 + sqIndex / 8 ^ (pieceIsWhite ? 0 : 0b111)]
                                 >> (0x01455410 >> sqIndex * 4) * 8
                                 & 0xFF00FF
                         )
                         // mobility (35 elo, 19 tokens, 1.8 elo/token)
                         + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
-                            GetSliderAttacks((PieceType)Min(5, pieceType), square, board)
+                            GetSliderAttacks((PieceType)Min(5, pieceType), new(sqIndex), board)
                         )
                         // own pawn ahead (29 elo, 37 tokens, 0.8 elo/token)
                         + EvalWeight(118 + pieceType) * GetNumberOfSetBits(

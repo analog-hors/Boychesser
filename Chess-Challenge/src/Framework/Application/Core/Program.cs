@@ -95,7 +95,7 @@ namespace ChessChallenge.Application {
                         bot.board = new ChessChallenge.API.Board(board);
                         bot.timer = new Timer(-5);
                         bot.searchingDepth = d;
-                        bot.Negamax(-32000, 32000, d, -30000);
+                        bot.Negamax(-32000, 32000, d);
                     }
                 }
 

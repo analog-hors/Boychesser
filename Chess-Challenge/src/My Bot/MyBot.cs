@@ -25,22 +25,22 @@ public class MyBot : IChessBot {
     int[,,] history = new int[2, 7, 64];
 
     ulong[] packedData = {
-        0x0000000000000000, 0x2328170f2d2a1401, 0x1f1f221929211507, 0x18202a1c2d261507,
-        0x252e3022373a230f, 0x585b47456d65321c, 0x8d986f66a5a85f50, 0x0002000300070005,
-        0xfffdfffd00060001, 0x2b1f011d20162306, 0x221c0b171f15220d, 0x1b1b131b271c1507,
-        0x232d212439321f0b, 0x5b623342826c2812, 0x8db65b45c8c01014, 0x0000000000000000,
-        0x615a413e423a382e, 0x6f684f506059413c, 0x82776159705a5543, 0x8b8968657a6a6150,
-        0x948c7479826c6361, 0x7e81988f73648160, 0x766f7a7e70585c4e, 0x6c7956116e100000,
-        0x3a3d2d2840362f31, 0x3c372a343b3a3838, 0x403e2e343c433934, 0x373e3b2e423b2f37,
-        0x383b433c45433634, 0x353d4b4943494b41, 0x46432e354640342b, 0x55560000504f0511,
-        0x878f635c8f915856, 0x8a8b5959898e5345, 0x8f9054518f8e514c, 0x96985a539a974a4c,
-        0x9a9c67659e9d5f59, 0x989c807a9b9c7a6a, 0xa09f898ba59c6f73, 0xa1a18386a09b7e84,
-        0xbcac7774b8c9736a, 0xbab17b7caebd7976, 0xc9ce7376cac57878, 0xe4de6f70dcd87577,
-        0xf4ef7175eedc7582, 0xf9fa8383dfe3908e, 0xfffe7a81f4ec707f, 0xdfe79b94e1ee836c,
-        0x2027252418003d38, 0x4c42091d31193035, 0x5e560001422c180a, 0x6e6200004d320200,
-        0x756c000e5f3c1001, 0x6f6c333f663e3f1d, 0x535b55395c293c1b, 0x2f1e3d5e22005300,
-        0x004c0037004b001f, 0x00e000ca00be00ad, 0x02e30266018800eb, 0xffdcffeeffddfff3,
-        0xfff9000700010007, 0xffe90003ffeefff4, 0x00000000fff5000d,
+        0x0000000000000000, 0x614d1c2853514b00, 0x322e6758483e5217, 0x102f8e624f494e0f,
+        0x344a9772606f913e, 0xaab3f1f5f0dfc771, 0xffffffffffffffff, 0x000b000a000f001e,
+        0xfffcfff700660002, 0x5723007b24209602, 0x312e2c49291d8922, 0x1127525c46313f00,
+        0x20427b8a67627313, 0xb4c1b4effffad741, 0xffffffffffffffff, 0x0000000000000000,
+        0x9b81454382060000, 0xb8b0976ba7963033, 0xddbbeabdb396a330, 0xf6f3f6ecd3adcb90,
+        0xffffffffd8aae6da, 0xffffffffdb9effbb, 0xdbccffffb87fba7b, 0xb6c1cc60ae000000,
+        0x9aab6767a565809b, 0x978077978091afa1, 0x988e73918ca1a198, 0x7b8fa0709f807ab7,
+        0x838bae9e9b989d9e, 0x8484bad796a0e3cd, 0x9f9a838898938465, 0xaeaa6e58af90428a,
+        0xa5b8f5ddcbd2bfb9, 0xc9ced2ced3f4a44c, 0xd5d4bbb2d6dd9d83, 0xe3f0c5aff0de91af,
+        0xf4f6dce8f7f5e2d5, 0xfffffffffff5fffa, 0xfffffffffffcffff, 0xfffffffffdffffff,
+        0xffe3d3c2ffffb99c, 0x7979e9e9dfffc1e1, 0x0658cad4ffffc6e4, 0x0059b1affeffb7e4,
+        0x0a89b4bbffffcbff, 0xbde7c5d9ffffffff, 0xfffffaffffffcfff, 0xffffffffffffffff,
+        0x39483e3c0400aa80, 0x958e000b54227476, 0xbba500037c523703, 0xd9bd284c9f6a1500,
+        0xf4e17489ce8a750e, 0xf7f1e5ffe59aff60, 0xcfdbf7d6df85dd78, 0x8c7d9bd18a00df5c,
+        0x00e5010500dc00ba, 0x023302d1023e031b, 0x04f40558043f0428, 0xffabffc1ffacffd4,
+        0xffe300230000001f, 0x0049fffdfff4ffc4, 0x00000000ffe7002e,
     };
 
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
@@ -91,7 +91,7 @@ public class MyBot : IChessBot {
             inQSearch = depth <= 0,
             pieceIsWhite;
         int
-            eval = 0x000b000a, // tempo
+            eval = 0x00190030, // tempo
             bestScore = -99999,
             oldAlpha = alpha,
 

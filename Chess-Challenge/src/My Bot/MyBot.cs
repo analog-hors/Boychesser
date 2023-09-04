@@ -226,8 +226,7 @@ public class MyBot : IChessBot {
                     // 3. -1 ^ depth = ~depth while 0 ^ depth = depth
                     // 4. ~depth = -depth - 1 = -(depth + 1)
                     // since we're squaring tmp, sign doesn't matter
-                    tmp = eval - alpha >> 31 ^ depth;
-                    tmp *= tmp;
+                    tmp = depth * depth;
                     foreach (Move malusMove in moves.AsSpan(0, moveCount))
                         if (!malusMove.IsCapture)
                             HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;

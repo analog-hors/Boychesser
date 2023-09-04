@@ -103,10 +103,10 @@ public class MyBot : IChessBot {
             score = ttScore,
             tmp = 0;
         if (ttHit) {
-            if (ttDepth >= depth && ttBound switch {
+            if (ttDepth >= depth && nonPv && ttBound switch {
                 65535 /* BOUND_LOWER */ => score >= beta,
                 0 /* BOUND_UPPER */ => score <= alpha,
-                _ /* BOUND_EXACT */ => nonPv || inQSearch,
+                _ /* BOUND_EXACT */ => true,
             })
                 return score;
         } else if (depth > 5)

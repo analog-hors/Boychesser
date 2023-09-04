@@ -179,7 +179,7 @@ public class MyBot : IChessBot {
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
                 : Max(
                     (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
-                    HistoryValue(move) - (int)move.PromotionPieceType % 5 * 2048
+                    HistoryValue(move)
                 );
         // end tmp use
 

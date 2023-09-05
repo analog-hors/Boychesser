@@ -110,7 +110,7 @@ public class MyBot : IChessBot {
             })
                 return score;
         } else if (depth > 5)
-            // Internal Iterative Reduction (IIR)
+            // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
             depth--;
 
         int Eval(ulong pieces) {
@@ -121,6 +121,7 @@ public class MyBot : IChessBot {
                 pieceType = (int)piece.PieceType;
                 // virtual pawn type
                 // consider pawns on the opposite half of the king as distinct piece types (piece 0)
+                // king-relative pawns (vs full pawn pst) (7 elo, 8 tokens, 0.9 elo/token)
                 pieceType -= (sqIndex % 8 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
                 eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
                     // material
@@ -176,6 +177,7 @@ public class MyBot : IChessBot {
             // 2. captures (ordered by MVV-LVA)
             // 3. quiets (no underpromotions, ordered by history)
             // 4. underpromotion quiets (ordered by knight, bishop, rook, tiebreak by history)
+            // underpromos ordered last (6 elo, 10 tokens, 0.6 elo/token)
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
                 : Max(
                     (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
@@ -195,6 +197,7 @@ public class MyBot : IChessBot {
 
             board.MakeMove(move);
             int
+                // Check extension (20 elo, 12 tokens, 1.7 elo/token)
                 nextDepth = board.IsInCheck() ? depth : depth - 1,
                 reduction = (depth - nextDepth) * Max(
                     (moveCount * 91 + depth * 140) / 1000
@@ -220,6 +223,7 @@ public class MyBot : IChessBot {
             if (score >= beta) {
                 if (!move.IsCapture) {
                     // use tmp as change
+                    // increased history change when eval < alpha (6 elo, 7 tokens, 0.9 elo/token)
                     // equivalent to tmp = eval < alpha ? -(depth + 1) : depth
                     // 1. eval - alpha is < 0 if eval < alpha and >= 0 otherwise
                     // 2. >> 31 maps numbers < 0 to -1 and numbers >= 0 to 0

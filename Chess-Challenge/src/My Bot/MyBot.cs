@@ -7,7 +7,7 @@ public class MyBot : IChessBot {
     public int maxDepth = 999; // #DEBUG
 
     public long nodes = 0; // #DEBUG
-    public int maxSearchTime, searchingDepth, lastScore, score;
+    public int maxSearchTime, searchingDepth, lastScore;
 
     public Timer timer;
     public Board board;
@@ -56,11 +56,9 @@ public class MyBot : IChessBot {
         do
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                score = Negamax(lastScore - 50, lastScore + 50, searchingDepth);
-                if (score <= lastScore - 50 || score >= lastScore + 50)
-                    score = Negamax(-32000, 32000, searchingDepth);
+                if (Abs(lastScore - Negamax(lastScore - 50, lastScore + 50, searchingDepth)) >= 50)
+                    Negamax(-32000, 32000, searchingDepth);
                 rootBestMove = searchBestMove;
-                lastScore = score;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
             } catch (TimeoutException) {
@@ -275,7 +273,7 @@ public class MyBot : IChessBot {
         );
 
         searchBestMove = bestMove;
-        return bestScore;
+        return lastScore = bestScore;
     }
 
     ref int HistoryValue(Move move) => ref history[

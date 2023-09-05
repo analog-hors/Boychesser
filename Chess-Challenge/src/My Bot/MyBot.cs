@@ -68,7 +68,7 @@ public class MyBot : IChessBot {
         return rootBestMove;
     }
 
-    public int Negamax(int alpha, int beta, int depth) {
+    public int Negamax(int alpha, int beta, int depth, bool allow_nmp = true) {
         //abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw new TimeoutException();
@@ -155,13 +155,13 @@ public class MyBot : IChessBot {
         if (inQSearch)
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = eval);
-        else if (nonPv && eval >= beta && board.TrySkipTurn()) {
+        else if (nonPv && eval >= beta && allow_nmp && board.TrySkipTurn()) {
             // Pruning based on null move observation
             bestScore = depth <= 3
                 // RFP (66 elo, 10 tokens, 6.6 elo/token)
                 ? eval - 51 * depth
                 // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
-                : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1);
+                : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1, false);
             board.UndoSkipTurn();
         }
         if (bestScore >= beta)

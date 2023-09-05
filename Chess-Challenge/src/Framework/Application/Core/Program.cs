@@ -83,29 +83,23 @@ namespace ChessChallenge.Application {
                 };
 
                 var timer = new Stopwatch();
-                var bot = new MyBot();
-                bot.nodes = 0;
-                timer.Start();
+                var bot = new MyBot {
+                    maxDepth = 10
+                };
 
-                var board = new ChessChallenge.Chess.Board();
+                timer.Start();
+                var board = new Chess.Board();
                 for (int i = 0; i < benches.Length; i++) {
                     board.LoadPosition(benches[i]);
-                    for (int d = 1; d <= 10; d++) {
-                        bot.maxSearchTime = 100000;
-                        bot.board = new ChessChallenge.API.Board(board);
-                        bot.timer = new Timer(-5);
-                        bot.searchingDepth = d;
-                        bot.Negamax(-32000, 32000, d);
-                    }
+                    bot.Think(new Board(board), new Timer(9999999));
                 }
-
                 timer.Stop();
 
                 long nps = bot.nodes * 1000 / timer.ElapsedMilliseconds;
                 int? tokens = null;
                 try {
-                    var tokenCount = ChallengeController.GetTokenCount();
-                    tokens = tokenCount.totalTokenCount - tokenCount.debugTokenCount;
+                    var (totalTokenCount, debugTokenCount) = ChallengeController.GetTokenCount();
+                    tokens = totalTokenCount - debugTokenCount;
                 } catch (System.Exception) {
                     // whatever
                 }

@@ -70,7 +70,7 @@ public class MyBot : IChessBot {
         while (
             ++searchingDepth <= 200
                 && searchingDepth <= maxDepth // #DEBUG
-                && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / moveStability * 5
+                && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime * 5 / moveStability
         );
 
         return rootBestMove;

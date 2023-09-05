@@ -91,6 +91,7 @@ namespace ChessChallenge.Application {
                 var board = new Chess.Board();
                 for (int i = 0; i < benches.Length; i++) {
                     board.LoadPosition(benches[i]);
+                    bot.lastScore = 0;
                     bot.Think(new Board(board), new Timer(9999999));
                 }
                 timer.Stop();

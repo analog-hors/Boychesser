@@ -4,6 +4,7 @@ using static System.Math;
 using static ChessChallenge.API.BitboardHelper;
 
 public class MyBot : IChessBot {
+    public int maxDepth = 999; // #DEBUG
 
     public long nodes = 0; // #DEBUG
     public int maxSearchTime, searchingDepth;
@@ -46,7 +47,6 @@ public class MyBot : IChessBot {
     int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
 
     public Move Think(Board boardOrig, Timer timerOrig) {
-        nodes = 0; // #DEBUG
         maxSearchTime = timerOrig.MillisecondsRemaining / 4;
 
         board = boardOrig;
@@ -63,7 +63,11 @@ public class MyBot : IChessBot {
             } catch (TimeoutException) {
                 break;
             }
-        while (++searchingDepth <= 200 && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10);
+        while (
+            ++searchingDepth <= 200
+                && searchingDepth <= maxDepth // #DEBUG
+                && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10
+        );
 
         return rootBestMove;
     }

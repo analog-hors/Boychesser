@@ -98,6 +98,7 @@ public class MyBot : IChessBot {
             // search loop vars
             moveCount = 0, // quietsToCheckTable = [0, 4, 6, 13, 47]
             quietsToCheck = 0b_101111_001101_000110_000100_000000 >> depth * 6 & 0b111111,
+            razor_alpha = alpha - depth * 250,
 
             // temp vars
             score = ttScore,
@@ -155,14 +156,19 @@ public class MyBot : IChessBot {
         if (inQSearch)
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = eval);
-        else if (nonPv && eval >= beta && board.TrySkipTurn()) {
+        else if (nonPv && board.TrySkipTurn()) {
             // Pruning based on null move observation
-            bestScore = depth <= 3
+            bestScore = depth <= 3 || eval < beta
                 // RFP (66 elo, 10 tokens, 6.6 elo/token)
                 ? eval - 51 * depth
                 // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
                 : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1);
             board.UndoSkipTurn();
+            if (
+                depth <= 3 && eval <= razor_alpha &&
+                (score = Negamax(razor_alpha, razor_alpha+1, 0)) <= razor_alpha
+            )
+                return score;
         }
         if (bestScore >= beta)
             return bestScore;

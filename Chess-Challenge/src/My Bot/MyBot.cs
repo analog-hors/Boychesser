@@ -107,16 +107,12 @@ public class MyBot : IChessBot {
             // temp vars
             score = ttScore,
             tmp = 0;
-        if (ttHit) {
-            if (ttDepth >= depth && ttBound switch {
-                65535 /* BOUND_LOWER */ => score >= beta,
-                0 /* BOUND_UPPER */ => score <= alpha,
-                _ /* BOUND_EXACT */ => nonPv || inQSearch,
-            })
-                return score;
-        } else if (depth > 5)
-            // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
-            depth--;
+        if (ttHit && ttDepth >= depth && ttBound switch {
+            65535 /* BOUND_LOWER */ => score >= beta,
+            0 /* BOUND_UPPER */ => score <= alpha,
+            _ /* BOUND_EXACT */ => nonPv || inQSearch,
+        })
+            return score;
 
         int Eval(ulong pieces) {
             // use tmp as phase (initialized above)
@@ -180,13 +176,11 @@ public class MyBot : IChessBot {
             // move ordering:
             // 1. hashmove
             // 2. captures (ordered by MVV-LVA)
-            // 3. quiets (no underpromotions, ordered by history)
-            // 4. underpromotion quiets (ordered by knight, bishop, rook, tiebreak by history)
-            // underpromos ordered last (6 elo, 10 tokens, 0.6 elo/token)
+            // 3. quiets (ordered by history)
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
                 : Max(
                     (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
-                    HistoryValue(move) - (int)move.PromotionPieceType % 5 * 2048
+                    HistoryValue(move)
                 );
         // end tmp use
 

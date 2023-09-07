@@ -56,7 +56,7 @@ public class MyBot : IChessBot {
         do
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                if (Abs(lastScore - Negamax(lastScore - 50, lastScore + 50, searchingDepth)) >= 50)
+                if (Abs(lastScore - Negamax(lastScore - 35, lastScore + 35, searchingDepth)) >= 35)
                     Negamax(-32000, 32000, searchingDepth);
                 rootBestMove = searchBestMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!

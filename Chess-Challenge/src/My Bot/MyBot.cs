@@ -22,7 +22,7 @@ public class MyBot : IChessBot {
         ushort // bound BOUND_EXACT=[1, 65535), BOUND_LOWER=65535, BOUND_UPPER=0
     )[] transpositionTable = new (ulong, ushort, short, short, ushort)[0x1000000];
 
-    int[,,] history = new int[2, 7, 64];
+    int[,,] history = new int[2, 64, 64];
 
     ulong[] packedData = {
         0x0000000000000000, 0x2328170f2d2a1401, 0x1f1f221929211507, 0x18202a1c2d261507,
@@ -273,7 +273,7 @@ public class MyBot : IChessBot {
 
     ref int HistoryValue(Move move) => ref history[
         board.IsWhiteToMove ? 1 : 0,
-        (int)move.MovePieceType,
+        move.StartSquare.Index,
         move.TargetSquare.Index
     ];
 }

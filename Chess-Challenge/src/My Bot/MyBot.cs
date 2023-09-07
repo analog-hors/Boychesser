@@ -162,6 +162,7 @@ public class MyBot : IChessBot {
                 ? eval - 51 * depth
                 // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
                 : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1);
+            if (bestScore < -20000) depth++;
             board.UndoSkipTurn();
         }
         if (bestScore >= beta)

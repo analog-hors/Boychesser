@@ -47,7 +47,7 @@ public class MyBot : IChessBot {
     int EvalWeight(int item) => (int)(packedData[item >> 1] >> item * 32);
 
     public Move Think(Board boardOrig, Timer timerOrig) {
-        maxSearchTime = timerOrig.MillisecondsRemaining / 4;
+        maxSearchTime = timerOrig.MillisecondsRemaining / 6;
 
         board = boardOrig;
         timer = timerOrig;
@@ -67,7 +67,7 @@ public class MyBot : IChessBot {
         while (
             ++searchingDepth <= 200
                 && searchingDepth <= maxDepth // #DEBUG
-                && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10
+                && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 8
         );
 
         return rootBestMove;

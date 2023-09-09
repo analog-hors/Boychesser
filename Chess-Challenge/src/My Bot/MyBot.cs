@@ -3,6 +3,9 @@ using System;
 using static System.Math;
 using static ChessChallenge.API.BitboardHelper;
 
+class Params {
+}
+
 public class MyBot : IChessBot {
     public int maxDepth = 999; // #DEBUG
 

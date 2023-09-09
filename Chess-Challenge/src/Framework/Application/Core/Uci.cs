@@ -20,7 +20,27 @@ namespace Uci {
                     case "uci": {
                         Console.WriteLine("id name BoyChesser");
                         Console.WriteLine("id author you like chessing boys don't you");
+
+                        foreach (var field in typeof(Params).GetFields()) {
+                            if (field.IsStatic) {
+                                Console.WriteLine(
+                                    "option name P_{0} type spin default {1} min -9999 max 9999",
+                                    field.Name,
+                                    field.GetValue(null)
+                                );
+                            }
+                        }
+
                         Console.WriteLine("uciok");
+                        break;
+                    }
+                    case "setoption": {
+                        var name = tokens[Array.FindIndex(tokens, t => t == "name") + 1];
+                        if (name.StartsWith("P_")) {
+                            var field = name.Substring(2);
+                            var value = int.Parse(tokens[Array.FindIndex(tokens, t => t == "value") + 1]);
+                            typeof(Params).GetField(field).SetValue(null, value);
+                        }
                         break;
                     }
                     case "ucinewgame": {

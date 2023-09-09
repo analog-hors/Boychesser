@@ -61,7 +61,7 @@ public class MyBot : IChessBot {
                 rootBestMove = searchBestMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
-            } catch (TimeoutException) {
+            } catch {
                 break;
             }
         while (
@@ -76,7 +76,7 @@ public class MyBot : IChessBot {
     public int Negamax(int alpha, int beta, int depth) {
         //abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
-            throw new TimeoutException();
+            throw null;
 
         //node count
         nodes++; // #DEBUG
@@ -277,7 +277,7 @@ public class MyBot : IChessBot {
     }
 
     ref int HistoryValue(Move move) => ref history[
-        board.IsWhiteToMove ? 1 : 0,
+        board.PlyCount % 2,
         (int)move.MovePieceType,
         move.TargetSquare.Index
     ];

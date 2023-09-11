@@ -277,7 +277,7 @@ public class MyBot : IChessBot {
     }
 
     ref int HistoryValue(Move move) => ref history[
-        board.PlyCount % 2,
+        board.PlyCount & 1,
         (int)move.MovePieceType,
         move.TargetSquare.Index
     ];

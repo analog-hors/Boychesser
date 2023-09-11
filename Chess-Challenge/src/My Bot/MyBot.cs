@@ -44,7 +44,7 @@ public class MyBot : IChessBot {
         0xfff9000700010007, 0xffe90003ffeefff4, 0x00000000fff5000d,
     };
 
-    int EvalWeight(int item) => (int)(packedData[item / 2] >> item % 2 * 32);
+    int EvalWeight(int item) => (int)(packedData[item >> 1] >> item * 32);
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         maxSearchTime = timerOrig.MillisecondsRemaining / 4;
@@ -126,13 +126,13 @@ public class MyBot : IChessBot {
                 // virtual pawn type
                 // consider pawns on the opposite half of the king as distinct piece types (piece 0)
                 // king-relative pawns (vs full pawn pst) (7 elo, 8 tokens, 0.9 elo/token)
-                pieceType -= (sqIndex % 8 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
+                pieceType -= (sqIndex & 0b111 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
                 eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
                     // material
                     EvalWeight(112 + pieceType)
                         // psts
                         + (int)(
-                            packedData[pieceType * 8 + sqIndex / 8 ^ (pieceIsWhite ? 0 : 0b111)]
+                            packedData[pieceType * 64 + sqIndex >> 3 ^ (pieceIsWhite ? 0 : 0b111)]
                                 >> (0x01455410 >> sqIndex * 4) * 8
                                 & 0xFF00FF
                         )

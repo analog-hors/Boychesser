@@ -182,11 +182,16 @@ public class MyBot : IChessBot {
             // 3. quiets (no underpromotions, ordered by history)
             // 4. underpromotion quiets (ordered by knight, bishop, rook, tiebreak by history)
             // underpromos ordered last (6 elo, 10 tokens, 0.6 elo/token)
-            scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
-                : Max(
-                    (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
-                    HistoryValue(move) - (int)move.PromotionPieceType % 5 * 2048
-                );
+            scores[tmp++] -= Max(
+                (int)move.CapturePieceType * 32768
+                    - (int)move.MovePieceType
+                    + (
+                        ttHit && move.RawValue == ttMoveRaw
+                            ? 1000000
+                            : -16384
+                    ),
+                HistoryValue(move) - (int)move.PromotionPieceType % 5 * 2048
+            );
         // end tmp use
 
         Array.Sort(scores, moves);
@@ -206,7 +211,8 @@ public class MyBot : IChessBot {
                 reduction = (depth - nextDepth) * Max(
                     (moveCount * 91 + depth * 140) / 1000
                         // history reduction (5 elo, 4 tokens, 1.2 elo/token)
-                        + scores[moveCount] / 227,
+                        + scores[moveCount] / 227
+                        - scores[0] / 1032760,
                     0
                 );
             while (

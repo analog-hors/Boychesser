@@ -195,7 +195,7 @@ public class MyBot : IChessBot {
             // deltas = [172, 388, 450, 668, 1310]
             // due to sharing of the top bit of each entry with the bottom bit of the next one
             // (expands the range of values for the queen) all deltas must be even (except pawn)
-            if (inQSearch && eval + (0b1_0100011110_1010011100_0111000010_0110000100_0010101100_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
+            if (inQSearch && !board.IsInCheck() && eval + (0b1_0100011110_1010011100_0111000010_0110000100_0010101100_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
                 break;
 
             board.MakeMove(move);

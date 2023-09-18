@@ -160,15 +160,17 @@ public class MyBot : IChessBot {
         if (inQSearch)
             // stand pat in quiescence search
             alpha = Max(alpha, bestScore = eval);
-        else if (nonPv && eval >= beta && board.TrySkipTurn()) {
-            // Pruning based on null move observation
-            bestScore = depth <= 3
-                // RFP (66 elo, 10 tokens, 6.6 elo/token)
-                ? eval - 51 * depth
-                // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
-                : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1);
-            board.UndoSkipTurn();
-        }
+        else if (nonPv)
+            if (eval >= beta && board.TrySkipTurn()) {
+                // Pruning based on null move observation
+                bestScore = depth <= 3
+                    // RFP (66 elo, 10 tokens, 6.6 elo/token)
+                    ? eval - 51 * depth
+                    // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
+                    : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1);
+                board.UndoSkipTurn();
+            } else if (depth == 1 && eval + 150 <= alpha)
+                return Negamax(alpha, beta, 0);
         if (bestScore >= beta)
             return bestScore;
 

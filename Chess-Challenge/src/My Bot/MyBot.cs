@@ -164,7 +164,7 @@ public class MyBot : IChessBot {
             // Pruning based on null move observation
             bestScore = depth <= 3
                 // RFP (66 elo, 10 tokens, 6.6 elo/token)
-                ? eval - 51 * depth
+                ? eval - 51 * depth - 51
                 // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
                 : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1);
             board.UndoSkipTurn();

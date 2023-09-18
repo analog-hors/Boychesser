@@ -245,7 +245,7 @@ public class MyBot : IChessBot {
             }
 
             // Pruning techniques that break the move loop
-            if (nonPv && depth <= 4 && !move.IsCapture && (
+            if (nonPv && depth <= 4 && !move.IsCapture && !board.IsInCheck() && (
                 // LMP (34 elo, 14 tokens, 2.4 elo/token)
                 quietsToCheck-- == 1 ||
                 // Futility Pruning (11 elo, 8 tokens, 1.4 elo/token)

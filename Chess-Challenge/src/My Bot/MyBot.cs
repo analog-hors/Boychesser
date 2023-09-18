@@ -25,6 +25,8 @@ public class MyBot : IChessBot {
 
     int[,,] history = new int[2, 7, 64];
 
+    Move[] killers = new Move[2048];
+
     ulong[] packedData = {
         0x0000000000000000, 0x2328170f2d2a1401, 0x1f1f221929211507, 0x18202a1c2d261507,
         0x252e3022373a230f, 0x585b47456d65321c, 0x8d986f66a5a85f50, 0x0002000300070005,
@@ -182,7 +184,7 @@ public class MyBot : IChessBot {
             // 2. captures (ordered by MVV-LVA)
             // 3. quiets (ordered by history)
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
-                : Max(
+                : move == killers[board.PlyCount] ? 16384 : Max(
                     (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
                     HistoryValue(move)
                 );
@@ -240,6 +242,7 @@ public class MyBot : IChessBot {
                             HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;
                     HistoryValue(move) += tmp - tmp * HistoryValue(move) / 512;
                     // end tmp use
+                    killers[board.PlyCount] = move;
                 }
                 break;
             }

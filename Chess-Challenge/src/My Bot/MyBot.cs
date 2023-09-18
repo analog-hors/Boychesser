@@ -114,9 +114,9 @@ public class MyBot : IChessBot {
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
             })
                 return score;
-        } else if (depth > 5)
+        } else
             // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
-            depth--;
+            depth -= depth / 6;
 
         int Eval(ulong pieces) {
             // use tmp as phase (initialized above)

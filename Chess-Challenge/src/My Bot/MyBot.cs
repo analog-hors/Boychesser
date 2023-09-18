@@ -109,8 +109,8 @@ public class MyBot : IChessBot {
             tmp = 0;
         if (ttHit) {
             if (ttDepth >= depth && ttBound switch {
-                65535 /* BOUND_LOWER */ => score >= beta,
-                0 /* BOUND_UPPER */ => score <= alpha,
+                65535 /* BOUND_LOWER */ => nonPv && score >= beta,
+                0 /* BOUND_UPPER */ => nonPv && score <= alpha,
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
             })
                 return score;

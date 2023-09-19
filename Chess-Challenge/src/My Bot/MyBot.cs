@@ -108,9 +108,9 @@ public class MyBot : IChessBot {
             tmp = 0;
         if (ttHit) {
             if (ttDepth >= depth && ttBound switch {
-                65535 /* BOUND_LOWER */ => score >= beta,
-                0 /* BOUND_UPPER */ => score <= alpha,
-                _ /* BOUND_EXACT */ => nonPv || inQSearch,
+                1 /* BOUND_LOWER */ => score >= beta,
+                0 /* BOUND_EXACT */ => nonPv || inQSearch,
+                _ /* BOUND_UPPER */ => score <= alpha,
             })
                 return score;
         } else if (depth > 5)
@@ -155,7 +155,7 @@ public class MyBot : IChessBot {
             // end tmp use
         }
         eval = Eval(board.AllPiecesBitboard) / 24;
-        if (ttHit && (ttBound > 0 && score > eval || ttBound < 65535 && score < eval))
+        if (ttHit && ttBound * (score - eval) >= 0)
             eval = score;
 
         if (inQSearch)
@@ -265,8 +265,8 @@ public class MyBot : IChessBot {
             bestScore,
             Max(depth, 0),
             bestScore >= beta
-                ? 65535 /* BOUND_LOWER */
-                : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
+                ? 1 /* BOUND_LOWER */
+                : alpha + ~oldAlpha >> 31 /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
         );
 
         searchBestMove = bestMove;

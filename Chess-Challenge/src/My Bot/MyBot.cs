@@ -86,7 +86,7 @@ public class MyBot : IChessBot {
             return board.PlyCount - 30000;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x800000];
-        var (ttHash, ttMoveRaw, ttScore, ttDepth, ttBound) = tt;
+        var (ttHash, ttMoveRaw, score, ttDepth, ttBound) = tt;
 
         bool
             ttHit = ttHash == board.ZobristKey,
@@ -103,7 +103,6 @@ public class MyBot : IChessBot {
             quietsToCheck = 0b_101111_001101_000110_000100_000000 >> depth * 6 & 0b111111,
 
             // temp vars
-            score = ttScore,
             tmp = 0;
         if (ttHit) {
             if (ttDepth >= depth && ttBound switch {

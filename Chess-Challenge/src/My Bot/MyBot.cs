@@ -18,10 +18,10 @@ public class MyBot : IChessBot {
     (
         ulong, // hash
         ushort, // moveRaw
-        short, // score
-        short, // depth 
-        ushort // bound BOUND_EXACT=[1, 65535), BOUND_LOWER=65535, BOUND_UPPER=0
-    )[] transpositionTable = new (ulong, ushort, short, short, ushort)[0x800000];
+        int, // score
+        int, // depth 
+        int // bound BOUND_EXACT=[1, 65535), BOUND_LOWER=65535, BOUND_UPPER=0
+    )[] transpositionTable = new (ulong, ushort, int, int, int)[0x800000];
 
     int[,,] history = new int[2, 7, 64];
 
@@ -261,13 +261,11 @@ public class MyBot : IChessBot {
             alpha > oldAlpha // don't update best move if upper bound (31 elo, 6 tokens, 5.2 elo/token)
                 ? bestMove.RawValue
                 : ttMoveRaw,
-            (short)bestScore,
-            (short)Max(depth, 0),
-            (ushort)(
-                bestScore >= beta
-                    ? 65535 /* BOUND_LOWER */
-                    : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
-            )
+            bestScore,
+            Max(depth, 0),
+            bestScore >= beta
+                ? 65535 /* BOUND_LOWER */
+                : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
         );
 
         searchBestMove = bestMove;

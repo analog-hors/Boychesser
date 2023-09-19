@@ -21,7 +21,7 @@ public class MyBot : IChessBot {
         short, // score
         short, // depth 
         ushort // bound BOUND_EXACT=[1, 65535), BOUND_LOWER=65535, BOUND_UPPER=0
-    )[] transpositionTable = new (ulong, ushort, short, short, ushort)[0x1000000];
+    )[] transpositionTable = new (ulong, ushort, short, short, ushort)[0x800000];
 
     int[,,] history = new int[2, 7, 64];
 
@@ -87,7 +87,7 @@ public class MyBot : IChessBot {
         if (board.IsDraw())
             return 0;
 
-        ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
+        ref var tt = ref transpositionTable[board.ZobristKey % 0x800000];
         var (ttHash, ttMoveRaw, ttScore, ttDepth, ttBound) = tt;
 
         bool

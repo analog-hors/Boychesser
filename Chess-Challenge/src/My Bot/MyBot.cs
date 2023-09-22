@@ -56,7 +56,7 @@ public class MyBot : IChessBot {
         do
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth)) >= 20)
+                if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth, true)) >= 20)
                     Negamax(-32000, 32000, searchingDepth, true);
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);

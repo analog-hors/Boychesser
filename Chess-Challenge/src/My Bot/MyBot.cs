@@ -12,7 +12,7 @@ public class MyBot : IChessBot {
     public Timer timer;
     public Board board;
 
-    Move nullMove, searchBestMove, rootBestMove;
+    Move nullMove, rootBestMove;
 
     // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
     (
@@ -57,8 +57,7 @@ public class MyBot : IChessBot {
             //If score is of this value search has been aborted, DO NOT use result
             try {
                 if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth)) >= 20)
-                    Negamax(-32000, 32000, searchingDepth);
-                rootBestMove = searchBestMove;
+                    Negamax(-32000, 32000, searchingDepth, true);
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
             } catch {
@@ -73,7 +72,7 @@ public class MyBot : IChessBot {
         return rootBestMove;
     }
 
-    public int Negamax(int alpha, int beta, int depth) {
+    public int Negamax(int alpha, int beta, int depth, bool isRoot = false) {
         //abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw null;
@@ -267,7 +266,8 @@ public class MyBot : IChessBot {
                 : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
         );
 
-        searchBestMove = bestMove;
+        if (isRoot && alpha > oldAlpha)
+            rootBestMove = bestMove;
         return lastScore = bestScore;
     }
 

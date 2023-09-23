@@ -84,8 +84,6 @@ public class MyBot : IChessBot {
         // check for game end
         if (board.IsInCheckmate())
             return board.PlyCount - 30000;
-        if (board.IsDraw())
-            return 0;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x1000000];
         var (ttHash, ttMoveRaw, ttScore, ttDepth, ttBound) = tt;
@@ -199,23 +197,27 @@ public class MyBot : IChessBot {
                 break;
 
             board.MakeMove(move);
-            int
-                // Check extension (20 elo, 12 tokens, 1.7 elo/token)
-                nextDepth = board.IsInCheck() ? depth : depth - 1,
-                reduction = (depth - nextDepth) * Max(
-                    (moveCount * 91 + depth * 140) / 1000
-                        // history reduction (5 elo, 4 tokens, 1.2 elo/token)
-                        + scores[moveCount] / 227,
-                    0
-                );
-            while (
-                moveCount != 0
-                    && (score = -Negamax(~alpha, -alpha, nextDepth - reduction)) > alpha
-                    && reduction != 0
-            )
-                reduction = 0;
-            if (moveCount == 0 || score > alpha)
-                score = -Negamax(-beta, -alpha, nextDepth);
+            if (board.IsDraw())
+                score = 0;
+            else {
+                int
+                    // Check extension (20 elo, 12 tokens, 1.7 elo/token)
+                    nextDepth = board.IsInCheck() ? depth : depth - 1,
+                    reduction = (depth - nextDepth) * Max(
+                        (moveCount * 91 + depth * 140) / 1000
+                            // history reduction (5 elo, 4 tokens, 1.2 elo/token)
+                            + scores[moveCount] / 227,
+                        0
+                    );
+                while (
+                    moveCount != 0
+                        && (score = -Negamax(~alpha, -alpha, nextDepth - reduction)) > alpha
+                        && reduction != 0
+                )
+                    reduction = 0;
+                if (moveCount == 0 || score > alpha)
+                    score = -Negamax(-beta, -alpha, nextDepth);
+            }
 
             board.UndoMove(move);
 

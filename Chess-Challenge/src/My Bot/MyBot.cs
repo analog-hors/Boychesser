@@ -56,8 +56,8 @@ public class MyBot : IChessBot {
         do
             //If score is of this value search has been aborted, DO NOT use result
             try {
-                if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth)) >= 20)
-                    Negamax(-32000, 32000, searchingDepth);
+                if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth, false)) >= 20)
+                    Negamax(-32000, 32000, searchingDepth, false);
                 rootBestMove = searchBestMove;
                 //Use for debugging, commented out because it saves a LOT of tokens!!
                 //Console.WriteLine("info depth " + depth + " score cp " + score);
@@ -73,7 +73,7 @@ public class MyBot : IChessBot {
         return rootBestMove;
     }
 
-    public int Negamax(int alpha, int beta, int depth) {
+    public int Negamax(int alpha, int beta, int depth, bool notRoot = true) {
         //abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw null;
@@ -84,7 +84,7 @@ public class MyBot : IChessBot {
         // check for game end
         if (board.IsInCheckmate())
             return board.PlyCount - 30000;
-        if (board.IsDraw())
+        if (notRoot && board.IsDraw())
             return 0;
 
         ref var tt = ref transpositionTable[board.ZobristKey & 0x7FFFFF];

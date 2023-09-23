@@ -180,7 +180,13 @@ public class MyBot : IChessBot {
             // 3. quiets (ordered by history)
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
                 : Max(
-                    (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
+                    (int)move.CapturePieceType * 32768
+                        - (int)move.MovePieceType
+                        - (
+                            board.SquareIsAttackedByOpponent(move.TargetSquare)
+                                ? 16384
+                                : 16383
+                        ),
                     HistoryValue(move)
                 );
         // end tmp use

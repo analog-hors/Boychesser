@@ -83,7 +83,7 @@ public class MyBot : IChessBot {
         // check for game end
         if (board.IsInCheckmate())
             return board.PlyCount - 30000;
-        if (board.IsDraw())
+        if (!isRoot && board.IsDraw())
             return 0;
 
         ref var tt = ref transpositionTable[board.ZobristKey % 0x800000];

@@ -126,7 +126,7 @@ public class MyBot : IChessBot {
                 // consider pawns on the opposite half of the king as distinct piece types (piece 0)
                 // king-relative pawns (vs full pawn pst) (7 elo, 8 tokens, 0.9 elo/token)
                 pieceType -= (sqIndex & 0b111 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
-                eval += (pieceIsWhite == board.IsWhiteToMove ? 1 : -1) * (
+                sqIndex =
                     // material
                     EvalWeight(112 + pieceType)
                         // psts
@@ -143,8 +143,8 @@ public class MyBot : IChessBot {
                         + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
                             (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
                                 & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
-                        )
-                );
+                        );
+                eval += pieceIsWhite == board.IsWhiteToMove ? sqIndex : -sqIndex;
                 // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
                 tmp += 0x0421100 >> pieceType * 4 & 0xF;
             }

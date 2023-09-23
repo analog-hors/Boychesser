@@ -20,7 +20,7 @@ public class MyBot : IChessBot {
         ushort, // moveRaw
         int, // score
         int, // depth 
-        int // bound BOUND_EXACT=[1, 65535), BOUND_LOWER=65535, BOUND_UPPER=0
+        int // bound BOUND_EXACT=[1, 2147483647), BOUND_LOWER=2147483647, BOUND_UPPER=0
     )[] transpositionTable = new (ulong, ushort, int, int, int)[0x800000];
 
     int[,,] history = new int[2, 7, 64];
@@ -108,7 +108,7 @@ public class MyBot : IChessBot {
             tmp = 0;
         if (ttHit) {
             if (ttDepth >= depth && ttBound switch {
-                65535 /* BOUND_LOWER */ => score >= beta,
+                2147483647 /* BOUND_LOWER */ => score >= beta,
                 0 /* BOUND_UPPER */ => score <= alpha,
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
             })
@@ -263,7 +263,7 @@ public class MyBot : IChessBot {
             bestScore,
             Max(depth, 0),
             bestScore >= beta
-                ? 65535 /* BOUND_LOWER */
+                ? 2147483647 /* BOUND_LOWER */
                 : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
         );
 

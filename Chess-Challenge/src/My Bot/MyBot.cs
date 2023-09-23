@@ -85,7 +85,7 @@ public class MyBot : IChessBot {
         if (board.IsInCheckmate())
             return board.PlyCount - 30000;
 
-        ref var tt = ref transpositionTable[board.ZobristKey % 0x800000];
+        ref var tt = ref transpositionTable[board.ZobristKey & 0x7FFFFF];
         var (ttHash, ttMoveRaw, score, ttDepth, ttBound) = tt;
 
         bool

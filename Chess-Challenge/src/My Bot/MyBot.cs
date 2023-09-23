@@ -87,7 +87,7 @@ public class MyBot : IChessBot {
         if (board.IsDraw())
             return 0;
 
-        ref var tt = ref transpositionTable[board.ZobristKey % 0x800000];
+        ref var tt = ref transpositionTable[board.ZobristKey & 0x7FFFFF];
         var (ttHash, ttMoveRaw, score, ttDepth, ttBound) = tt;
 
         bool

@@ -202,9 +202,10 @@ public class MyBot : IChessBot {
                 // Check extension (20 elo, 12 tokens, 1.7 elo/token)
                 nextDepth = board.IsInCheck() ? depth : depth - 1,
                 reduction = (depth - nextDepth) * Max(
-                    (moveCount * 91 + depth * 140) / 1000
+                    (moveCount * 114 + depth * 175) / 1000
                         // history reduction (5 elo, 4 tokens, 1.2 elo/token)
-                        + scores[moveCount] / 227,
+                        + scores[moveCount] / 227
+                        - Convert.ToInt32(!nonPv),
                     0
                 );
             while (

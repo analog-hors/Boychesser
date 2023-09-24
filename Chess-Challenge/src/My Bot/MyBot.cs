@@ -4,6 +4,7 @@ using static System.Math;
 using static ChessChallenge.API.BitboardHelper;
 
 public class MyBot : IChessBot {
+    public static int tempo = 0x000b000a;
     public int maxDepth = 999; // #DEBUG
 
     public long nodes = 0; // #DEBUG
@@ -25,7 +26,7 @@ public class MyBot : IChessBot {
 
     int[,,] history = new int[2, 7, 64];
 
-    ulong[] packedData = {
+    public static ulong[] packedData = {
         0x0000000000000000, 0x2328170f2d2a1401, 0x1f1f221929211507, 0x18202a1c2d261507,
         0x252e3022373a230f, 0x585b47456d65321c, 0x8d986f66a5a85f50, 0x0002000300070005,
         0xfffdfffd00060001, 0x2b1f011d20162306, 0x221c0b171f15220d, 0x1b1b131b271c1507,
@@ -96,7 +97,7 @@ public class MyBot : IChessBot {
             inQSearch = depth <= 0,
             pieceIsWhite;
         int
-            eval = 0x000b000a, // tempo
+            eval = tempo, // tempo
             bestScore = -99999,
             oldAlpha = alpha,
 

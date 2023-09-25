@@ -12,7 +12,7 @@ public class MyBot : IChessBot {
     public Timer timer;
     public Board board;
 
-    Move nullMove, searchBestMove, rootBestMove;
+    Move searchBestMove, rootBestMove;
 
     // Assuming the size of TtEntry is indeed 24 bytes, this table is precisely 192MiB (~201.327 MB).
     (
@@ -186,7 +186,7 @@ public class MyBot : IChessBot {
         // end tmp use
 
         Array.Sort(scores, moves);
-        Move bestMove = nullMove;
+        Move bestMove = default;
         foreach (Move move in moves) {
             // Delta pruning (23 elo, 21 tokens, 1.1 elo/token)
             // deltas = [172, 388, 450, 668, 1310]

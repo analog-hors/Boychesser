@@ -14,7 +14,7 @@ public class MyBot : IChessBot {
 
     Move nullMove, searchBestMove, rootBestMove;
 
-    // Assuming the size of TtEntry is indeed 16 bytes, this table is precisely 256MiB.
+    // Assuming the size of TtEntry is indeed 24 bytes, this table is precisely 192MiB (~201.327 MB).
     (
         ulong, // hash
         ushort, // moveRaw
@@ -54,14 +54,13 @@ public class MyBot : IChessBot {
         searchingDepth = 1;
 
         do
-            //If score is of this value search has been aborted, DO NOT use result
             try {
+                // Aspiration windows
                 if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth, false)) >= 20)
                     Negamax(-32000, 32000, searchingDepth, false);
                 rootBestMove = searchBestMove;
-                //Use for debugging, commented out because it saves a LOT of tokens!!
-                //Console.WriteLine("info depth " + depth + " score cp " + score);
             } catch {
+                // out of time
                 break;
             }
         while (
@@ -74,11 +73,10 @@ public class MyBot : IChessBot {
     }
 
     public int Negamax(int alpha, int beta, int depth, bool notRoot = true) {
-        //abort search
+        // abort search
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw null;
 
-        //node count
         nodes++; // #DEBUG
 
         // check for game end
@@ -149,7 +147,7 @@ public class MyBot : IChessBot {
                 // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
                 tmp += 0x0421100 >> pieceType * 4 & 0xF;
             }
-            // note: the correct way to extract EG eval is (eval + 0x8000) / 0x10000, but token count
+            // note: the correct way to extract EG eval is (eval + 0x8000) >> 16, but token count
             // the division is also moved outside Eval to save a token
             return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
             // end tmp use

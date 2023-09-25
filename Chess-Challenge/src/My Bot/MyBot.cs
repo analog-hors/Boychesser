@@ -152,7 +152,7 @@ public class MyBot : IChessBot {
             return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
             // end tmp use
         }
-        eval = ttHit ? score : Eval(board.AllPiecesBitboard) / 24;
+        eval = ttHit && !inQSearch ? score : Eval(board.AllPiecesBitboard) / 24;
 
         if (inQSearch)
             // stand pat in quiescence search

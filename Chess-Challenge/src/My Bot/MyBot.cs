@@ -9,13 +9,13 @@ public class MyBot : IChessBot {
     public long nodes = 0; // #DEBUG
     public int maxSearchTime, searchingDepth, lastScore;
 
-    public Timer timer;
-    public Board board;
+    Timer timer;
+    Board board;
 
     Move searchBestMove, rootBestMove;
 
     // Assuming the size of TtEntry is indeed 24 bytes, this table is precisely 192MiB (~201.327 MB).
-    (
+    readonly (
         ulong, // hash
         ushort, // moveRaw
         int, // score
@@ -23,9 +23,9 @@ public class MyBot : IChessBot {
         int // bound BOUND_EXACT=[1, 2147483647), BOUND_LOWER=2147483647, BOUND_UPPER=0
     )[] transpositionTable = new (ulong, ushort, int, int, int)[0x800000];
 
-    int[,,] history = new int[2, 7, 64];
+    readonly int[,,] history = new int[2, 7, 64];
 
-    ulong[] packedData = {
+    readonly ulong[] packedData = {
         0x0000000000000000, 0x2328170f2d2a1401, 0x1f1f221929211507, 0x18202a1c2d261507,
         0x252e3022373a230f, 0x585b47456d65321c, 0x8d986f66a5a85f50, 0x0002000300070005,
         0xfffdfffd00060001, 0x2b1f011d20162306, 0x221c0b171f15220d, 0x1b1b131b271c1507,
@@ -47,12 +47,11 @@ public class MyBot : IChessBot {
     int EvalWeight(int item) => (int)(packedData[item >> 1] >> item * 32);
 
     public Move Think(Board boardOrig, Timer timerOrig) {
-        maxSearchTime = timerOrig.MillisecondsRemaining / 4;
-
         board = boardOrig;
         timer = timerOrig;
-        searchingDepth = 1;
 
+        maxSearchTime = timer.MillisecondsRemaining / 4;
+        searchingDepth = 1;
         do
             try {
                 // Aspiration windows
@@ -66,7 +65,7 @@ public class MyBot : IChessBot {
         while (
             ++searchingDepth <= 200
                 && searchingDepth <= maxDepth // #DEBUG
-                && timerOrig.MillisecondsElapsedThisTurn < maxSearchTime / 10
+                && timer.MillisecondsElapsedThisTurn < maxSearchTime / 10
         );
 
         return rootBestMove;
@@ -115,6 +114,7 @@ public class MyBot : IChessBot {
             // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
             depth--;
 
+        // this is a local function because the C# JIT doesn't optimize very large functions well
         int Eval(ulong pieces) {
             // use tmp as phase (initialized above)
             while (pieces != 0) {

@@ -14,15 +14,16 @@ public class MyBot : IChessBot {
 
     Move searchBestMove, rootBestMove;
 
-    // Assuming the size of TtEntry is indeed 24 bytes, this table is precisely 192MiB (~201.327 MB).
+    // this tuple is 24 bytes, so the transposition table is precisely 192MiB (~201 MB)
     readonly (
         ulong, // hash
         ushort, // moveRaw
         int, // score
-        int, // depth 
+        int, // depth
         int // bound BOUND_EXACT=[1, 2147483647), BOUND_LOWER=2147483647, BOUND_UPPER=0
     )[] transpositionTable = new (ulong, ushort, int, int, int)[0x800000];
 
+    // piece-to history tables, per-color
     readonly int[,,] history = new int[2, 7, 64];
 
     readonly ulong[] packedData = {
@@ -44,6 +45,7 @@ public class MyBot : IChessBot {
         0xfff9000700010007, 0xffe90003ffeefff4, 0x00000000fff5000d,
     };
 
+    // bitshift amount is implicitly modulo 64, also used in pst part of eval function
     int EvalWeight(int item) => (int)(packedData[item >> 1] >> item * 32);
 
     public Move Think(Board boardOrig, Timer timerOrig) {
@@ -72,7 +74,7 @@ public class MyBot : IChessBot {
     }
 
     public int Negamax(int alpha, int beta, int depth, bool notRoot = true) {
-        // abort search
+        // abort search if out of time, but we must search at least depth 1
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw null;
 
@@ -81,6 +83,7 @@ public class MyBot : IChessBot {
         // check for game end
         if (board.IsInCheckmate())
             return board.PlyCount - 30000;
+        // we can't check draw at root due to uncorrected twofold repetition
         if (notRoot && board.IsDraw())
             return 0;
 
@@ -107,6 +110,7 @@ public class MyBot : IChessBot {
             if (ttDepth >= depth && ttBound switch {
                 2147483647 /* BOUND_LOWER */ => score >= beta,
                 0 /* BOUND_UPPER */ => score <= alpha,
+                // exact cutoffs at pv nodes causes problems, but need it in qsearch for matefinding
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
             })
                 return score;
@@ -115,6 +119,7 @@ public class MyBot : IChessBot {
             depth--;
 
         // this is a local function because the C# JIT doesn't optimize very large functions well
+        // we do packed phased evaluation, so weights are of the form (eg << 16) + mg
         int Eval(ulong pieces) {
             // use tmp as phase (initialized above)
             while (pieces != 0) {
@@ -127,14 +132,22 @@ public class MyBot : IChessBot {
                 pieceType -= (sqIndex & 0b111 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
                 sqIndex =
                     // material
+                    // not incorporated into the psts to allow packing scheme
                     EvalWeight(112 + pieceType)
                         // psts
+                        // piece square table weights are restricted to the range 0-255, so the
+                        // bytes between mg and eg and above eg are empty, allowing us to
+                        // interleave another packed weight in that space: ddCCddCCbbAAbbAA
                         + (int)(
                             packedData[pieceType * 64 + sqIndex >> 3 ^ (pieceIsWhite ? 0 : 0b111)]
                                 >> (0x01455410 >> sqIndex * 4) * 8
                                 & 0xFF00FF
                         )
                         // mobility (35 elo, 19 tokens, 1.8 elo/token)
+                        // with the virtual pawn type we get 16 consecutive bytes of unused space
+                        // representing impossible pawns on the first/last rank, which is exactly
+                        // enough space to fit the 4 relevant mobility weights
+                        // treating the king as having queen moves is a form of king safety eval
                         + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
                             GetSliderAttacks((PieceType)Min(5, pieceType), new(sqIndex), board)
                         )
@@ -147,11 +160,13 @@ public class MyBot : IChessBot {
                 // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
                 tmp += 0x0421100 >> pieceType * 4 & 0xF;
             }
-            // note: the correct way to extract EG eval is (eval + 0x8000) >> 16, but token count
+            // the correct way to extract EG eval is (eval + 0x8000) >> 16, but this is shorter and
+            // the off-by-one error is insignificant
             // the division is also moved outside Eval to save a token
             return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
             // end tmp use
         }
+        // using tteval in qsearch causes matefinding issues
         eval = ttHit && !inQSearch ? score : Eval(board.AllPiecesBitboard) / 24;
 
         if (inQSearch)
@@ -205,6 +220,9 @@ public class MyBot : IChessBot {
                         + scores[moveCount] / 227,
                     0
                 );
+            // this crazy while loop does the null window searches for PVS: first it searches with
+            // the reduced depth, and if it beats alpha it re-searches at full depth
+            // ~alpha is equivalent to -alpha-1 under two's complement
             while (
                 moveCount != 0
                     && (score = -Negamax(~alpha, -alpha, nextDepth - reduction)) > alpha

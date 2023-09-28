@@ -213,7 +213,7 @@ public class MyBot : IChessBot {
                         + scores[moveCount] / 227,
                     0
                 );
-            if (board.IsRepeatedPosition())
+            if (board.IsRepeatedPosition() || board.IsInsufficientMaterial())
                 score = 0;
             else {
                 // this crazy while loop does the null window searches for PVS: first it searches with

@@ -209,7 +209,8 @@ public class MyBot : IChessBot {
             board.MakeMove(move);
             int
                 // Check extension (20 elo, 12 tokens, 1.7 elo/token)
-                nextDepth = board.IsInCheck() ? depth : depth - 1,
+                nextDepth = board.IsInCheck() || move.PromotionPieceType == PieceType.Queen
+                    ? depth : depth - 1,
                 reduction = (depth - nextDepth) * Max(
                     (moveCount * 93 + depth * 144) / 1000
                         // history reduction (5 elo, 4 tokens, 1.2 elo/token)

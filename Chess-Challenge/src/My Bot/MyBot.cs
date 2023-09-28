@@ -57,8 +57,8 @@ public class MyBot : IChessBot {
         do
             try {
                 // Aspiration windows
-                if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth, false)) >= 20)
-                    Negamax(-32000, 32000, searchingDepth, false);
+                if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth)) >= 20)
+                    Negamax(-32000, 32000, searchingDepth);
                 rootBestMove = searchBestMove;
             } catch {
                 // out of time
@@ -73,19 +73,12 @@ public class MyBot : IChessBot {
         return rootBestMove;
     }
 
-    public int Negamax(int alpha, int beta, int depth, bool notRoot = true) {
+    public int Negamax(int alpha, int beta, int depth) {
         // abort search if out of time, but we must search at least depth 1
         if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
             throw null;
 
         nodes++; // #DEBUG
-
-        // check for game end
-        if (board.IsInCheckmate())
-            return board.PlyCount - 30000;
-        // we can't check draw at root due to uncorrected twofold repetition
-        if (notRoot && board.IsDraw())
-            return 0;
 
         ref var tt = ref transpositionTable[board.ZobristKey & 0x7FFFFF];
         var (ttHash, ttMoveRaw, score, ttDepth, ttBound) = tt;
@@ -97,7 +90,7 @@ public class MyBot : IChessBot {
             pieceIsWhite;
         int
             eval = 0x000b000a, // tempo
-            bestScore = -99999,
+            bestScore = board.PlyCount - 30000,
             oldAlpha = alpha,
 
             // search loop vars
@@ -220,17 +213,21 @@ public class MyBot : IChessBot {
                         + scores[moveCount] / 227,
                     0
                 );
-            // this crazy while loop does the null window searches for PVS: first it searches with
-            // the reduced depth, and if it beats alpha it re-searches at full depth
-            // ~alpha is equivalent to -alpha-1 under two's complement
-            while (
-                moveCount != 0
-                    && (score = -Negamax(~alpha, -alpha, nextDepth - reduction)) > alpha
-                    && reduction != 0
-            )
-                reduction = 0;
-            if (moveCount == 0 || score > alpha)
-                score = -Negamax(-beta, -alpha, nextDepth);
+            if (board.IsRepeatedPosition())
+                score = 0;
+            else {
+                // this crazy while loop does the null window searches for PVS: first it searches with
+                // the reduced depth, and if it beats alpha it re-searches at full depth
+                // ~alpha is equivalent to -alpha-1 under two's complement
+                while (
+                    moveCount != 0
+                        && (score = -Negamax(~alpha, -alpha, nextDepth - reduction)) > alpha
+                        && reduction != 0
+                )
+                    reduction = 0;
+                if (moveCount == 0 || score > alpha)
+                    score = -Negamax(-beta, -alpha, nextDepth);
+            }
 
             board.UndoMove(move);
 
@@ -270,6 +267,9 @@ public class MyBot : IChessBot {
 
             moveCount++;
         }
+
+        if (board.IsInStalemate())
+            return 0;
 
         tt = (
             board.ZobristKey,

@@ -99,17 +99,13 @@ public class MyBot : IChessBot {
 
             // temp vars
             tmp = 0;
-        if (ttHit) {
-            if (ttDepth >= depth && ttBound switch {
-                2147483647 /* BOUND_LOWER */ => score >= beta,
-                0 /* BOUND_UPPER */ => score <= alpha,
-                // exact cutoffs at pv nodes causes problems, but need it in qsearch for matefinding
-                _ /* BOUND_EXACT */ => nonPv || inQSearch,
-            })
-                return score;
-        } else if (depth > 5)
-            // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
-            depth--;
+        if (ttHit && ttDepth >= depth && ttBound switch {
+            2147483647 /* BOUND_LOWER */ => score >= beta,
+            0 /* BOUND_UPPER */ => score <= alpha,
+            // exact cutoffs at pv nodes causes problems, but need it in qsearch for matefinding
+            _ /* BOUND_EXACT */ => nonPv || inQSearch,
+        })
+            return score;
 
         // this is a local function because the C# JIT doesn't optimize very large functions well
         // we do packed phased evaluation, so weights are of the form (eg << 16) + mg

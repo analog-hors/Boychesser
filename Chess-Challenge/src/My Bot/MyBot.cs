@@ -94,8 +94,8 @@ public class MyBot : IChessBot {
             oldAlpha = alpha,
 
             // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 4, 6, 13, 47]
-            quietsToCheck = 0b_101111_001101_000110_000100_000000 >> depth * 6 & 0b111111,
+            moveCount = 0,
+            quietsToCheck = depth * 4,
 
             // temp vars
             tmp = 0;

@@ -94,8 +94,8 @@ public class MyBot : IChessBot {
             oldAlpha = alpha,
 
             // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 4, 6, 13, 47]
-            quietsToCheck = 0b_101111_001101_000110_000100_000000 >> depth * 6 & 0b111111,
+            moveCount = 0, // quietsToCheckTable = [0, 4, 5, 10, 23]
+            quietsToCheck = 0b_010111_001010_000101_000100_000000 >> depth * 6 & 0b111111,
 
             // temp vars
             tmp = 0;
@@ -107,7 +107,7 @@ public class MyBot : IChessBot {
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
             })
                 return score;
-        } else if (depth > 5)
+        } else if (depth > 3)
             // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
             depth--;
 
@@ -167,11 +167,11 @@ public class MyBot : IChessBot {
             alpha = Max(alpha, bestScore = eval);
         else if (nonPv && eval >= beta && board.TrySkipTurn()) {
             // Pruning based on null move observation
-            bestScore = depth <= 3
+            bestScore = depth <= 4
                 // RFP (66 elo, 10 tokens, 6.6 elo/token)
-                ? eval - 51 * depth
+                ? eval - 58 * depth
                 // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
-                : -Negamax(-beta, -alpha, (depth * 101 + beta - eval) / 167 - 1);
+                : -Negamax(-beta, -alpha, (depth * 100 + beta - eval) / 186 - 1);
             board.UndoSkipTurn();
         }
         if (bestScore >= beta)
@@ -200,10 +200,10 @@ public class MyBot : IChessBot {
         Move bestMove = default;
         foreach (Move move in moves) {
             // Delta pruning (23 elo, 21 tokens, 1.1 elo/token)
-            // deltas = [172, 388, 450, 668, 1310]
+            // deltas = [180, 390, 442, 718, 1332]
             // due to sharing of the top bit of each entry with the bottom bit of the next one
             // (expands the range of values for the queen) all deltas must be even (except pawn)
-            if (inQSearch && eval + (0b1_0100011110_1010011100_0111000010_0110000100_0010101100_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
+            if (inQSearch && eval + (0b1_0100110100_1011001110_0110111010_0110000110_0010110100_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
                 break;
 
             board.MakeMove(move);
@@ -211,9 +211,9 @@ public class MyBot : IChessBot {
                 // Check extension (20 elo, 12 tokens, 1.7 elo/token)
                 nextDepth = board.IsInCheck() ? depth : depth - 1,
                 reduction = (depth - nextDepth) * Max(
-                    (moveCount * 91 + depth * 140) / 1000
+                    (moveCount * 93 + depth * 144) / 1000
                         // history reduction (5 elo, 4 tokens, 1.2 elo/token)
-                        + scores[moveCount] / 227,
+                        + scores[moveCount] / 172,
                     0
                 );
             if (board.IsRepeatedPosition())
@@ -264,7 +264,7 @@ public class MyBot : IChessBot {
                 // LMP (34 elo, 14 tokens, 2.4 elo/token)
                 quietsToCheck-- == 1 ||
                 // Futility Pruning (11 elo, 8 tokens, 1.4 elo/token)
-                eval + 185 * depth < alpha
+                eval + 127 * depth < alpha
             ))
                 break;
 

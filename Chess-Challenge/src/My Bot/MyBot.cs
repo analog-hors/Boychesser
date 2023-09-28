@@ -177,6 +177,9 @@ public class MyBot : IChessBot {
         if (bestScore >= beta)
             return bestScore;
 
+        if (board.IsInStalemate())
+            return 0;
+
         var moves = board.GetLegalMoves(inQSearch);
         var scores = new int[moves.Length];
         // use tmp as scoreIndex
@@ -267,9 +270,6 @@ public class MyBot : IChessBot {
 
             moveCount++;
         }
-
-        if (board.IsInStalemate())
-            return 0;
 
         tt = (
             board.ZobristKey,

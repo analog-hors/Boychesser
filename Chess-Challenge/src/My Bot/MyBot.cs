@@ -276,7 +276,7 @@ public class MyBot : IChessBot {
             alpha > oldAlpha // don't update best move if upper bound (31 elo, 6 tokens, 5.2 elo/token)
                 ? bestMove.RawValue
                 : ttMoveRaw,
-            bestScore,
+            Clamp(bestScore, -20000, 20000),
             Max(depth, 0),
             bestScore >= beta
                 ? 2147483647 /* BOUND_LOWER */

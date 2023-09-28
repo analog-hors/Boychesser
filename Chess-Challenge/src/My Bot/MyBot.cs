@@ -107,9 +107,9 @@ public class MyBot : IChessBot {
                 _ /* BOUND_EXACT */ => nonPv || inQSearch,
             })
                 return score;
-        } else if (depth > 5)
+        } else
             // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
-            depth--;
+            depth -= depth / 6;
 
         // this is a local function because the C# JIT doesn't optimize very large functions well
         // we do packed phased evaluation, so weights are of the form (eg << 16) + mg

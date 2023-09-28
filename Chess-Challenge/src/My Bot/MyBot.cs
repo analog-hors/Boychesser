@@ -80,13 +80,6 @@ public class MyBot : IChessBot {
 
         nodes++; // #DEBUG
 
-        // check for game end
-        if (board.IsInCheckmate())
-            return board.PlyCount - 30000;
-        // we can't check draw at root due to uncorrected twofold repetition
-        if (notRoot && board.IsDraw())
-            return 0;
-
         ref var tt = ref transpositionTable[board.ZobristKey & 0x7FFFFF];
         var (ttHash, ttMoveRaw, score, ttDepth, ttBound) = tt;
 
@@ -117,6 +110,13 @@ public class MyBot : IChessBot {
         } else if (depth > 5)
             // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
             depth--;
+
+        // check for game end
+        if (board.IsInCheckmate())
+            return board.PlyCount - 30000;
+        // we can't check draw at root due to uncorrected twofold repetition
+        if (notRoot && board.IsDraw())
+            return 0;
 
         // this is a local function because the C# JIT doesn't optimize very large functions well
         // we do packed phased evaluation, so weights are of the form (eg << 16) + mg

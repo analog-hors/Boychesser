@@ -188,12 +188,13 @@ public class MyBot : IChessBot {
             // move ordering:
             // 1. hashmove
             // 2. captures (ordered by MVV-LVA)
-            // 3. quiets (ordered by history)
+            // 3. quiets (no underpromotions, ordered by history)
+            // 4. underpromotion quiets (ordered by knight, bishop, rook, tiebreak by history)
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
                 : Max(
-                    (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
+                    (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384 ,
                     HistoryValue(move)
-                );
+                ) - move.RawValue / 0b0101_000000_000000 * 1000000;
         // end tmp use
 
         Array.Sort(scores, moves);

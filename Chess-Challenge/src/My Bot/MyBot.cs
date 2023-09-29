@@ -108,7 +108,7 @@ public class MyBot : IChessBot {
             })
                 return score;
         } else if (depth > 3)
-            // Internal Iterative Reduction (IIR) (4 elo (LTC), 10 tokens, 0.4 elo/token)
+            // Internal iterative reduction
             depth--;
 
         // this is a local function because the C# JIT doesn't optimize very large functions well
@@ -121,10 +121,9 @@ public class MyBot : IChessBot {
                 pieceType = (int)piece.PieceType;
                 // virtual pawn type
                 // consider pawns on the opposite half of the king as distinct piece types (piece 0)
-                // king-relative pawns (vs full pawn pst) (7 elo, 8 tokens, 0.9 elo/token)
                 pieceType -= (sqIndex & 0b111 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
                 sqIndex =
-                    // material
+                    // Material
                     // not incorporated into the psts to allow packing scheme
                     EvalWeight(112 + pieceType)
                         // psts
@@ -136,7 +135,7 @@ public class MyBot : IChessBot {
                                 >> (0x01455410 >> sqIndex * 4) * 8
                                 & 0xFF00FF
                         )
-                        // mobility (35 elo, 19 tokens, 1.8 elo/token)
+                        // mobility
                         // with the virtual pawn type we get 16 consecutive bytes of unused space
                         // representing impossible pawns on the first/last rank, which is exactly
                         // enough space to fit the 4 relevant mobility weights
@@ -144,7 +143,7 @@ public class MyBot : IChessBot {
                         + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
                             GetSliderAttacks((PieceType)Min(5, pieceType), new(sqIndex), board)
                         )
-                        // own pawn ahead (29 elo, 37 tokens, 0.8 elo/token)
+                        // own pawn ahead
                         + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
                             (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
                                 & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
@@ -168,9 +167,9 @@ public class MyBot : IChessBot {
         else if (nonPv && eval >= beta && board.TrySkipTurn()) {
             // Pruning based on null move observation
             bestScore = depth <= 4
-                // RFP (66 elo, 10 tokens, 6.6 elo/token)
+                // Reverse Futility Pruning
                 ? eval - 58 * depth
-                // Adaptive NMP (82 elo, 29 tokens, 2.8 elo/token)
+                // Adaptive Null Move Pruning
                 : -Negamax(-beta, -alpha, (depth * 100 + beta - eval) / 186 - 1);
             board.UndoSkipTurn();
         }
@@ -187,7 +186,7 @@ public class MyBot : IChessBot {
         foreach (Move move in moves)
             // move ordering:
             // 1. hashmove
-            // 2. captures (ordered by MVV-LVA)
+            // 2. captures (ordered by most valuable victim, least valuable attacker)
             // 3. quiets (ordered by history)
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
                 : Max(
@@ -199,7 +198,7 @@ public class MyBot : IChessBot {
         Array.Sort(scores, moves);
         Move bestMove = default;
         foreach (Move move in moves) {
-            // Delta pruning (23 elo, 21 tokens, 1.1 elo/token)
+            // Delta pruning
             // deltas = [180, 390, 442, 718, 1332]
             // due to sharing of the top bit of each entry with the bottom bit of the next one
             // (expands the range of values for the queen) all deltas must be even (except pawn)
@@ -208,19 +207,20 @@ public class MyBot : IChessBot {
 
             board.MakeMove(move);
             int
-                // Check extension (20 elo, 12 tokens, 1.7 elo/token)
+                // Check extension
                 nextDepth = board.IsInCheck() ? depth : depth - 1,
                 reduction = (depth - nextDepth) * Max(
+                    // Late move reduction
                     (moveCount * 93 + depth * 144) / 1000
-                        // history reduction (5 elo, 4 tokens, 1.2 elo/token)
+                        // History reduction
                         + scores[moveCount] / 172,
                     0
                 );
             if (board.IsRepeatedPosition())
                 score = 0;
             else {
-                // this crazy while loop does the null window searches for PVS: first it searches with
-                // the reduced depth, and if it beats alpha it re-searches at full depth
+                // this crazy while loop does the null window searches for PVS: first it searches
+                // with the reduced depth, and if it beats alpha it re-searches at full depth
                 // ~alpha is equivalent to -alpha-1 under two's complement
                 while (
                     moveCount != 0
@@ -241,7 +241,7 @@ public class MyBot : IChessBot {
             if (score >= beta) {
                 if (!move.IsCapture) {
                     // use tmp as change
-                    // increased history change when eval < alpha (6 elo, 7 tokens, 0.9 elo/token)
+                    // Increased history change when eval < alpha
                     // equivalent to tmp = eval < alpha ? -(depth + 1) : depth
                     // 1. eval - alpha is < 0 if eval < alpha and >= 0 otherwise
                     // 2. >> 31 maps numbers < 0 to -1 and numbers >= 0 to 0
@@ -259,11 +259,11 @@ public class MyBot : IChessBot {
                 break;
             }
 
-            // Pruning techniques that break the move loop
+            // pruning techniques that break the move loop
             if (nonPv && depth <= 4 && !move.IsCapture && (
-                // LMP (34 elo, 14 tokens, 2.4 elo/token)
+                // Late move pruning
                 quietsToCheck-- == 1 ||
-                // Futility Pruning (11 elo, 8 tokens, 1.4 elo/token)
+                // Futility pruning
                 eval + 127 * depth < alpha
             ))
                 break;
@@ -273,7 +273,7 @@ public class MyBot : IChessBot {
 
         tt = (
             board.ZobristKey,
-            alpha > oldAlpha // don't update best move if upper bound (31 elo, 6 tokens, 5.2 elo/token)
+            alpha > oldAlpha // don't update best move if upper bound
                 ? bestMove.RawValue
                 : ttMoveRaw,
             Clamp(bestScore, -20000, 20000),

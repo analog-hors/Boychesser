@@ -186,11 +186,11 @@ public class MyBot : IChessBot {
         foreach (Move move in moves)
             // move ordering:
             // 1. hashmove
-            // 2. captures (ordered by most valuable victim, least valuable attacker)
+            // 2. captures (ordered by most valuable victim)
             // 3. quiets (ordered by history)
             scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
                 : Max(
-                    (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
+                    (int)move.CapturePieceType * 32768 - 16384,
                     HistoryValue(move)
                 );
         // end tmp use

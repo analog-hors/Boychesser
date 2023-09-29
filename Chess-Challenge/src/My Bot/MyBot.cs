@@ -199,74 +199,76 @@ public class MyBot : IChessBot {
         Array.Sort(scores, moves);
         Move bestMove = default;
         foreach (Move move in moves) {
-            // Delta pruning (23 elo, 21 tokens, 1.1 elo/token)
-            // deltas = [180, 390, 442, 718, 1332]
-            // due to sharing of the top bit of each entry with the bottom bit of the next one
-            // (expands the range of values for the queen) all deltas must be even (except pawn)
-            if (inQSearch && eval + (0b1_0100110100_1011001110_0110111010_0110000110_0010110100_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
-                break;
+            if (move.RawValue < 0b0101_000000_000000) {
+                // Delta pruning (23 elo, 21 tokens, 1.1 elo/token)
+                // deltas = [180, 390, 442, 718, 1332]
+                // due to sharing of the top bit of each entry with the bottom bit of the next one
+                // (expands the range of values for the queen) all deltas must be even (except pawn)
+                if (inQSearch && eval + (0b1_0100110100_1011001110_0110111010_0110000110_0010110100_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
+                    break;
 
-            board.MakeMove(move);
-            int
-                // Check extension (20 elo, 12 tokens, 1.7 elo/token)
-                nextDepth = board.IsInCheck() ? depth : depth - 1,
-                reduction = (depth - nextDepth) * Max(
-                    (moveCount * 93 + depth * 144) / 1000
-                        // history reduction (5 elo, 4 tokens, 1.2 elo/token)
-                        + scores[moveCount] / 172,
-                    0
-                );
-            if (board.IsRepeatedPosition())
-                score = 0;
-            else {
-                // this crazy while loop does the null window searches for PVS: first it searches with
-                // the reduced depth, and if it beats alpha it re-searches at full depth
-                // ~alpha is equivalent to -alpha-1 under two's complement
-                while (
-                    moveCount != 0
-                        && (score = -Negamax(~alpha, -alpha, nextDepth - reduction)) > alpha
-                        && reduction != 0
-                )
-                    reduction = 0;
-                if (moveCount == 0 || score > alpha)
-                    score = -Negamax(-beta, -alpha, nextDepth);
-            }
-
-            board.UndoMove(move);
-
-            if (score > bestScore) {
-                alpha = Max(alpha, bestScore = score);
-                bestMove = move;
-            }
-            if (score >= beta) {
-                if (!move.IsCapture) {
-                    // use tmp as change
-                    // increased history change when eval < alpha (6 elo, 7 tokens, 0.9 elo/token)
-                    // equivalent to tmp = eval < alpha ? -(depth + 1) : depth
-                    // 1. eval - alpha is < 0 if eval < alpha and >= 0 otherwise
-                    // 2. >> 31 maps numbers < 0 to -1 and numbers >= 0 to 0
-                    // 3. -1 ^ depth = ~depth while 0 ^ depth = depth
-                    // 4. ~depth = -depth - 1 = -(depth + 1)
-                    // since we're squaring tmp, sign doesn't matter
-                    tmp = eval - alpha >> 31 ^ depth;
-                    tmp *= tmp;
-                    foreach (Move malusMove in moves.AsSpan(0, moveCount))
-                        if (!malusMove.IsCapture)
-                            HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;
-                    HistoryValue(move) += tmp - tmp * HistoryValue(move) / 512;
-                    // end tmp use
+                board.MakeMove(move);
+                int
+                    // Check extension (20 elo, 12 tokens, 1.7 elo/token)
+                    nextDepth = board.IsInCheck() ? depth : depth - 1,
+                    reduction = (depth - nextDepth) * Max(
+                        (moveCount * 93 + depth * 144) / 1000
+                            // history reduction (5 elo, 4 tokens, 1.2 elo/token)
+                            + scores[moveCount] / 172,
+                        0
+                    );
+                if (board.IsRepeatedPosition())
+                    score = 0;
+                else {
+                    // this crazy while loop does the null window searches for PVS: first it searches with
+                    // the reduced depth, and if it beats alpha it re-searches at full depth
+                    // ~alpha is equivalent to -alpha-1 under two's complement
+                    while (
+                        moveCount != 0
+                            && (score = -Negamax(~alpha, -alpha, nextDepth - reduction)) > alpha
+                            && reduction != 0
+                    )
+                        reduction = 0;
+                    if (moveCount == 0 || score > alpha)
+                        score = -Negamax(-beta, -alpha, nextDepth);
                 }
-                break;
-            }
 
-            // Pruning techniques that break the move loop
-            if (nonPv && depth <= 4 && !move.IsCapture && (
-                // LMP (34 elo, 14 tokens, 2.4 elo/token)
-                quietsToCheck-- == 1 ||
-                // Futility Pruning (11 elo, 8 tokens, 1.4 elo/token)
-                eval + 127 * depth < alpha
-            ))
-                break;
+                board.UndoMove(move);
+
+                if (score > bestScore) {
+                    alpha = Max(alpha, bestScore = score);
+                    bestMove = move;
+                }
+                if (score >= beta) {
+                    if (!move.IsCapture) {
+                        // use tmp as change
+                        // increased history change when eval < alpha (6 elo, 7 tokens, 0.9 elo/token)
+                        // equivalent to tmp = eval < alpha ? -(depth + 1) : depth
+                        // 1. eval - alpha is < 0 if eval < alpha and >= 0 otherwise
+                        // 2. >> 31 maps numbers < 0 to -1 and numbers >= 0 to 0
+                        // 3. -1 ^ depth = ~depth while 0 ^ depth = depth
+                        // 4. ~depth = -depth - 1 = -(depth + 1)
+                        // since we're squaring tmp, sign doesn't matter
+                        tmp = eval - alpha >> 31 ^ depth;
+                        tmp *= tmp;
+                        foreach (Move malusMove in moves.AsSpan(0, moveCount))
+                            if (!malusMove.IsCapture)
+                                HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;
+                        HistoryValue(move) += tmp - tmp * HistoryValue(move) / 512;
+                        // end tmp use
+                    }
+                    break;
+                }
+
+                // Pruning techniques that break the move loop
+                if (nonPv && depth <= 4 && !move.IsCapture && (
+                    // LMP (34 elo, 14 tokens, 2.4 elo/token)
+                    quietsToCheck-- == 1 ||
+                    // Futility Pruning (11 elo, 8 tokens, 1.4 elo/token)
+                    eval + 127 * depth < alpha
+                ))
+                    break;
+            }
 
             moveCount++;
         }

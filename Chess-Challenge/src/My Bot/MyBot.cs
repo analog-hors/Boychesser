@@ -94,8 +94,7 @@ public class MyBot : IChessBot {
             oldAlpha = alpha,
 
             // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 4, 5, 10, 23]
-            quietsToCheck = 0b_010111_001010_000101_000100_000000 >> depth * 6 & 0b111111,
+            moveCount = 0,
 
             // temp vars
             tmp = 0;
@@ -262,7 +261,7 @@ public class MyBot : IChessBot {
             // pruning techniques that break the move loop
             if (nonPv && depth <= 4 && !move.IsCapture && (
                 // Late move pruning
-                quietsToCheck-- == 1 ||
+                moveCount > depth * 4 ||
                 // Futility pruning
                 eval + 127 * depth < alpha
             ))

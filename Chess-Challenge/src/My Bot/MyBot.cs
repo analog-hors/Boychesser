@@ -95,7 +95,7 @@ public class MyBot : IChessBot {
 
             // search loop vars
             moveCount = 0,
-            quietsToCheck = depth * 4,
+            quietsToCheck = depth * 3,
 
             // temp vars
             tmp = 0;
@@ -260,11 +260,11 @@ public class MyBot : IChessBot {
             }
 
             // pruning techniques that break the move loop
-            if (nonPv && depth <= 4 && !move.IsCapture && (
+            if (nonPv && depth <= 5 && !move.IsCapture && (
                 // Late move pruning
-                quietsToCheck-- == 1 ||
+                quietsToCheck-- < 0 ||
                 // Futility pruning
-                eval + 127 * depth < alpha
+                eval + 110 * depth < alpha
             ))
                 break;
 

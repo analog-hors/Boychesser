@@ -26,27 +26,140 @@ public class MyBot : IChessBot {
     // piece-to history tables, per-color
     readonly int[,,] history = new int[2, 7, 64];
 
-    readonly ulong[] packedData = {
-        0x0000000000000000, 0x2328170f2d2a1401, 0x1f1f221929211507, 0x18202a1c2d261507,
-        0x252e3022373a230f, 0x585b47456d65321c, 0x8d986f66a5a85f50, 0x0002000300070005,
-        0xfffdfffd00060001, 0x2b1f011d20162306, 0x221c0b171f15220d, 0x1b1b131b271c1507,
-        0x232d212439321f0b, 0x5b623342826c2812, 0x8db65b45c8c01014, 0x0000000000000000,
-        0x615a413e423a382e, 0x6f684f506059413c, 0x82776159705a5543, 0x8b8968657a6a6150,
-        0x948c7479826c6361, 0x7e81988f73648160, 0x766f7a7e70585c4e, 0x6c7956116e100000,
-        0x3a3d2d2840362f31, 0x3c372a343b3a3838, 0x403e2e343c433934, 0x373e3b2e423b2f37,
-        0x383b433c45433634, 0x353d4b4943494b41, 0x46432e354640342b, 0x55560000504f0511,
-        0x878f635c8f915856, 0x8a8b5959898e5345, 0x8f9054518f8e514c, 0x96985a539a974a4c,
-        0x9a9c67659e9d5f59, 0x989c807a9b9c7a6a, 0xa09f898ba59c6f73, 0xa1a18386a09b7e84,
-        0xbcac7774b8c9736a, 0xbab17b7caebd7976, 0xc9ce7376cac57878, 0xe4de6f70dcd87577,
-        0xf4ef7175eedc7582, 0xf9fa8383dfe3908e, 0xfffe7a81f4ec707f, 0xdfe79b94e1ee836c,
-        0x2027252418003d38, 0x4c42091d31193035, 0x5e560001422c180a, 0x6e6200004d320200,
-        0x756c000e5f3c1001, 0x6f6c333f663e3f1d, 0x535b55395c293c1b, 0x2f1e3d5e22005300,
-        0x004c0037004b001f, 0x00e000ca00be00ad, 0x02e30266018800eb, 0xffdcffeeffddfff3,
-        0xfff9000700010007, 0xffe90003ffeefff4, 0x00000000fff5000d,
+    int[] mg_value = new int[] { 82, 337, 365, 477, 1025,  0};
+    int[] eg_value = new int[] { 94, 281, 297, 512,  936,  0};
+
+    int[] mg_pawn_table = new int[] {
+        0,   0,   0,   0,   0,   0,  0,   0,
+        98, 134,  61,  95,  68, 126, 34, -11,
+        -6,   7,  26,  31,  65,  56, 25, -20,
+        -14,  13,   6,  21,  23,  12, 17, -23,
+        -27,  -2,  -5,  12,  17,   6, 10, -25,
+        -26,  -4,  -4, -10,   3,   3, 33, -12,
+        -35,  -1, -20, -23, -15,  24, 38, -22,
+        0,   0,   0,   0,   0,   0,  0,   0,
     };
 
-    // bitshift amount is implicitly modulo 64, also used in pst part of eval function
-    int EvalWeight(int item) => (int)(packedData[item >> 1] >> item * 32);
+    int[] eg_pawn_table = new int[] {
+        0,   0,   0,   0,   0,   0,   0,   0,
+        178, 173, 158, 134, 147, 132, 165, 187,
+        94, 100,  85,  67,  56,  53,  82,  84,
+        32,  24,  13,   5,  -2,   4,  17,  17,
+        13,   9,  -3,  -7,  -7,  -8,   3,  -1,
+        4,   7,  -6,   1,   0,  -5,  -1,  -8,
+        13,   8,   8,  10,  13,   0,   2,  -7,
+        0,   0,   0,   0,   0,   0,   0,   0,
+    };
+
+    int[] mg_knight_table = new int[] {
+        -167, -89, -34, -49,  61, -97, -15, -107,
+        -73, -41,  72,  36,  23,  62,   7,  -17,
+        -47,  60,  37,  65,  84, 129,  73,   44,
+        -9,  17,  19,  53,  37,  69,  18,   22,
+        -13,   4,  16,  13,  28,  19,  21,   -8,
+        -23,  -9,  12,  10,  19,  17,  25,  -16,
+        -29, -53, -12,  -3,  -1,  18, -14,  -19,
+        -105, -21, -58, -33, -17, -28, -19,  -23,
+    };
+
+    int[] eg_knight_table = new int[] {
+        -58, -38, -13, -28, -31, -27, -63, -99,
+        -25,  -8, -25,  -2,  -9, -25, -24, -52,
+        -24, -20,  10,   9,  -1,  -9, -19, -41,
+        -17,   3,  22,  22,  22,  11,   8, -18,
+        -18,  -6,  16,  25,  16,  17,   4, -18,
+        -23,  -3,  -1,  15,  10,  -3, -20, -22,
+        -42, -20, -10,  -5,  -2, -20, -23, -44,
+        -29, -51, -23, -15, -22, -18, -50, -64,
+    };
+
+    int[] mg_bishop_table = new int[] {
+        -29,   4, -82, -37, -25, -42,   7,  -8,
+        -26,  16, -18, -13,  30,  59,  18, -47,
+        -16,  37,  43,  40,  35,  50,  37,  -2,
+        -4,   5,  19,  50,  37,  37,   7,  -2,
+        -6,  13,  13,  26,  34,  12,  10,   4,
+        0,  15,  15,  15,  14,  27,  18,  10,
+        4,  15,  16,   0,   7,  21,  33,   1,
+        -33,  -3, -14, -21, -13, -12, -39, -21,
+    };
+
+    int[] eg_bishop_table = new int[] {
+        -14, -21, -11,  -8, -7,  -9, -17, -24,
+        -8,  -4,   7, -12, -3, -13,  -4, -14,
+        2,  -8,   0,  -1, -2,   6,   0,   4,
+        -3,   9,  12,   9, 14,  10,   3,   2,
+        -6,   3,  13,  19,  7,  10,  -3,  -9,
+        -12,  -3,   8,  10, 13,   3,  -7, -15,
+        -14, -18,  -7,  -1,  4,  -9, -15, -27,
+        -23,  -9, -23,  -5, -9, -16,  -5, -17,
+    };
+
+    int[] mg_rook_table = new int[] {
+        32,  42,  32,  51, 63,  9,  31,  43,
+        27,  32,  58,  62, 80, 67,  26,  44,
+        -5,  19,  26,  36, 17, 45,  61,  16,
+        -24, -11,   7,  26, 24, 35,  -8, -20,
+        -36, -26, -12,  -1,  9, -7,   6, -23,
+        -45, -25, -16, -17,  3,  0,  -5, -33,
+        -44, -16, -20,  -9, -1, 11,  -6, -71,
+        -19, -13,   1,  17, 16,  7, -37, -26,
+    };
+
+    int[] eg_rook_table = new int[] {
+        13, 10, 18, 15, 12,  12,   8,   5,
+        11, 13, 13, 11, -3,   3,   8,   3,
+        7,  7,  7,  5,  4,  -3,  -5,  -3,
+        4,  3, 13,  1,  2,   1,  -1,   2,
+        3,  5,  8,  4, -5,  -6,  -8, -11,
+        -4,  0, -5, -1, -7, -12,  -8, -16,
+        -6, -6,  0,  2, -9,  -9, -11,  -3,
+        -9,  2,  3, -1, -5, -13,   4, -20,
+    };
+
+    int[] mg_queen_table = new int[] {
+        -28,   0,  29,  12,  59,  44,  43,  45,
+        -24, -39,  -5,   1, -16,  57,  28,  54,
+        -13, -17,   7,   8,  29,  56,  47,  57,
+        -27, -27, -16, -16,  -1,  17,  -2,   1,
+        -9, -26,  -9, -10,  -2,  -4,   3,  -3,
+        -14,   2, -11,  -2,  -5,   2,  14,   5,
+        -35,  -8,  11,   2,   8,  15,  -3,   1,
+        -1, -18,  -9,  10, -15, -25, -31, -50,
+    };
+
+    int[] eg_queen_table = new int[] {
+        -9,  22,  22,  27,  27,  19,  10,  20,
+        -17,  20,  32,  41,  58,  25,  30,   0,
+        -20,   6,   9,  49,  47,  35,  19,   9,
+        3,  22,  24,  45,  57,  40,  57,  36,
+        -18,  28,  19,  47,  31,  34,  39,  23,
+        -16, -27,  15,   6,   9,  17,  10,   5,
+        -22, -23, -30, -16, -16, -23, -36, -32,
+        -33, -28, -22, -43,  -5, -32, -20, -41,
+    };
+
+    int[] mg_king_table = new int[] {
+        -65,  23,  16, -15, -56, -34,   2,  13,
+        29,  -1, -20,  -7,  -8,  -4, -38, -29,
+        -9,  24,   2, -16, -20,   6,  22, -22,
+        -17, -20, -12, -27, -30, -25, -14, -36,
+        -49,  -1, -27, -39, -46, -44, -33, -51,
+        -14, -14, -22, -46, -44, -30, -15, -27,
+        1,   7,  -8, -64, -43, -16,   9,   8,
+        -15,  36,  12, -54,   8, -28,  24,  14,
+    };
+
+    int[] eg_king_table = new int[] {
+        -74, -35, -18, -18, -11,  15,   4, -17,
+        -12,  17,  14,  17,  17,  38,  23,  11,
+        10,  17,  23,  15,  20,  45,  44,  13,
+        -8,  22,  24,  27,  26,  33,  26,   3,
+        -18,  -4,  21,  24,  27,  23,   9, -11,
+        -19,  -3,  11,  21,  23,  16,   7,  -9,
+        -27, -11,   4,  13,  14,   4,  -5, -17,
+        -53, -34, -21, -11, -28, -14, -24, -43
+    };
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         board = boardOrig;
@@ -114,48 +227,47 @@ public class MyBot : IChessBot {
         // this is a local function because the C# JIT doesn't optimize very large functions well
         // we do packed phased evaluation, so weights are of the form (eg << 16) + mg
         int Eval(ulong pieces) {
+            int mg = 0, eg = 0;
             // use tmp as phase (initialized above)
             while (pieces != 0) {
                 int pieceType, sqIndex;
                 Piece piece = board.GetPiece(new(sqIndex = ClearAndGetIndexOfLSB(ref pieces)));
                 pieceType = (int)piece.PieceType;
-                // virtual pawn type
-                // consider pawns on the opposite half of the king as distinct piece types (piece 0)
-                pieceType -= (sqIndex & 0b111 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
-                sqIndex =
-                    // Material
-                    // not incorporated into the psts to allow packing scheme
-                    EvalWeight(112 + pieceType)
-                        // psts
-                        // piece square table weights are restricted to the range 0-255, so the
-                        // bytes between mg and eg and above eg are empty, allowing us to
-                        // interleave another packed weight in that space: ddCCddCCbbAAbbAA
-                        + (int)(
-                            packedData[pieceType * 64 + sqIndex >> 3 ^ (pieceIsWhite ? 0 : 0b111)]
-                                >> (0x01455410 >> sqIndex * 4) * 8
-                                & 0xFF00FF
-                        )
-                        // mobility
-                        // with the virtual pawn type we get 16 consecutive bytes of unused space
-                        // representing impossible pawns on the first/last rank, which is exactly
-                        // enough space to fit the 4 relevant mobility weights
-                        // treating the king as having queen moves is a form of king safety eval
-                        + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
-                            GetSliderAttacks((PieceType)Min(5, pieceType), new(sqIndex), board)
-                        )
-                        // own pawn ahead
-                        + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
-                            (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
-                                & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
-                        );
-                eval += pieceIsWhite == board.IsWhiteToMove ? sqIndex : -sqIndex;
+
+                if (piece.IsWhite) {
+                    sqIndex ^= 0b111000;
+                }
+
+                int mul = piece.IsWhite == board.IsWhiteToMove ? 1 : -1;
+
+                mg += mg_value[pieceType - 1] * mul;
+                eg += eg_value[pieceType - 1] * mul;
+
+                mg += piece.PieceType switch {
+                    PieceType.Pawn => mg_pawn_table[sqIndex],
+                    PieceType.Knight => mg_knight_table[sqIndex],
+                    PieceType.Bishop => mg_bishop_table[sqIndex],
+                    PieceType.Rook => mg_rook_table[sqIndex],
+                    PieceType.Queen => mg_queen_table[sqIndex],
+                    PieceType.King => mg_king_table[sqIndex],
+                } * mul;
+                eg += piece.PieceType switch {
+                    PieceType.Pawn => eg_pawn_table[sqIndex],
+                    PieceType.Knight => eg_knight_table[sqIndex],
+                    PieceType.Bishop => eg_bishop_table[sqIndex],
+                    PieceType.Rook => eg_rook_table[sqIndex],
+                    PieceType.Queen => eg_queen_table[sqIndex],
+                    PieceType.King => eg_king_table[sqIndex],
+                } * mul;
+
                 // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
                 tmp += 0x0421100 >> pieceType * 4 & 0xF;
             }
             // the correct way to extract EG eval is (eval + 0x8000) >> 16, but this is shorter and
             // the off-by-one error is insignificant
             // the division is also moved outside Eval to save a token
-            return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
+
+            return mg * tmp + eg * (24 - tmp);
             // end tmp use
         }
         // using tteval in qsearch causes matefinding issues

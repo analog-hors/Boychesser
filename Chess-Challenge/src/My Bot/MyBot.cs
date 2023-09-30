@@ -264,7 +264,7 @@ public class MyBot : IChessBot {
                 // Late move pruning
                 quietsToCheck-- == 1 ||
                 // Futility pruning
-                eval + 127 * depth < alpha
+                eval + 80 * depth < alpha
             ))
                 break;
 

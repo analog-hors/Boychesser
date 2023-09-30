@@ -131,7 +131,7 @@ public class MyBot : IChessBot {
                         // bytes between mg and eg and above eg are empty, allowing us to
                         // interleave another packed weight in that space: ddCCddCCbbAAbbAA
                         + (int)(
-                            packedData[pieceType * 64 + sqIndex >> 3 ^ (pieceIsWhite ? 0 : 0b111)]
+                            packedData[pieceType * 64 + sqIndex >> 3 ^ (pieceIsWhite ? 0b111 : 0)]
                                 >> (0x01455410 >> sqIndex * 4) * 8
                                 & 0xFF00FF
                         )

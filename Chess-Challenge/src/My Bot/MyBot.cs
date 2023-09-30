@@ -17,11 +17,11 @@ public class MyBot : IChessBot {
     // this tuple is 24 bytes, so the transposition table is precisely 192MiB (~201 MB)
     readonly (
         ulong, // hash
-        ushort, // moveRaw
+        Move, // move
         int, // score
         int, // depth
         int // bound BOUND_EXACT=[1, 2147483647), BOUND_LOWER=2147483647, BOUND_UPPER=0
-    )[] transpositionTable = new (ulong, ushort, int, int, int)[0x800000];
+    )[] transpositionTable = new (ulong, Move, int, int, int)[0x800000];
 
     // piece-to history tables, per-color
     readonly int[,,] history = new int[2, 7, 64];
@@ -81,7 +81,7 @@ public class MyBot : IChessBot {
         nodes++; // #DEBUG
 
         ref var tt = ref transpositionTable[board.ZobristKey & 0x7FFFFF];
-        var (ttHash, ttMoveRaw, score, ttDepth, ttBound) = tt;
+        var (ttHash, ttMove, score, ttDepth, ttBound) = tt;
 
         bool
             ttHit = ttHash == board.ZobristKey,
@@ -188,7 +188,7 @@ public class MyBot : IChessBot {
             // 1. hashmove
             // 2. captures (ordered by most valuable victim, least valuable attacker)
             // 3. quiets (ordered by history)
-            scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
+            scores[tmp++] -= ttHit && move == ttMove ? 1000000
                 : Max(
                     (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
                     HistoryValue(move)
@@ -274,8 +274,8 @@ public class MyBot : IChessBot {
         tt = (
             board.ZobristKey,
             alpha > oldAlpha // don't update best move if upper bound
-                ? bestMove.RawValue
-                : ttMoveRaw,
+                ? bestMove
+                : ttMove,
             Clamp(bestScore, -20000, 20000),
             Max(depth, 0),
             bestScore >= beta

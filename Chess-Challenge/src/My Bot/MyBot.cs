@@ -57,7 +57,7 @@ public class MyBot : IChessBot {
         do
             try {
                 // Aspiration windows
-                if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth)) >= 20)
+                if (searchingDepth <= 5 || Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth)) >= 20)
                     Negamax(-32000, 32000, searchingDepth);
                 rootBestMove = searchBestMove;
             } catch {

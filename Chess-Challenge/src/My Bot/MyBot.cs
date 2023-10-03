@@ -1,295 +1,351 @@
-﻿using ChessChallenge.API;
+﻿// Project: smol.cs
+// License: MIT
+// Authors: Gediminas Masaitis, Goh CJ (cj5716)
+
 using System;
-using static System.Math;
-using static ChessChallenge.API.BitboardHelper;
+using System.Collections.Generic;
+using System.Linq;
+using ChessChallenge.API;
 
-public class MyBot : IChessBot {
-    public int maxDepth = 999; // #DEBUG
+public class MyBot : IChessBot
+{
+    // Keeping track of which quiet move move is most likely to cause a beta cutoff.
+    // The higher the score is, the more likely a beta cutoff is, so in move ordering we will put these moves first.
+    long[] quietHistory = new long[4096];
 
-    public long nodes = 0; // #DEBUG
-    public int maxSearchTime, searchingDepth, lastScore;
+    // Transposition table
+    // We store the results of previous searches, keeping track of the score at that position,
+    // as well as specific things how it was searched:
+    // 1. Did it go through all the search and fail to find a better move? (Upper limit flag)
+    // 2. Did it cause a beta cutoff and stopped searching early (Lower limit flag)
+    // 3. Did it search through all moves and find a new best move for the currently searched position (Exact flag)
+    // Read more about it here: https://www.chessprogramming.org/Transposition_Table
+    // Format: Position key, move, depth, score, flag
+    (ulong, Move, int, int, byte)[] TT = new (ulong, Move, int, int, byte)[2097152];
 
-    Timer timer;
-    Board board;
 
-    Move searchBestMove, rootBestMove;
+    // Due to the rules of the challenge and how token counting works, evaluation constants are packed into C# decimals,
+    // as they allow the most efficient (12 usable bits per token).
+    // The ordering is as follows: Midgame term 1, endgame term 1, midgame, term 2, endgame term 2...
+    static sbyte[] extracted = new [] { 4835740172228143389605888m, 1862983114964290202813595648m, 6529489037797228073584297991m, 6818450810788061916507740187m, 7154536855449028663353021722m, 14899014974757699833696556826m, 25468819436707891759039590695m, 29180306561342183501734565961m, 944189991765834239743752701m, 4194697739m, 4340114601700738076711583744m, 3410436627687897068963695623m, 11182743911298765866015857947m, 10873240011723255639678263585m, 17684436730682332602697851426m, 17374951722591802467805509926m, 31068658689795177567161113954m, 1534136309681498319279645285m, 18014679997410182140m, 1208741569195510172352512m, 13789093343132567021105512448m, 6502873946609222871099113472m, 1250m }.SelectMany(x => decimal.GetBits(x).Take(3).SelectMany(y => (sbyte[])(Array)BitConverter.GetBytes(y))).ToArray();
 
-    // this tuple is 24 bytes, so the transposition table is precisely 192MiB (~201 MB)
-    readonly (
-        ulong, // hash
-        ushort, // moveRaw
-        int, // score
-        int, // depth
-        int // bound BOUND_EXACT=[1, 2147483647), BOUND_LOWER=2147483647, BOUND_UPPER=0
-    )[] transpositionTable = new (ulong, ushort, int, int, int)[0x800000];
+    // After extracting the raw mindgame/endgame terms, we repack it into integers of midgame/endgame pairs.
+    // The scheme in bytes (assuming little endian) is: 00 EG 00 MG
+    // The idea of this is that we can do operations on both midgame and endgame values simultaneously, preventing the need
+    // for evaluation for separate mid-game / end-game terms.
+    int[] evalValues = Enumerable.Range(0, 138).Select(i => extracted[i * 2] | extracted[i * 2 + 1] << 16).ToArray();
 
-    // piece-to history tables, per-color
-    readonly int[,,] history = new int[2, 7, 64];
+    public Move Think(Board board, Timer timer)
+    {
+        // The move that will eventually be reported as our best move
+        Move rootBestMove = default;
 
-    readonly ulong[] packedData = {
-        0x0000000000000000, 0x2328170f2d2a1401, 0x1f1f221929211507, 0x18202a1c2d261507,
-        0x252e3022373a230f, 0x585b47456d65321c, 0x8d986f66a5a85f50, 0x0002000300070005,
-        0xfffdfffd00060001, 0x2b1f011d20162306, 0x221c0b171f15220d, 0x1b1b131b271c1507,
-        0x232d212439321f0b, 0x5b623342826c2812, 0x8db65b45c8c01014, 0x0000000000000000,
-        0x615a413e423a382e, 0x6f684f506059413c, 0x82776159705a5543, 0x8b8968657a6a6150,
-        0x948c7479826c6361, 0x7e81988f73648160, 0x766f7a7e70585c4e, 0x6c7956116e100000,
-        0x3a3d2d2840362f31, 0x3c372a343b3a3838, 0x403e2e343c433934, 0x373e3b2e423b2f37,
-        0x383b433c45433634, 0x353d4b4943494b41, 0x46432e354640342b, 0x55560000504f0511,
-        0x878f635c8f915856, 0x8a8b5959898e5345, 0x8f9054518f8e514c, 0x96985a539a974a4c,
-        0x9a9c67659e9d5f59, 0x989c807a9b9c7a6a, 0xa09f898ba59c6f73, 0xa1a18386a09b7e84,
-        0xbcac7774b8c9736a, 0xbab17b7caebd7976, 0xc9ce7376cac57878, 0xe4de6f70dcd87577,
-        0xf4ef7175eedc7582, 0xf9fa8383dfe3908e, 0xfffe7a81f4ec707f, 0xdfe79b94e1ee836c,
-        0x2027252418003d38, 0x4c42091d31193035, 0x5e560001422c180a, 0x6e6200004d320200,
-        0x756c000e5f3c1001, 0x6f6c333f663e3f1d, 0x535b55395c293c1b, 0x2f1e3d5e22005300,
-        0x004c0037004b001f, 0x00e000ca00be00ad, 0x02e30266018800eb, 0xffdcffeeffddfff3,
-        0xfff9000700010007, 0xffe90003ffeefff4, 0x00000000fff5000d,
-    };
+        // Intitialise parameters that exist only during one search
+        var (killers, allocatedTime, i, score, depth) = (new Move[256], timer.MillisecondsRemaining / 8, 0, 0, 1);
 
-    // bitshift amount is implicitly modulo 64, also used in pst part of eval function
-    int EvalWeight(int item) => (int)(packedData[item >> 1] >> item * 32);
+        // Decay quiet history instead of clearing it. 
+        for (; i < 4096; quietHistory[i++] /= 8) ;
 
-    public Move Think(Board boardOrig, Timer timerOrig) {
-        board = boardOrig;
-        timer = timerOrig;
+        // Negamax search is embedded as a local function in order to reduce token count
+        int Search(int ply, int depth, int alpha, int beta, bool nullAllowed)
+        {
+            // Repetition detection
+            // There is no need to check for 3-fold repetition, if a single repetition (0 = draw) ends up being the best,
+            // we can trust that repeating moves is the best course of action in this position.
+            if (nullAllowed && board.IsRepeatedPosition())
+                return 0;
 
-        maxSearchTime = timer.MillisecondsRemaining / 4;
-        searchingDepth = 1;
-        do
-            try {
-                // Aspiration windows
-                if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth)) >= 20)
-                    Negamax(-32000, 32000, searchingDepth);
-                rootBestMove = searchBestMove;
-            } catch {
-                // out of time
-                break;
+            // Check extension: if we are in check, we should search deeper. More info: https://www.chessprogramming.org/Check_Extensions
+            bool inCheck = board.IsInCheck();
+            if (inCheck)
+                depth++;
+
+            // In-qsearch is a flag that determines whether not we should prune positions ans whether or not to search non-captures.
+            // Qsearch, also meaning quiescence search, is a mode that only looks at captures in order to give a more accurate
+            // estimate "if all the viable captures happen". In this engine it is interlaced with the main search to save tokens, although
+            // in most engines you will see a separate function for it.
+            // -2000000 = -inf. It just indicates "no move has been found yet".
+            // Tempo is the idea that each move is benefitial to us, so we adjust the static eval using a fixed value.
+            // We use 15 tempo for evaluation for mid-game, 0 for end-game.
+            var (key, inQsearch, bestScore, doPruning, score, phase) = (board.ZobristKey, depth <= 0, -2_000_000, alpha == beta - 1 && !inCheck, 15, 0);
+
+            // Here we do a static evaluation to determine the current static score for the position.
+            // A static evaluation is like a one-look determination of how good the position is, without looking into the future.
+            // This is a tapered evaluation, meaning that each term has a midgame (or more accurately early-game) and end-game value.
+            // After the evaluation is done, scores are interpolated according to phase values. Read more: https://www.chessprogramming.org/Tapered_Eval
+            // This evaluation is similar to many other evaluations with some differences to save bytes.
+            // It is tuned with a method called Texel Tuning using my project at https://github.com/GediminasMasaitis/texel-tuner
+            // More info about Texel tuning at https://www.chessprogramming.org/Texel%27s_Tuning_Method,
+            // and specifically the implementation in my tuner: https://github.com/AndyGrant/Ethereal/blob/master/Tuning.pdf
+            // The evaluation is inlined into search to preserve bytes, and to keep some information (phase) around for later use.
+            foreach (bool isWhite in new[] {!board.IsWhiteToMove, board.IsWhiteToMove})
+            {
+                score = -score;
+
+                //       None (skipped)               King
+                for (var pieceIndex = 0; ++pieceIndex <= 6;)
+                {
+                    var bitboard = board.GetPieceBitboard((PieceType)pieceIndex, isWhite);
+
+                    // This and the following line is an efficient way to loop over each piece of a certain type.
+                    // Instead of looping each square, we can skip empty squares by looking at a bitboard of each piece,
+                    // and incrementally removing squares from it. More information: https://www.chessprogramming.org/Bitboards
+                    while (bitboard != 0)
+                    {
+                        var sq = BitboardHelper.ClearAndGetIndexOfLSB(ref bitboard);
+
+                        // Open files, doubled pawns
+                        // We evaluate how much each piece wants to be in an open/semi-open file (both merged to save tokens).
+                        // We exclude the current piece's square from being considered, this enables a trick to save tokens:
+                        // for pawns, an open file means it is not a doubled pawn, so it acts as a doubled pawn detection for free.
+                        if ((0x101010101010101UL << sq % 8 & ~(1UL << sq) & board.GetPieceBitboard(PieceType.Pawn, isWhite)) == 0)
+                            score += evalValues[126 + pieceIndex];
+
+                        // For bishop, rook, queen and king. ELO tests proved that mobility for other pieces are not worth considering.
+                        if (pieceIndex > 2)
+                        {
+                            // Mobility
+                            // The more squares you are able to attack, the more flexible your position is.
+                            var mobility = BitboardHelper.GetPieceAttacks((PieceType)pieceIndex, new Square(sq), board, isWhite) & ~(isWhite ? board.WhitePiecesBitboard : board.BlackPiecesBitboard);
+                            score += evalValues[112 + pieceIndex] * BitboardHelper.GetNumberOfSetBits(mobility)
+                                     // King attacks
+                                     // If your pieces' mobility intersects the opponent king's mobility, this means you are attacking
+                                     // the king, and this is worth evaluating separately.
+                                   + evalValues[119 + pieceIndex] * BitboardHelper.GetNumberOfSetBits(mobility & BitboardHelper.GetKingAttacks(board.GetKingSquare(!isWhite)));
+                        }
+
+                        // Flip square if black.
+                        // This is needed for piece square tables (PSTs), because they are always written from the side that is playing.
+                        if (!isWhite) sq ^= 56;
+
+                        // We count the phase of the current position.
+                        // The phase represents how much we are into the end-game in a gradual way. 24 = all pieces on the board, 0 = only pawns/kings left.
+                        // This is a core principle of tapered evaluation. We increment phase for each piece for both sides based on it's importance:
+                        // None: 0 (obviously)
+                        // Pawn: 0
+                        // Knight: 1
+                        // Bishop: 1
+                        // Rook: 2
+                        // Queen: 4
+                        // King: 0 (because checkmate and stalemate has it's own special rules late on)
+                        // These values are encoded in the decimals mentioned before and aren't explicit in the engine's code.
+                        phase += evalValues[pieceIndex];
+
+                        // Material and PSTs
+                        // PST mean "piece-square tables", it is naturally better for a piece to be on a specific square.
+                        // More: https://www.chessprogramming.org/Piece-Square_Tables
+                        // In this engine, in order to save tokens, the concept of "material" has been removed.
+                        // Instead, each square for each piece has a higher value adjusted to the type of piece that occupies it.
+                        // In order to fit in 1 byte per row/column, the value of each row/column has been divided by 8,
+                        // and here multiplied by 8 (<< 3 is equivalent but ends up 1 token smaller).
+                        // Additionally, each column/row, or file/rank is evaluated, as opposed to every square individually,
+                        // which is only ~20 ELO weaker compared to full PSTs and saves a lot of tokens.
+                        score += evalValues[pieceIndex * 8 + sq / 8]
+                               + evalValues[56 + pieceIndex * 8 + sq % 8]
+                               << 3;
+                    }
+                }
             }
-        while (
-            ++searchingDepth <= 200
-                && searchingDepth <= maxDepth // #DEBUG
-                && timer.MillisecondsElapsedThisTurn < maxSearchTime / 10
-        );
+            
+            // Here we interpolate the midgame/endgame scores from the single variable to a proper integer that can be used by search
+            score = ((short)score * phase + (score + 0x8000 >> 16) * (24 - phase)) / 24;
+
+            // Local method for similar calls to Search, inspired by Tyrant7's approach here: https://github.com/Tyrant7/Chess-Challenge
+            // We keep known values, but we create a local method that will be used to implement 3-fold PVS. More on that later on
+            int defaultSearch(int beta, int reduction = 1, bool nullAllowed = true) => score = -Search(ply + 1, depth - reduction, -beta, -alpha, nullAllowed);
+
+            // Transposition table lookup
+            // Look up best move known so far if it is available
+            var (ttKey, ttMove, ttDepth, ttScore, ttFlag) = TT[key % 2097152];
+
+            if (ttKey == key)
+            {
+                // If conditions match, we can trust the table entry and return immediately.
+                // This is a token optimized way to express that: we can trust the score stored in TT and return immediately if:
+                // 1. The depth remaining is higher or equal to our current
+                //   a. Either the flag is exact, or:
+                //   b. The stored score has an upper bound, but we scored below the stored score, or:
+                //   c. The stored score has a lower bound, but we scored above the scored score
+                if (alpha == beta - 1 && ttDepth >= depth && ttFlag != (ttScore >= beta ? 0 : 2))
+                    return ttScore;
+
+                // ttScore can be used as a better positional evaluation
+                // If the score is outside what the current bounds are, but it did match flag and depth,
+                // then we can trust that this score is more accurate than the current static evaluation,
+                // and we can update our static evaluation for better accuracy in pruning
+                if (ttFlag != (ttScore > score ? 0 : 2))
+                    score = ttScore;
+            }
+
+            // Internal iterative reductions
+            // If this is the first time we visit this node, it might not be worth searching it fully
+            // because it might be a random non-promising node. If it gets visited a second time, it's worth fully looking into.
+            else if (depth > 3)
+                depth--;
+
+            // We look at if it's worth capturing further based on the static evaluation
+            if (inQsearch)
+            {
+                if (score >= beta)
+                    return score;
+
+                if (score > alpha)
+                    alpha = score;
+
+                bestScore = score;
+            }
+
+            else if (doPruning)
+            {
+                // Reverse futility pruning
+                // If our current score is way above beta, depending on the score, we can use this as a heuristic to not look
+                // at shallow-ish moves in the current position, because they are likely to be countered by the opponent.
+                // More info: https://www.chessprogramming.org/Reverse_Futility_Pruning
+                if (depth < 7 && score - depth * 75 > beta)
+                    return score;
+
+                // Null move pruning
+                // The idea is that each move in a chess engine brings some advantage. If we skip our own move, do a search with reduced depth,
+                // and our position is still so winning that the opponent can't refute it, we claim that this is too good to be true,
+                // and we discard this move. An important observation is the `phase != 0` term, which checks if all remaining
+                // pieces are pawns/kings, this reduces the cases of mis-evaluations of zugzwang in the end-game.
+                // More info: https://www.chessprogramming.org/Null_Move_Pruning
+                if (nullAllowed && score >= beta && depth > 2 && phase != 0)
+                {
+                    board.ForceSkipTurn();
+                    defaultSearch(beta, 4 + depth / 6, false);
+                    board.UndoSkipTurn();
+                    if (score >= beta)
+                        return beta;
+                }
+            }
+
+            // Move generation, best-known move then MVV-LVA ordering then killers then quiet move history
+            var (moves, quietsEvaluated, movesEvaluated) = (board.GetLegalMoves(inQsearch).OrderByDescending(move => move == ttMove ? 9_000_000_000_000_000_000
+                                                                                                                   : move.IsCapture ? 1_000_000_000_000_000_000 * (long)move.CapturePieceType - (long)move.MovePieceType
+                                                                                                                   : move == killers[ply] ? 500_000_000_000_000_000
+                                                                                                                   : quietHistory[move.RawValue & 4095]),
+                                                            new List<Move>(),
+                                                            0);
+
+            ttFlag = 0; // Upper
+
+            // Loop over each legal move
+            foreach (var move in moves)
+            {
+                board.MakeMove(move);
+
+                // A quiet move traditionally means a move that doesn't cause a capture to be the best move,
+                // is not a promotion, and doesn't give check. For token savings we only consider captures.
+                bool isQuiet = !move.IsCapture;
+
+                // Principal variation search
+                // We trust that our move ordering is good enough to ensure the first move searched to be the best move most of the time,
+                // so we only search the first move fully and all following moves with a zero width window (beta = alpha + 1).
+                // More info: https://en.wikipedia.org/wiki/Principal_variation_search
+
+                // Late move reduction
+                // As the search deepens, looking at each move costs more and more. Since we have some other heuristics,
+                // like the move score quiet moves, as well as some other facts like whether or not this move is a capture,
+                // we can search shallower for not promising moves, most of which came later at our move ordering.
+                // More info: https://www.chessprogramming.org/Late_Move_Reductions
+
+                if (inQsearch || movesEvaluated == 0 // No PVS for first move or qsearch
+                || (depth <= 2 || movesEvaluated <= 4 || !isQuiet // Conditions not to do LMR
+                ||  defaultSearch(alpha + 1, 2 + depth / 8 + movesEvaluated / 16 + Convert.ToInt32(doPruning) - quietHistory[move.RawValue & 4095].CompareTo(0)) > alpha) // LMR search raised alpha
+                &&  alpha < defaultSearch(alpha + 1) && score < beta) // Full depth search failed high
+                    defaultSearch(beta); // Do full window search
+
+                board.UndoMove(move);
+
+                // If we are out of time, stop searching
+                if (depth > 2 && timer.MillisecondsElapsedThisTurn > allocatedTime)
+                    return bestScore;
+
+                // Count the number of moves we have evaluated for detecting mates and stalemates
+                movesEvaluated++;
+
+                // If the move is better than our current best, update our best score
+                if (score > bestScore)
+                {
+                    bestScore = score;
+
+                    // If the move is better than our current alpha, update alpha and our best move
+                    if (score > alpha)
+                    {
+                        ttMove = move;
+                        if (ply == 0) rootBestMove = move;
+                        alpha = score;
+                        ttFlag = 1; // Exact
+
+                        // If the move is better than our current beta, we can stop searching
+                        if (score >= beta)
+                        {
+                            if (isQuiet)
+                            {
+                                // History heuristic bonus
+                                // We assume that good quiet moves will be good for most positions close to the root, so we track quiet moves
+                                // causing beta cutoffs, and will order them higher in the future.
+                                // More info: https://www.chessprogramming.org/History_Heuristic
+                                quietHistory[move.RawValue & 4095] += depth * depth;
+
+                                // History heuristic malus
+                                // Similarly to giving a bonus, we penalize all previous quiet moves that didn't give a beta cutoff
+                                foreach (var previousMove in quietsEvaluated)
+                                    quietHistory[previousMove.RawValue & 4095] -= depth * depth;
+                                killers[ply] = move;
+                            }
+
+                            ttFlag++; // Lower
+
+                            break;
+                        }
+                    }
+                }
+
+                if (isQuiet)
+                    quietsEvaluated.Add(move);
+
+                // Late move pruning
+                if (doPruning && quietsEvaluated.Count > 3 + depth * depth)
+                    break;
+            }
+
+            // Checkmate / stalemate detection
+            // 1000000 = mate score
+            if (movesEvaluated == 0)
+                return inQsearch ? bestScore : inCheck ? ply - 1_000_000 : 0;
+
+            // Store the current position in the transposition table
+            TT[key % 2097152] = (key, ttMove, inQsearch ? 0 : depth, bestScore, ttFlag);
+
+            return bestScore;
+        }
+
+        // Iterative deepening
+        for (; timer.MillisecondsElapsedThisTurn <= allocatedTime / 5 /* Soft time limit */; ++depth)
+            // Aspiration windows
+            // Read more: https://www.chessprogramming.org/Aspiration_Windows
+            for (int window = 40;;)
+            {
+                int alpha = score - window,
+                    beta = score + window;
+                // Search with the current window
+                score = Search(0, depth, alpha, beta, false);
+
+                // Hard time limit
+                // If we are out of time, we stop searching and break.
+                if (timer.MillisecondsElapsedThisTurn > allocatedTime)
+                    break;
+
+                // If the score is outside of the current window, we must research with a wider window.
+                // Otherwise if we are in the window we can proceed to the next depth.
+                if (alpha < score && score < beta)
+                    break;
+
+                window *= 2;
+            }
 
         return rootBestMove;
     }
-
-    public int Negamax(int alpha, int beta, int depth) {
-        // abort search if out of time, but we must search at least depth 1
-        if (timer.MillisecondsElapsedThisTurn >= maxSearchTime && searchingDepth > 1)
-            throw null;
-
-        nodes++; // #DEBUG
-
-        ref var tt = ref transpositionTable[board.ZobristKey & 0x7FFFFF];
-        var (ttHash, ttMoveRaw, score, ttDepth, ttBound) = tt;
-
-        bool
-            ttHit = ttHash == board.ZobristKey,
-            nonPv = alpha + 1 == beta,
-            inQSearch = depth <= 0,
-            pieceIsWhite;
-        int
-            eval = 0x000b000a, // tempo
-            bestScore = board.PlyCount - 30000,
-            oldAlpha = alpha,
-
-            // search loop vars
-            moveCount = 0, // quietsToCheckTable = [0, 4, 5, 10, 23]
-            quietsToCheck = 0b_010111_001010_000101_000100_000000 >> depth * 6 & 0b111111,
-
-            // temp vars
-            tmp = 0;
-        if (ttHit) {
-            if (ttDepth >= depth && ttBound switch {
-                2147483647 /* BOUND_LOWER */ => score >= beta,
-                0 /* BOUND_UPPER */ => score <= alpha,
-                // exact cutoffs at pv nodes causes problems, but need it in qsearch for matefinding
-                _ /* BOUND_EXACT */ => nonPv || inQSearch,
-            })
-                return score;
-        } else if (depth > 3)
-            // Internal iterative reduction
-            depth--;
-
-        // this is a local function because the C# JIT doesn't optimize very large functions well
-        // we do packed phased evaluation, so weights are of the form (eg << 16) + mg
-        int Eval(ulong pieces) {
-            // use tmp as phase (initialized above)
-            while (pieces != 0) {
-                int pieceType, sqIndex;
-                Piece piece = board.GetPiece(new(sqIndex = ClearAndGetIndexOfLSB(ref pieces)));
-                pieceType = (int)piece.PieceType;
-                // virtual pawn type
-                // consider pawns on the opposite half of the king as distinct piece types (piece 0)
-                pieceType -= (sqIndex & 0b111 ^ board.GetKingSquare(pieceIsWhite = piece.IsWhite).File) >> 1 >> pieceType;
-                sqIndex =
-                    // Material
-                    // not incorporated into the psts to allow packing scheme
-                    EvalWeight(112 + pieceType)
-                        // psts
-                        // piece square table weights are restricted to the range 0-255, so the
-                        // bytes between mg and eg and above eg are empty, allowing us to
-                        // interleave another packed weight in that space: ddCCddCCbbAAbbAA
-                        + (int)(
-                            packedData[pieceType * 64 + sqIndex >> 3 ^ (pieceIsWhite ? 0 : 0b111)]
-                                >> (0x01455410 >> sqIndex * 4) * 8
-                                & 0xFF00FF
-                        )
-                        // mobility
-                        // with the virtual pawn type we get 16 consecutive bytes of unused space
-                        // representing impossible pawns on the first/last rank, which is exactly
-                        // enough space to fit the 4 relevant mobility weights
-                        // treating the king as having queen moves is a form of king safety eval
-                        + EvalWeight(11 + pieceType) * GetNumberOfSetBits(
-                            GetSliderAttacks((PieceType)Min(5, pieceType), new(sqIndex), board)
-                        )
-                        // own pawn ahead
-                        + EvalWeight(118 + pieceType) * GetNumberOfSetBits(
-                            (pieceIsWhite ? 0x0101010101010100UL << sqIndex : 0x0080808080808080UL >> 63 - sqIndex)
-                                & board.GetPieceBitboard(PieceType.Pawn, pieceIsWhite)
-                        );
-                eval += pieceIsWhite == board.IsWhiteToMove ? sqIndex : -sqIndex;
-                // phaseWeightTable = [0, 0, 1, 1, 2, 4, 0]
-                tmp += 0x0421100 >> pieceType * 4 & 0xF;
-            }
-            // the correct way to extract EG eval is (eval + 0x8000) >> 16, but this is shorter and
-            // the off-by-one error is insignificant
-            // the division is also moved outside Eval to save a token
-            return (short)eval * tmp + eval / 0x10000 * (24 - tmp);
-            // end tmp use
-        }
-        // using tteval in qsearch causes matefinding issues
-        eval = ttHit && !inQSearch ? score : Eval(board.AllPiecesBitboard) / 24;
-
-        if (inQSearch)
-            // stand pat in quiescence search
-            alpha = Max(alpha, bestScore = eval);
-        else if (nonPv && eval >= beta && board.TrySkipTurn()) {
-            // Pruning based on null move observation
-            bestScore = depth <= 4
-                // Reverse Futility Pruning
-                ? eval - 58 * depth
-                // Adaptive Null Move Pruning
-                : -Negamax(-beta, -alpha, (depth * 100 + beta - eval) / 186 - 1);
-            board.UndoSkipTurn();
-        }
-        if (bestScore >= beta)
-            return bestScore;
-
-        if (board.IsInStalemate())
-            return 0;
-
-        var moves = board.GetLegalMoves(inQSearch);
-        var scores = new int[moves.Length];
-        // use tmp as scoreIndex
-        tmp = 0;
-        foreach (Move move in moves)
-            // move ordering:
-            // 1. hashmove
-            // 2. captures (ordered by most valuable victim, least valuable attacker)
-            // 3. quiets (ordered by history)
-            scores[tmp++] -= ttHit && move.RawValue == ttMoveRaw ? 1000000
-                : Max(
-                    (int)move.CapturePieceType * 32768 - (int)move.MovePieceType - 16384,
-                    HistoryValue(move)
-                );
-        // end tmp use
-
-        Array.Sort(scores, moves);
-        Move bestMove = default;
-        foreach (Move move in moves) {
-            // Delta pruning
-            // deltas = [180, 390, 442, 718, 1332]
-            // due to sharing of the top bit of each entry with the bottom bit of the next one
-            // (expands the range of values for the queen) all deltas must be even (except pawn)
-            if (inQSearch && eval + (0b1_0100110100_1011001110_0110111010_0110000110_0010110100_0000000000 >> (int)move.CapturePieceType * 10 & 0b1_11111_11111) <= alpha)
-                break;
-
-            board.MakeMove(move);
-            int
-                // Check extension
-                nextDepth = board.IsInCheck() ? depth : depth - 1,
-                reduction = (depth - nextDepth) * Max(
-                    // Late move reduction
-                    (moveCount * 93 + depth * 144) / 1000
-                        // History reduction
-                        + scores[moveCount] / 172,
-                    0
-                );
-            if (board.IsRepeatedPosition())
-                score = 0;
-            else {
-                // this crazy while loop does the null window searches for PVS: first it searches
-                // with the reduced depth, and if it beats alpha it re-searches at full depth
-                // ~alpha is equivalent to -alpha-1 under two's complement
-                while (
-                    moveCount != 0
-                        && (score = -Negamax(~alpha, -alpha, nextDepth - reduction)) > alpha
-                        && reduction != 0
-                )
-                    reduction = 0;
-                if (moveCount == 0 || score > alpha)
-                    score = -Negamax(-beta, -alpha, nextDepth);
-            }
-
-            board.UndoMove(move);
-
-            if (score > bestScore) {
-                alpha = Max(alpha, bestScore = score);
-                bestMove = move;
-            }
-            if (score >= beta) {
-                if (!move.IsCapture) {
-                    // use tmp as change
-                    // Increased history change when eval < alpha
-                    // equivalent to tmp = eval < alpha ? -(depth + 1) : depth
-                    // 1. eval - alpha is < 0 if eval < alpha and >= 0 otherwise
-                    // 2. >> 31 maps numbers < 0 to -1 and numbers >= 0 to 0
-                    // 3. -1 ^ depth = ~depth while 0 ^ depth = depth
-                    // 4. ~depth = -depth - 1 = -(depth + 1)
-                    // since we're squaring tmp, sign doesn't matter
-                    tmp = eval - alpha >> 31 ^ depth;
-                    tmp *= tmp;
-                    foreach (Move malusMove in moves.AsSpan(0, moveCount))
-                        if (!malusMove.IsCapture)
-                            HistoryValue(malusMove) -= tmp + tmp * HistoryValue(malusMove) / 512;
-                    HistoryValue(move) += tmp - tmp * HistoryValue(move) / 512;
-                    // end tmp use
-                }
-                break;
-            }
-
-            // pruning techniques that break the move loop
-            if (nonPv && depth <= 4 && !move.IsCapture && (
-                // Late move pruning
-                quietsToCheck-- == 1 ||
-                // Futility pruning
-                eval + 127 * depth < alpha
-            ))
-                break;
-
-            moveCount++;
-        }
-
-        tt = (
-            board.ZobristKey,
-            alpha > oldAlpha // don't update best move if upper bound
-                ? bestMove.RawValue
-                : ttMoveRaw,
-            Clamp(bestScore, -20000, 20000),
-            Max(depth, 0),
-            bestScore >= beta
-                ? 2147483647 /* BOUND_LOWER */
-                : alpha - oldAlpha /* BOUND_UPPER if alpha == oldAlpha else BOUND_EXACT */
-        );
-
-        searchBestMove = bestMove;
-        return lastScore = bestScore;
-    }
-
-    ref int HistoryValue(Move move) => ref history[
-        board.PlyCount & 1,
-        (int)move.MovePieceType,
-        move.TargetSquare.Index
-    ];
 }

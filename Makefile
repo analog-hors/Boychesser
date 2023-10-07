@@ -1,12 +1,12 @@
-EXE = BoyChesser
+EXE = Boychesser
 ifeq ($(OS),Windows_NT)
-	SRC := Chess-Challenge.exe
+	SRC := Boychesser.Uci.exe
 	DEST := $(EXE).exe
 else
-	SRC := Chess-Challenge
+	SRC := Boychesser.Uci
 	DEST := $(EXE)
 endif
 
 all:
-	dotnet publish -c Release --output Chess-Challenge/bin/ob_out
-	mv Chess-Challenge/bin/ob_out/$(SRC) ./$(DEST)
+	dotnet publish -c Release Boychesser.Uci/ --output Boychesser.Uci/bin/OpenbenchBin
+	mv Boychesser.Uci/bin/OpenbenchBin/$(SRC) ./$(DEST)

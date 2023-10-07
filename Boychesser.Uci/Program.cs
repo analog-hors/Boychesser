@@ -54,6 +54,8 @@ while (true) {
         case "go": {
             var wtime = 0;
             var btime = 0;
+            var winc = 0;
+            var binc = 0;
             string? tok;
             while ((tok = Next()) != null) {
                 switch (tok) {
@@ -65,13 +67,24 @@ while (true) {
                         btime = int.Parse(Next()!);
                         break;
                     }
-                    default:
+                    case "winc": {
+                        winc = int.Parse(Next()!);
                         break;
+                    }
+                    case "binc": {
+                        binc = int.Parse(Next()!);
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
                 }
             }
             var move = bot.Think(
                 new ChessChallenge.API.Board(board),
-                new ChessChallenge.API.Timer(board.IsWhiteToMove ? wtime : btime)
+                board.IsWhiteToMove
+                    ? new ChessChallenge.API.Timer(wtime, btime, wtime, winc)
+                    : new ChessChallenge.API.Timer(btime, wtime, btime, binc)
             );
             var moveStr = MoveUtility.GetMoveNameUCI(new Move(move.RawValue));
             Console.WriteLine($"bestmove {moveStr}");

@@ -5,10 +5,10 @@ Once submissions close, these bots will battle it out to discover which bot is b
 I will then create a video exploring the implementations of the best and most unique/interesting bots.
 I also plan to make a small game that features these most interesting/challenging entries, so that everyone can try playing against them.
 
-## Submission Due Date
-October 1st 2023.<br>
-Entries can be submitted over [here](https://forms.gle/6jjj8jxNQ5Ln53ie6).<br>
-You are free to edit your entry at any point up to the due date.
+## Submissions are now closed
+Thank you so much to everyone who participated -- in total, 636 chess bots were submitted. Also, a huge extra thanks to everyone who contributed code, reported bugs in the framework (sorry about those!), and gave their time to help others getting started with the intricacies of chess programming.
+
+I will soon begin the process of looking through all the entries, running tournament games, and working on a video about the results. I honestly have no idea how long this will to take, but I certainly don't want to rush it after all the effort that everyone has put in, so it may be a while!
 
 ## Change Log
 It has been necessary to make some bug fixes to the original project, and I've also been tempted (by some great suggestions from the community) into making a few non-breaking improvements/additions to the API. I realize that changes can be frustrating during a challenge though, and so will commit to freezing the API from August 1st.
@@ -22,6 +22,8 @@ It has been necessary to make some bug fixes to the original project, and I've a
 * <b>V1.16</b> Added `timer.GameStartTimeMilliseconds`, `timer.OpponentMillisecondsRemaining`, `board.ForceSkipTurn()`.
 * <b>V1.17</b> Added `BitboardHelper.GetPieceAttacks()` and optimized `board.SquareIsAttackedByOponent()`. Writing `#DEBUG` in a comment will now exclude code in that line from counting towards the token limit (for testing only of course).
 * <b>V1.18</b> Added `timer.IncrementMilliseconds` (this will be 0 for the main tournament, but a small increment may be used in the final playoff games). Fixed a bug in the repetition handling, and optimized check/stalemate detection.
+* <b>V1.19</b> Fixed potential out of bounds exception. Fixed bug in stalemate detection.
+* <b>V1.20</b> Fixed (another) bug in the repetition detection.
 
 [There will be no API changes after August 1]
 
@@ -88,4 +90,5 @@ All names (variables, functions, etc.) are counted as a single token, regardless
 * `GetPiece()` function is giving a null piece after making a move
   * Please make sure you are using the latest version of the project, there was a bug with this function in the original version
 * There is a community-run discord server [over here](https://github.com/SebLague/Chess-Challenge/discussions/156).
+* There is also an unofficial [live leaderboard](https://chess.stjo.dev/) created by a member of the community (source code available [here](https://github.com/StanislavNikolov/chess-league)).
   

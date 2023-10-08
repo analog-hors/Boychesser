@@ -14,12 +14,11 @@ if (args.Length > 0) {
 var board = new Board();
 var bot = new MyBot();
 while (true) {
-    var line = Console.ReadLine() ?? "quit";
-    var tokens = Regex.Split(line, @"\s+");
-    var index = 0;
-    string? Next() => index < tokens.Length ? tokens[index++] : null;
+    var command = Console.ReadLine() ?? "quit";
+    var tokens = Regex.Split(command, @"\s+");
+    IEnumerable<string> SkipPast(string tok) => tokens.SkipWhile(t => t != tok).Skip(1);
 
-    switch (Next()) {
+    switch (tokens[0]) {
         case "uci": {
             Console.WriteLine("id name Boychesser");
             Console.WriteLine("id author Boychesser Team");
@@ -37,49 +36,19 @@ while (true) {
         }
         case "position": {
             board = new Board();
-            board.LoadPosition(Next() switch {
-                "startpos" => FenUtility.StartPositionFEN,
-                "fen" => $"{Next()} {Next()} {Next()} {Next()} {Next()} {Next()}",
-                var tok => throw new InvalidOperationException($"unexpected token {tok}"),
-            });
-            if (Next() == "moves") {
-                string? tok;
-                while ((tok = Next()) != null) {
-                    var move = MoveUtility.GetMoveFromUCIName(tok, board);
-                    board.MakeMove(move, false);
-                }
+            string fen = string.Join(' ', SkipPast("fen").Take(6));
+            board.LoadPosition(fen != "" ? fen : FenUtility.StartPositionFEN);
+            foreach (var moveStr in SkipPast("moves")) {
+                var move = MoveUtility.GetMoveFromUCIName(moveStr, board);
+                board.MakeMove(move, false);
             }
             break;
         }
         case "go": {
-            var wtime = 0;
-            var btime = 0;
-            var winc = 0;
-            var binc = 0;
-            string? tok;
-            while ((tok = Next()) != null) {
-                switch (tok) {
-                    case "wtime": {
-                        wtime = int.Parse(Next()!);
-                        break;
-                    }
-                    case "btime": {
-                        btime = int.Parse(Next()!);
-                        break;
-                    }
-                    case "winc": {
-                        winc = int.Parse(Next()!);
-                        break;
-                    }
-                    case "binc": {
-                        binc = int.Parse(Next()!);
-                        break;
-                    }
-                    default: {
-                        break;
-                    }
-                }
-            }
+            var wtime = SkipPast("wtime").Select(int.Parse).FirstOrDefault();
+            var btime = SkipPast("btime").Select(int.Parse).FirstOrDefault();
+            var winc = SkipPast("winc").Select(int.Parse).FirstOrDefault();
+            var binc = SkipPast("binc").Select(int.Parse).FirstOrDefault();
             var move = bot.Think(
                 new ChessChallenge.API.Board(board),
                 board.IsWhiteToMove

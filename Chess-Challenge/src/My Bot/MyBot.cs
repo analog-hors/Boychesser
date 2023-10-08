@@ -21,7 +21,7 @@ public class MyBot : IChessBot {
         int, // score
         int, // depth
         int // bound BOUND_EXACT=[1, 2147483647), BOUND_LOWER=2147483647, BOUND_UPPER=0
-    )[] transpositionTable = new (ulong, ushort, int, int, int)[0x800000];
+    )[] transpositionTable;
 
     // piece-to history tables, per-color
     readonly int[,,] history = new int[2, 7, 64];
@@ -47,6 +47,17 @@ public class MyBot : IChessBot {
 
     // bitshift amount is implicitly modulo 64, also used in pst part of eval function
     int EvalWeight(int item) => (int)(packedData[item >> 1] >> item * 32);
+
+    private readonly ulong ttMask = 0;
+
+    public MyBot(ulong ttBytes = 256 * 1024 * 1024) {
+        ulong entries = 1;
+        while (entries * 2 < ttBytes / 24) {
+            entries *= 2;
+        }
+        transpositionTable = new (ulong, ushort, int, int, int)[entries];
+        ttMask = entries - 1;
+    }
 
     public Move Think(Board boardOrig, Timer timerOrig) {
         nodes = 0; // #DEBUG
@@ -90,7 +101,7 @@ public class MyBot : IChessBot {
 
         nodes++; // #DEBUG
 
-        ref var tt = ref transpositionTable[board.ZobristKey & 0x7FFFFF];
+        ref var tt = ref transpositionTable[board.ZobristKey & ttMask];
         var (ttHash, ttMoveRaw, score, ttDepth, ttBound) = tt;
 
         bool

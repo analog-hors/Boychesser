@@ -13,8 +13,10 @@ if (args.Length > 0) {
     }
 }
 
+const ulong MIB = 1024 * 1024;
+ulong hash = 16;
 var board = new Board();
-var bot = new MyBot();
+var bot = new MyBot(hash * MIB);
 while (true) {
     var command = Console.ReadLine() ?? "quit";
     var tokens = Regex.Split(command, @"\s+");
@@ -24,11 +26,27 @@ while (true) {
         case "uci": {
             Console.WriteLine("id name Boychesser");
             Console.WriteLine("id author Boychesser Team");
+            Console.WriteLine($"option name Hash type spin default {hash} min 1 max 1048576");
             Console.WriteLine("uciok");
             break;
         }
+        case "setoption": {
+            var name = SkipPast("name").First();
+            var value = SkipPast("value").First();
+            switch (name) {
+                case "Hash": {
+                    hash = ulong.Parse(value);
+                    bot = new MyBot(hash * MIB);
+                    break;
+                }
+                default: {
+                    throw new InvalidOperationException($"invalid option {name}");
+                }
+            }
+            break;
+        }
         case "ucinewgame": {
-            bot = new MyBot();
+            bot = new MyBot(hash * MIB);
             break;
         }
         case "isready": {

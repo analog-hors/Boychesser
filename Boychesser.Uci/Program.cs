@@ -30,7 +30,6 @@ while (true) {
             break;
         }
         case "isready": {
-            GC.Collect();
             Console.WriteLine("readyok");
             break;
         }

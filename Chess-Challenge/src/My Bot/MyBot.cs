@@ -52,7 +52,7 @@ public class MyBot : IChessBot {
 
     public MyBot(ulong ttBytes = 256 * 1024 * 1024) {
         ulong entries = 1;
-        while (entries * 2 < ttBytes / 24) {
+        while (entries * 2 <= ttBytes / 24) {
             entries *= 2;
         }
         transpositionTable = new (ulong, ushort, int, int, int)[entries];

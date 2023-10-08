@@ -6,7 +6,7 @@ using static ChessChallenge.API.BitboardHelper;
 public class MyBot : IChessBot {
     public int maxDepth = 999; // #DEBUG
 
-    public long nodes = 0; // #DEBUG
+    public ulong nodes = 0; // #DEBUG
     public int maxSearchTime, searchingDepth, lastScore;
 
     Timer timer;
@@ -49,6 +49,7 @@ public class MyBot : IChessBot {
     int EvalWeight(int item) => (int)(packedData[item >> 1] >> item * 32);
 
     public Move Think(Board boardOrig, Timer timerOrig) {
+        nodes = 0; // #DEBUG
         board = boardOrig;
         timer = timerOrig;
 
@@ -60,6 +61,15 @@ public class MyBot : IChessBot {
                 if (Abs(lastScore - Negamax(lastScore - 20, lastScore + 20, searchingDepth)) >= 20)
                     Negamax(-32000, 32000, searchingDepth);
                 rootBestMove = searchBestMove;
+                Console.WriteLine( // #DEBUG
+                    "info depth {0} time {1} nodes {2} pv {3} score cp {4} nps {5}", // #DEBUG
+                    searchingDepth, // #DEBUG
+                    timer.MillisecondsElapsedThisTurn, // #DEBUG
+                    nodes, // #DEBUG
+                    ChessChallenge.Chess.MoveUtility.GetMoveNameUCI(new(rootBestMove.RawValue)), // #DEBUG
+                    lastScore, // #DEBUG
+                    nodes * 1000 / (ulong)Max(timer.MillisecondsElapsedThisTurn, 1) // #DEBUG
+                ); // #DEBUG
             } catch {
                 // out of time
                 break;

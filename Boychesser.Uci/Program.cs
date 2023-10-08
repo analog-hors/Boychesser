@@ -22,7 +22,7 @@ while (true) {
     switch (Next()) {
         case "uci": {
             Console.WriteLine("id name Boychesser");
-            Console.WriteLine("id author you like chessing boys don't you");
+            Console.WriteLine("id author Boychesser Team");
             Console.WriteLine("uciok");
             break;
         }

@@ -75,28 +75,30 @@ public class Bench {
             maxDepth = 10
         };
 
+        ulong nodes = 0;
         var timer = new Stopwatch();
-        timer.Start();
         var board = new Board();
         foreach (var fen in Positions) {
             board.LoadPosition(fen);
             bot.lastScore = 0;
+            timer.Start();
             bot.Think(
                 new ChessChallenge.API.Board(board),
                 new ChessChallenge.API.Timer(9999999)
             );
+            timer.Stop();
+            nodes += bot.nodes;
         }
-        timer.Stop();
 
-        long nps = bot.nodes * 1000 / timer.ElapsedMilliseconds;
+        ulong nps = nodes * 1000 / (ulong)Math.Max(timer.ElapsedMilliseconds, 1);
         int? tokens = null;
         try {
             var (totalTokenCount, debugTokenCount) = ChallengeController.GetTokenCount();
             tokens = totalTokenCount - debugTokenCount;
-        } catch (Exception) {
+        } catch {
             // whatever
         }
-        Console.WriteLine($"{bot.nodes} nodes {nps} nps {tokens} tokens");
+        Console.WriteLine($"{nodes} nodes {nps} nps {tokens} tokens");
         return;
     }
 }

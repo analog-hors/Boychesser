@@ -1,6 +1,6 @@
 # Boychesser
 
-A very small C# chess engine written for [Sebastian Lague's Tiny Chess Bots Challenge](https://github.com/SebLague/Chess-Challenge). 
+A very small C# chess engine written for [Sebastian Lague's Tiny Chess Bots Challenge](https://github.com/SebLague/Chess-Challenge). Estimated to be around 2750 Elo on the [CCRL Blitz list](https://ccrl.chessdom.com/ccrl/404/).
 
 ## Features
 

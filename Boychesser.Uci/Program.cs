@@ -1,6 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using ChessChallenge.Chess;
 
+Console.Error.WriteLine("you like chessing boys don't you");
+
 if (args.Length > 0) {
     if (args.Length == 1 && args[0] == "bench") {
         Bench.RunBench();

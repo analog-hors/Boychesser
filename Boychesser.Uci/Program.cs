@@ -64,7 +64,8 @@ while (true) {
             return 0;
         }
         default: {
-            throw new InvalidOperationException("unknown uci command");
+            Console.Error.WriteLine("unknown uci command");
+            break;
         }
     }
 }
